@@ -6,7 +6,7 @@ import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import fetch from "node-fetch";
 import mysql from "mysql2/promise";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import { body, validationResult } from "express-validator";
 import jwt from "jsonwebtoken";
 import multer from "multer";
