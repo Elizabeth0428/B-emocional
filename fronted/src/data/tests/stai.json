@@ -1,0 +1,102 @@
+[
+  {
+    "id": 1,
+    "text": "Me siento calmado",
+    "options": ["Nunca", "A veces", "Frecuente", "Siempre"]
+  },
+  {
+    "id": 2,
+    "text": "Me siento seguro",
+    "options": ["Nunca", "A veces", "Frecuente", "Siempre"]
+  },
+  {
+    "id": 3,
+    "text": "Estoy tenso",
+    "options": ["Nunca", "A veces", "Frecuente", "Siempre"]
+  },
+  {
+    "id": 4,
+    "text": "Estoy arrepentido",
+    "options": ["Nunca", "A veces", "Frecuente", "Siempre"]
+  },
+  {
+    "id": 5,
+    "text": "Me siento a gusto",
+    "options": ["Nunca", "A veces", "Frecuente", "Siempre"]
+  },
+  {
+    "id": 6,
+    "text": "Estoy preocupado por posibles desgracias",
+    "options": ["Nunca", "A veces", "Frecuente", "Siempre"]
+  },
+  {
+    "id": 7,
+    "text": "Me siento descansado",
+    "options": ["Nunca", "A veces", "Frecuente", "Siempre"]
+  },
+  {
+    "id": 8,
+    "text": "Me siento ansioso",
+    "options": ["Nunca", "A veces", "Frecuente", "Siempre"]
+  },
+  {
+    "id": 9,
+    "text": "Me siento cómodo",
+    "options": ["Nunca", "A veces", "Frecuente", "Siempre"]
+  },
+  {
+    "id": 10,
+    "text": "Tengo confianza en mí mismo",
+    "options": ["Nunca", "A veces", "Frecuente", "Siempre"]
+  },
+  {
+    "id": 11,
+    "text": "Me siento nervioso",
+    "options": ["Nunca", "A veces", "Frecuente", "Siempre"]
+  },
+  {
+    "id": 12,
+    "text": "Estoy intranquilo",
+    "options": ["Nunca", "A veces", "Frecuente", "Siempre"]
+  },
+  {
+    "id": 13,
+    "text": "Estoy cómodo",
+    "options": ["Nunca", "A veces", "Frecuente", "Siempre"]
+  },
+  {
+    "id": 14,
+    "text": "Me siento con confianza",
+    "options": ["Nunca", "A veces", "Frecuente", "Siempre"]
+  },
+  {
+    "id": 15,
+    "text": "Estoy tenso",
+    "options": ["Nunca", "A veces", "Frecuente", "Siempre"]
+  },
+  {
+    "id": 16,
+    "text": "Estoy preocupado",
+    "options": ["Nunca", "A veces", "Frecuente", "Siempre"]
+  },
+  {
+    "id": 17,
+    "text": "Me siento satisfecho",
+    "options": ["Nunca", "A veces", "Frecuente", "Siempre"]
+  },
+  {
+    "id": 18,
+    "text": "Estoy asustado",
+    "options": ["Nunca", "A veces", "Frecuente", "Siempre"]
+  },
+  {
+    "id": 19,
+    "text": "Me siento alegre",
+    "options": ["Nunca", "A veces", "Frecuente", "Siempre"]
+  },
+  {
+    "id": 20,
+    "text": "Me siento indeciso",
+    "options": ["Nunca", "A veces", "Frecuente", "Siempre"]
+  }
+]

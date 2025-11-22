@@ -1,0 +1,134 @@
+/* 🔹 Barra superior del Dashboard */
+.dashboard-navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 65px;
+  /*  cambiar color de barra */
+  background: linear-gradient(90deg, #74b4e2, #de6dfb);
+  display: flex;
+  justify-content: space-between;  /* Mantiene logo a la izquierda y ajustes a la derecha */
+  align-items: center;
+  padding: 0 40px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+  z-index: 1000;
+  backdrop-filter: blur(6px); /* efecto moderno */
+}
+
+.logo-dashboard {
+  height: 40px;
+  width: auto;
+}
+
+/* ✅ SOLO ESTE BLOQUE SE MODIFICÓ */
+.settings {
+  margin-left: auto;
+  margin-right: 0; /* Antes estaba muy pegado a la derecha */
+  display: flex;
+  align-items: center;
+}
+
+.settings-btn {
+  font-size: 1.4rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  margin-right: 25px; /* Lo empuja más a la izquierda */
+}
+
+/* 🔹 Menú desplegable debajo del engrane (no se mueve) */
+.settings-menu {
+  position: absolute;
+  top: 100px;
+  right: 100px; /* Alineado con el margen del navbar */
+  background: rgb(91, 146, 234);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  border-radius: 8px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 🔹 Contenido centrado y con márgenes correctos */
+.dashboard-content {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 50px;
+  width: 100%;
+  margin-top: 30px;
+}
+
+/* Logo grande flotante */
+.dashboard-illustration img {
+  width: 350px;
+  opacity: 0.95;
+  margin-top: 100px;  /* ✅ Bajamos el logo */
+}
+
+/* 🔹 Panel derecho */
+.dashboard-panel {
+  text-align: center;
+}
+
+.greeting {
+  font-size: 2.3rem;
+  font-weight: 700;
+  font-family: 'Poppins', sans-serif;  /* O puedes usar 'Playfair Display' */
+  color: #1e3a8a;
+}
+
+
+.sub-text {
+  color: #040404;
+  margin-bottom: 20px;
+  font-size: 1.1rem;          /* ✅ Más grande */
+  font-family: "Poppins", sans-serif;  /* ✅ Tipografía moderna */
+  font-weight: 400;           /* ✅ Peso medio */
+}
+
+/* 🔹 BOTONES CON ÍCONO + TEXTO */
+.dashboard-buttons {
+  display: flex;
+  gap: 30px;
+  justify-content: center;
+}
+
+.dashboard-buttons button {
+  width: 200px;
+  height: 200px;
+  border: none;
+  border-radius: 15px;
+  background: white;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  font-size: 1rem;
+  color: #1e3a8a;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.25s;
+}
+
+.dashboard-buttons button:hover {
+  transform: translateY(-4px);
+  background: #eef3ff;
+}
+
+/* 🔹 Íconos dentro de los botones */
+.icon-btn {
+  width: 60px;
+  height: 60px;
+  object-fit: contain;
+}
+
+.navbar-title {
+  font-family: 'Pacifico', cursive;
+  font-size: 1.6rem;
+  color: #0b3d91; /* Azul elegante */
+  font-weight: normal;
+}

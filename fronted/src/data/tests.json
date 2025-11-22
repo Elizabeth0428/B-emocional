@@ -1,0 +1,31 @@
+{
+  "beck": [
+    {
+      "pregunta": "Me siento triste",
+      "opciones": ["Nunca", "A veces", "Frecuentemente", "Siempre"],
+      "puntos": [0, 1, 2, 3]
+    },
+    {
+      "pregunta": "He perdido interés en cosas que antes disfrutaba",
+      "opciones": ["Nunca", "A veces", "Frecuentemente", "Siempre"],
+      "puntos": [0, 1, 2, 3]
+    },
+    {
+      "pregunta": "Tengo dificultades para concentrarme",
+      "opciones": ["Nunca", "A veces", "Frecuentemente", "Siempre"],
+      "puntos": [0, 1, 2, 3]
+    }
+  ],
+  "stai": [
+    {
+      "pregunta": "Me siento calmado",
+      "opciones": ["Muy poco", "Un poco", "Bastante", "Mucho"],
+      "puntos": [1, 2, 3, 4]
+    },
+    {
+      "pregunta": "Me siento tenso",
+      "opciones": ["Muy poco", "Un poco", "Bastante", "Mucho"],
+      "puntos": [1, 2, 3, 4]
+    }
+  ]
+}

@@ -1,0 +1,92 @@
+/* ✅ Estructura principal: sin centrado forzado */
+html, #root {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  /* ❌ Eliminamos flex que centraba todo y arruinaba el layout */
+  display: block !important;
+
+  /* ✅ Fondo neutro por defecto (el Dashboard tiene su propio fondo) */
+  background-color: #f5f7fa;
+  color: #213547;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ✅ Enlaces */
+a {
+  font-weight: 500;
+  color: #646cff;
+  text-decoration: none;
+}
+a:hover {
+  color: #535bf2;
+}
+
+/* ✅ Títulos */
+h1 {
+  font-size: 3.2em;
+  line-height: 1.1;
+}
+
+/* ✅ Botones por defecto (si no se sobreescriben) */
+button {
+  border: none;
+  border-radius: 8px;
+  padding: 0.6em 1.2em;
+  font-size: 1em;
+  font-weight: 500;
+  font-family: inherit;
+  background-color: #e5e7eb;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+button:hover {
+  background-color: #d1d5db;
+}
+
+button:focus,
+button:focus-visible {
+  outline: 4px auto -webkit-focus-ring-color;
+}
+
+/* ✅ Modo oscuro opcional (solo si el usuario lo activa en el sistema) */
+@media (prefers-color-scheme: dark) {
+  body {
+    background-color: #242424;
+    color: rgba(255, 255, 255, 0.87);
+  }
+  a:hover {
+    color: #747bff;
+  }
+  button {
+    background-color: #1a1a1a;
+    color: white;
+  }
+}
+
+/* ✅ Asegura que todo el contenido empiece debajo del navbar */
+body {
+  padding-top: 70px; /* Igual a la altura del dashboard-navbar */
+}
+
+/* Si una vista NO tiene navbar (como Login), puedes quitarlo así: */
+.no-navbar {
+  padding-top: 0 !important;
+}

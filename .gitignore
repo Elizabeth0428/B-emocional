@@ -1,0 +1,32 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Dependencias y builds
+node_modules
+dist
+dist-ssr
+*.local
+
+# Archivos y carpetas locales
+uploads/
+.env
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Configuración de editor
+.vscode/*
+!.vscode/extensions.json
+.idea
+
+# Llaves privadas u otros secretos
+backend/keys/

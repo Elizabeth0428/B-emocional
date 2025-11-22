@@ -1,0 +1,57 @@
+/* ✅ Ocultar navegación antigua SOLO dentro del Dashboard */
+.dashboard-wrapper .nav-header {
+  display: none !important;
+}
+
+/* ✅ Si la necesitas en otras vistas, aquí está mejor estilizada */
+.nav-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 65px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(10px);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 30px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  z-index: 100;
+}
+
+/* ✅ Logo alineado */
+.nav-logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: #1e3a8a;
+}
+
+.nav-logo img {
+  height: 38px;
+}
+
+/* ✅ Menú con mejor espaciado */
+.nav-menu {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.nav-menu button {
+  background: none;
+  border: none;
+  font-size: 15px;
+  font-weight: 500;
+  color: #1e3a8a;
+  cursor: pointer;
+  transition: 0.3s ease;
+}
+
+.nav-menu button:hover {
+  color: #2563eb;
+  transform: translateY(-2px);
+}
