@@ -21,6 +21,8 @@ import backupRoutes from "./routes/backup.routes.js";
 import sesionesRoutes from "./routes/sesiones.routes.js";
 import PDFDocument from "pdfkit";
 import moment from "moment";
+import authRoutes from "./routes/auth.routes.js";
+
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -29,6 +31,7 @@ const PORT = process.env.PORT || 5000;
 
 // Rutas globales
 app.use("/api", sesionesRoutes);
+app.use("/api", authRoutes);
 
 /* ===================== Seguridad ===================== */
 app.use(helmet());
@@ -133,27 +136,7 @@ console.log("Cargando rutas de /api/backup...");
 app.use("/api", backupRoutes);
 
 
-/* ===================== MySQL Pool ===================== */
-/*
-  ¿Qué hace esta parte?
-  - Crea un "pool de conexiones" para conectarse a MySQL de forma eficiente.
-  - Permite reutilizar conexiones sin abrir una nueva para cada petición → mejora el rendimiento.
-  - Las credenciales (usuario, contraseña, host, nombre de BD) NO están escritas en el código.
-    Se obtienen desde el archivo  → buena práctica de seguridad (OWASP).
-  - El servidor puede manejar hasta 10 conexiones simultáneas de forma controlada y segura.
 
-  👉 Esto evita caídas del servidor, reduce el consumo de recursos y protege los datos.
-*/
-const pool = mysql.createPool({
-  host: process.env.MYSQL_HOST,       //  Servidor de base de datos (se toma del .env)
-  user: process.env.MYSQL_USER,       //  Usuario de MySQL
-  password: process.env.MYSQL_PASSWORD, // Contraseña segura
-  database: process.env.MYSQL_DATABASE, // Nombre de la base de datos
-  port: process.env.MYSQL_PORT,       // Puerto de conexión
-  waitForConnections: true,           // Espera si todas las conexiones están ocupadas
-  connectionLimit: 10,                // Máximo de conexiones simultáneas
-  queueLimit: 0                       // Número de solicitudes en espera (0 = ilimitado)
-});
 
 /* ===================== JWT Middleware ===================== */
 /*
