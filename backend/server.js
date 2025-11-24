@@ -33,26 +33,36 @@ app.use("/api", sesionesRoutes);
 /* ===================== Seguridad ===================== */
 app.use(helmet());
 
-/* ===================== CORS (Permitir cualquier puerto en localhost) ===================== */
+
+/* ===================== CORS para Render ===================== */
+
+const allowedOrigin = process.env.CORS_ORIGIN;
 
 app.use(
   cors({
     origin: function (origin, callback) {
-      if (!origin) return callback(null, true); // Postman o herramientas sin origen
+      // Permite Postman o herramientas sin ORIGIN
+      if (!origin) return callback(null, true);
 
-      // ✅ Permitir cualquier origen que empiece con 'http://localhost'
+      // Permite localhost
       if (origin.startsWith("http://localhost")) {
-        callback(null, true);
-      } else {
-        callback(new Error("🚫 No permitido por CORS: " + origin));
+        return callback(null, true);
       }
+
+      // Permite el dominio de Render
+      if (origin === allowedOrigin) {
+        return callback(null, true);
+      }
+
+      console.log("❌ CORS bloqueado:", origin);
+      return callback(new Error("No autorizado por CORS: " + origin));
     },
     credentials: true,
-    exposedHeaders: ["Content-Range", "Accept-Ranges"],
   })
 );
 
-console.log("✅ CORS configurado: Solo localhost en cualquier puerto");
+console.log("🌐 CORS permitido para:", allowedOrigin);
+
 
 
 /* ===================== Gemini via REST ===================== */
