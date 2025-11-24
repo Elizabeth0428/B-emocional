@@ -35,21 +35,24 @@ app.use(helmet());
 
 
 /* ===================== CORS para Render ===================== */
-
 const allowedOrigin = process.env.CORS_ORIGIN;
 
+// 💥 1. Responder siempre al preflight OPTIONS
+app.options("*", cors());
+
+// 💥 2. Configurar CORS dinámico
 app.use(
   cors({
     origin: function (origin, callback) {
-      // Permite Postman o herramientas sin ORIGIN
+      // Permitir requests sin ORIGIN (Postman, etc.)
       if (!origin) return callback(null, true);
 
-      // Permite localhost
+      // Permitir localhost para desarrollo
       if (origin.startsWith("http://localhost")) {
         return callback(null, true);
       }
 
-      // Permite el dominio de Render
+      // Permitir dominio de Render
       if (origin === allowedOrigin) {
         return callback(null, true);
       }
@@ -58,10 +61,13 @@ app.use(
       return callback(new Error("No autorizado por CORS: " + origin));
     },
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
 console.log("🌐 CORS permitido para:", allowedOrigin);
+
 
 
 
