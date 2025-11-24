@@ -38,15 +38,22 @@ const AudioRecorder = ({ idSesion }) => {
           return;
         }
 
-        const file = new File([audioBlob], `audio-grabacion-${Date.now()}.webm`, { type: audioBlob.type });
+        const file = new File(
+          [audioBlob],
+          `audio-grabacion-${Date.now()}.webm`,
+          { type: audioBlob.type }
+        );
 
         const formData = new FormData();
-        formData.append("file", file); // 👈 siempre "file"
+        formData.append("file", file);
         formData.append("id_sesion", idSesion);
 
         try {
           const token = getToken();
-          const API_URL = `http://${window.location.hostname}:5000`; // 👈 dinámico
+
+          // 🌐 API de producción
+          const API_URL = import.meta.env.VITE_API_URL;
+
           const res = await fetch(`${API_URL}/api/audios`, {
             method: "POST",
             headers: { Authorization: `Bearer ${token}` },

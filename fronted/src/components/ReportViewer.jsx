@@ -2,6 +2,9 @@
 import { useEffect, useState } from "react";
 import { getToken } from "../services/AuthService";
 
+// ⭐ API dinámico para producción
+const API = import.meta.env.VITE_API_URL;
+
 export default function ReportViewer({ reporte, iaInsights, pacienteId }) {
   const [reportesPrevios, setReportesPrevios] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -14,15 +17,15 @@ export default function ReportViewer({ reporte, iaInsights, pacienteId }) {
     const fetchReportes = async () => {
       setLoading(true);
       setErrorMsg(null);
+
       try {
         const token = getToken();
-        const res = await fetch(
-          `http://localhost:5000/api/reportes/${pacienteId}`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
+        const res = await fetch(`${API}/api/reportes/${pacienteId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
         if (!res.ok) throw new Error(`Error ${res.status}`);
+
         const data = await res.json();
 
         if (Array.isArray(data)) {
@@ -32,7 +35,7 @@ export default function ReportViewer({ reporte, iaInsights, pacienteId }) {
         }
       } catch (err) {
         console.error("❌ Error cargando reportes previos:", err);
-        setErrorMsg("No se pudieron cargar reportes anteriores.");
+        setErrorMsg("❌ No se pudieron cargar reportes anteriores.");
       } finally {
         setLoading(false);
       }
@@ -99,8 +102,7 @@ export default function ReportViewer({ reporte, iaInsights, pacienteId }) {
       </div>
 
       <p className="text-sm text-gray-600 mt-6 italic">
-        🌱 Recuerda: este reporte es preliminar, el psicólogo siempre tiene la
-        decisión final.
+        🌱 Recuerda: este reporte es preliminar, el psicólogo siempre tiene la decisión final.
       </p>
     </div>
   );

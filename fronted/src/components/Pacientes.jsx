@@ -5,6 +5,9 @@ import PacienteDetalle from "./PacienteDetalle.jsx";
 import { usePatient } from "./PatientContext.jsx";
 import { getToken } from "../services/AuthService"; // 👈 obtener token guardado
 
+// ⭐ API PRODUCCIÓN
+const API = import.meta.env.VITE_API_URL;
+
 export default function Pacientes({ onBack }) {
   const [pacientes, setPacientes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -21,6 +24,7 @@ export default function Pacientes({ onBack }) {
   const fetchPacientes = async () => {
     try {
       const token = getToken();
+      
 
       if (!token) {
         setError("⚠️ No hay sesión activa. Inicia sesión nuevamente.");
@@ -28,7 +32,7 @@ export default function Pacientes({ onBack }) {
         return;
       }
 
-      const res = await axios.get("http://localhost:5000/api/pacientes", {
+      const res = await axios.get(`${API}/api/pacientes`, {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
@@ -62,7 +66,8 @@ export default function Pacientes({ onBack }) {
     }
 
     try {
-      const res = await axios.delete(`http://localhost:5000/api/pacientes/${idPaciente}`, {
+
+      const res = await axios.delete(`${API}/api/pacientes/${idPaciente}`, {
         headers: { Authorization: `Bearer ${getToken()}` },
       });
 

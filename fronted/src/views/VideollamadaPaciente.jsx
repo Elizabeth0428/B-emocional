@@ -3,6 +3,13 @@ import React, { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import Peer from "peerjs";
 
+// ⭐ URL de API dinámica para producción/dominio/localhost
+const API = import.meta.env.VITE_API_URL;
+
+// ⭐ Detectamos si estamos en HTTPS para configurar PeerJS
+const isSecure = window.location.protocol === "https:";
+const peerPort = isSecure ? 443 : 5000; // Render usa 443, local usa 5000
+
 function VideollamadaPaciente() {
   const { sala } = useParams();
   const localVideoRef = useRef(null);
@@ -14,10 +21,10 @@ function VideollamadaPaciente() {
 
   useEffect(() => {
     const peer = new Peer(undefined, {
-      host: window.location.hostname,
-      port: 5000,
+      host: window.location.hostname,        // ⭐ Funciona en local y dominio
+      port: peerPort,                        // ⭐ Determinado dinámicamente
       path: "/peerjs/myapp",
-      secure: false,
+      secure: isSecure,                      // ⭐ true en HTTPS, false en HTTP
     });
 
     peerRef.current = peer;
@@ -33,7 +40,10 @@ function VideollamadaPaciente() {
 
   const iniciarSesion = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: true,
+      });
       currentStreamRef.current = stream;
 
       if (localVideoRef.current) {
@@ -42,6 +52,7 @@ function VideollamadaPaciente() {
       }
 
       const call = peerRef.current.call(sala, stream);
+
       call.on("stream", (remoteStream) => {
         if (remoteVideoRef.current) {
           remoteVideoRef.current.srcObject = remoteStream;
@@ -59,11 +70,13 @@ function VideollamadaPaciente() {
   const finalizarSesion = () => {
     if (currentStreamRef.current) {
       currentStreamRef.current.getTracks().forEach((track) => track.stop());
-      currentStreamRef.current = null;
     }
+
     if (localVideoRef.current) localVideoRef.current.srcObject = null;
     if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
+
     if (peerRef.current) peerRef.current.disconnect();
+
     setConectado(false);
     console.log("🛑 Sesión finalizada (paciente)");
   };
@@ -98,14 +111,14 @@ function VideollamadaPaciente() {
         {!conectado ? (
           <button
             onClick={iniciarSesion}
-            style={btnStyle("#4CAF50", "#388E3C")}
+            style={btnStyle("#4CAF50")}
           >
             🚀 Conectarse
           </button>
         ) : (
           <button
             onClick={finalizarSesion}
-            style={btnStyle("#f44336", "#c62828")}
+            style={btnStyle("#f44336")}
           >
             🛑 Finalizar Sesión
           </button>
@@ -142,8 +155,8 @@ function VideollamadaPaciente() {
   );
 }
 
-// === Estilos reutilizables ===
-const btnStyle = (bg, hover) => ({
+// === Estilos ===
+const btnStyle = (bg) => ({
   padding: "12px 24px",
   backgroundColor: bg,
   border: "none",
@@ -154,6 +167,7 @@ const btnStyle = (bg, hover) => ({
   transition: "0.3s",
   boxShadow: "0 4px 10px rgba(0,0,0,0.2)",
 });
+
 const videoCard = (borderColor) => ({
   width: "320px",
   height: "240px",

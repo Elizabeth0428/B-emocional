@@ -27,34 +27,40 @@ const HistorialForm = ({ paciente, onBack, onSave }) => {
   };
 
   const handleSubmit = async () => {
-    try {
-      if (!paciente?.id_paciente) {
-        alert("⚠️ No se puede guardar historial sin un paciente válido.");
-        return;
-      }
-
-      const token = getToken();
-      const res = await fetch("http://localhost:5000/api/historial-inicial", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ ...formData, id_paciente: paciente.id_paciente }),
-      });
-
-      if (!res.ok) throw new Error("Error al guardar historial");
-      const data = await res.json();
-
-      alert("✅ Historial clínico guardado correctamente");
-
-      if (onSave) onSave(data);
-      else if (onBack) onBack();
-    } catch (err) {
-      console.error("❌ Error al guardar historial:", err);
-      alert("❌ No se pudo guardar el historial clínico.");
+  try {
+    if (!paciente?.id_paciente) {
+      alert("⚠️ No se puede guardar historial sin un paciente válido.");
+      return;
     }
-  };
+
+    const token = getToken();
+    const API = import.meta.env.VITE_API_URL; // ⭐ PRODUCCIÓN
+
+    const res = await fetch(`${API}/api/historial-inicial`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        ...formData,
+        id_paciente: paciente.id_paciente,
+      }),
+    });
+
+    if (!res.ok) throw new Error("Error al guardar historial");
+    const data = await res.json();
+
+    alert("✅ Historial clínico guardado correctamente");
+
+    if (onSave) onSave(data);
+    else if (onBack) onBack();
+  } catch (err) {
+    console.error("❌ Error al guardar historial:", err);
+    alert("❌ No se pudo guardar el historial clínico.");
+  }
+};
+
 
   return (
     <div style={styles.container}>

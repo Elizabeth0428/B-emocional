@@ -2,6 +2,8 @@
 import React, { useEffect, useState } from "react";
 import { getToken } from "../services/AuthService";
 
+const API = import.meta.env.VITE_API_URL; // ⭐ Ruta dinámica para producción
+
 const ViewPsychologists = ({ onBack }) => {
   const [psychologists, setPsychologists] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -11,7 +13,8 @@ const ViewPsychologists = ({ onBack }) => {
     const fetchData = async () => {
       try {
         const token = getToken();
-        const res = await fetch("http://localhost:5000/api/psicologos", {
+
+        const res = await fetch(`${API}/api/psicologos`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
@@ -96,4 +99,3 @@ const backButton = {
 };
 
 export default ViewPsychologists;
-

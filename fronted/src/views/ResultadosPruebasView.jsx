@@ -3,6 +3,8 @@ import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getToken } from "../services/AuthService";
 
+const API = import.meta.env.VITE_API_URL; // ⭐ PRODUCCIÓN
+
 export default function ResultadosPruebasView() {
   const { idPaciente } = useParams();
   const navigate = useNavigate();
@@ -13,7 +15,7 @@ export default function ResultadosPruebasView() {
     const fetchResultados = async () => {
       try {
         const res = await fetch(
-          `http://localhost:5000/api/pacientes/${idPaciente}/reportes-completos`,
+          `${API}/api/pacientes/${idPaciente}/reportes-completos`,
           { headers: { Authorization: `Bearer ${getToken()}` } }
         );
         if (res.ok) {
@@ -74,7 +76,7 @@ export default function ResultadosPruebasView() {
 // === Estilos ===
 const page = {
   minHeight: "100vh",
-  background: "linear-gradient(180deg, #e3f2fd, #bbdefb)", // Fondo azul claro
+  background: "linear-gradient(180deg, #e3f2fd, #bbdefb)",
   display: "flex",
   justifyContent: "center",
   alignItems: "center",
@@ -85,7 +87,7 @@ const container = {
   padding: "20px",
   maxWidth: "900px",
   width: "100%",
-  background: "#ffffff", // Fondo blanco para contraste
+  background: "#ffffff",
   borderRadius: "16px",
   boxShadow: "0 6px 16px rgba(0,0,0,0.1)",
 };
@@ -116,7 +118,7 @@ const th = {
 const td = {
   padding: "10px",
   textAlign: "center",
-  color: "#333", // texto gris oscuro para legibilidad
+  color: "#333",
   fontSize: "14px",
 };
 

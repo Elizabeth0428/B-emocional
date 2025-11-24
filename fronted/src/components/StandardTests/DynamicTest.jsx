@@ -2,8 +2,8 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 
-// 🚀 IP dinámica
-const API_URL = `http://${window.location.hostname}:5000`;
+// 🚀 API de producción
+const API_URL = import.meta.env.VITE_API_URL;
 
 const DynamicTest = ({ idPrueba, idSesion, token, onFinish }) => {
   const [preguntas, setPreguntas] = useState([]);
@@ -34,6 +34,7 @@ const DynamicTest = ({ idPrueba, idSesion, token, onFinish }) => {
       ...prev,
       [idPregunta]: { respuesta: opcion, puntaje_obtenido: puntaje },
     }));
+
     if (index + 1 < preguntas.length) {
       setIndex(index + 1);
     }
@@ -71,7 +72,7 @@ const DynamicTest = ({ idPrueba, idSesion, token, onFinish }) => {
       if (onFinish) onFinish(result.data);
     } catch (err) {
       console.error("❌ Error al enviar respuestas:", err);
-      alert("Error al guardar respuestas. Intenta de nuevo.");
+      alert("⚠️ Error al guardar respuestas. Intenta de nuevo.");
     }
   };
 
@@ -81,6 +82,7 @@ const DynamicTest = ({ idPrueba, idSesion, token, onFinish }) => {
   const pregunta = preguntas[index];
   let opciones = [];
   let puntajes = [];
+
   try {
     opciones = JSON.parse(pregunta.opciones || "[]");
     puntajes = JSON.parse(pregunta.puntajes || "[]");
@@ -88,7 +90,9 @@ const DynamicTest = ({ idPrueba, idSesion, token, onFinish }) => {
     console.error("❌ Error parseando opciones/puntajes:", err);
   }
 
-  const todasRespondidas = preguntas.every((p) => respuestas[p.id_pregunta]);
+  const todasRespondidas = preguntas.every(
+    (p) => respuestas[p.id_pregunta]
+  );
 
   return (
     <div style={{ textAlign: "center", padding: "20px" }}>

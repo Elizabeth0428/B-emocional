@@ -3,9 +3,12 @@ import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getToken } from "../services/AuthService";
 
+const API = import.meta.env.VITE_API_URL; // ⭐ PRODUCCIÓN
+
 export default function SeguimientoView() {
   const { idPaciente } = useParams();
   const navigate = useNavigate();
+
   const [seguimientos, setSeguimientos] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -19,7 +22,7 @@ export default function SeguimientoView() {
   useEffect(() => {
     const fetchSeguimiento = async () => {
       try {
-        const res = await fetch(`http://localhost:5000/api/seguimiento/${idPaciente}`, {
+        const res = await fetch(`${API}/api/seguimiento/${idPaciente}`, {
           headers: { Authorization: `Bearer ${getToken()}` },
         });
         if (res.ok) {
@@ -32,27 +35,44 @@ export default function SeguimientoView() {
         setLoading(false);
       }
     };
+
     fetchSeguimiento();
   }, [idPaciente]);
 
   const handleAdd = async () => {
     try {
-      const res = await fetch("http://localhost:5000/api/seguimiento", {
+      const res = await fetch(`${API}/api/seguimiento`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${getToken()}`,
         },
-        body: JSON.stringify({ ...nuevo, id_paciente: Number(idPaciente) }),
+        body: JSON.stringify({
+          ...nuevo,
+          id_paciente: Number(idPaciente),
+        }),
       });
+
       if (!res.ok) throw new Error("Error al guardar seguimiento");
+
       const data = await res.json();
 
       setSeguimientos([
-        { ...nuevo, id_seguimiento: data.id_seguimiento, fecha: new Date() },
+        {
+          ...nuevo,
+          id_seguimiento: data.id_seguimiento,
+          fecha: new Date(),
+        },
         ...seguimientos,
       ]);
-      setNuevo({ diagnostico: "", tratamiento: "", evolucion: "", observaciones: "" });
+
+      setNuevo({
+        diagnostico: "",
+        tratamiento: "",
+        evolucion: "",
+        observaciones: "",
+      });
+
       alert("✅ Seguimiento agregado");
     } catch (err) {
       console.error("❌ Error:", err);
@@ -70,30 +90,37 @@ export default function SeguimientoView() {
         {/* ➕ Nuevo Seguimiento */}
         <div style={card}>
           <h3 style={{ color: "#3f51b5" }}>➕ Registrar nuevo seguimiento</h3>
+
           <textarea
             placeholder="Diagnóstico"
             value={nuevo.diagnostico}
             onChange={(e) => setNuevo({ ...nuevo, diagnostico: e.target.value })}
             style={textarea}
           />
+
           <textarea
             placeholder="Tratamiento"
             value={nuevo.tratamiento}
             onChange={(e) => setNuevo({ ...nuevo, tratamiento: e.target.value })}
             style={textarea}
           />
+
           <textarea
             placeholder="Evolución"
             value={nuevo.evolucion}
             onChange={(e) => setNuevo({ ...nuevo, evolucion: e.target.value })}
             style={textarea}
           />
+
           <textarea
             placeholder="Observaciones"
             value={nuevo.observaciones}
-            onChange={(e) => setNuevo({ ...nuevo, observaciones: e.target.value })}
+            onChange={(e) =>
+              setNuevo({ ...nuevo, observaciones: e.target.value })
+            }
             style={textarea}
           />
+
           <button style={btnSave} onClick={handleAdd}>
             💾 Guardar
           </button>

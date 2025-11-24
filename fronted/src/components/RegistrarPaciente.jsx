@@ -1,6 +1,10 @@
+// src/components/RegistrarPaciente.jsx
 import React, { useState } from "react";
 import { getToken, getCurrentUser } from "../services/AuthService";
 import HistorialForm from "./HistorialForm.jsx";
+
+// ⭐ API dinámico para producción
+const API = import.meta.env.VITE_API_URL;
 
 const RegistrarPaciente = ({ onBack }) => {
   const user = getCurrentUser();
@@ -17,7 +21,7 @@ const RegistrarPaciente = ({ onBack }) => {
     id_psicologo: user?.id_psicologo || null,
   });
 
-  const [nuevoPaciente, setNuevoPaciente] = useState(null); // ✅ paciente recién creado
+  const [nuevoPaciente, setNuevoPaciente] = useState(null); // paciente recién creado
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -31,7 +35,8 @@ const RegistrarPaciente = ({ onBack }) => {
       }
 
       const token = getToken();
-      const res = await fetch("http://localhost:5000/api/pacientes", {
+
+      const res = await fetch(`${API}/api/pacientes`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

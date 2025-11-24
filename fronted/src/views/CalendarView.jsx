@@ -10,6 +10,9 @@ import "react-big-calendar/lib/css/react-big-calendar.css";
 import axios from "axios";
 import { getCurrentUser, getToken } from "../services/AuthService";
 
+const API = import.meta.env.VITE_API_URL;
+
+
 // 📅 Configuración local
 const locales = { es };
 const localizer = dateFnsLocalizer({
@@ -45,13 +48,13 @@ export default function CalendarView({ onBack }) {
     fetchPacientes();
   }, []);
 
-  // ================================
+    // ================================
   //   Cargar citas
   // ================================
   const fetchCitas = async () => {
     try {
       const token = getToken();
-      const res = await axios.get("http://localhost:5000/api/citas", {
+      const res = await axios.get(`${API}/api/citas`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -90,7 +93,7 @@ export default function CalendarView({ onBack }) {
   const fetchPacientes = async () => {
     try {
       const token = getToken();
-      const res = await axios.get("http://localhost:5000/api/pacientes", {
+      const res = await axios.get(`${API}/api/pacientes`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setPacientes(res.data);
@@ -107,9 +110,11 @@ export default function CalendarView({ onBack }) {
     try {
       const token = getToken();
       const payload = { ...form, id_psicologo: user?.id_psicologo };
-      await axios.post("http://localhost:5000/api/citas", payload, {
+
+      await axios.post(`${API}/api/citas`, payload, {
         headers: { Authorization: `Bearer ${token}` },
       });
+
       setShowForm(false);
       setForm({ id_paciente: "", fecha: "", hora: "", motivo: "", notas: "" });
       fetchCitas();
@@ -124,11 +129,12 @@ export default function CalendarView({ onBack }) {
   const handleUpdateEstado = async (estado) => {
     try {
       const token = getToken();
+
       await axios.put(
-  `http://localhost:5000/api/citas/${selectedEvent.resource.id_cita}/estado`,
-  { estado },
-  { headers: { Authorization: `Bearer ${token}` } }
-);
+        `${API}/api/citas/${selectedEvent.resource.id_cita}/estado`,
+        { estado },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
 
       setShowEdit(false);
       setSelectedEvent(null);
@@ -139,28 +145,33 @@ export default function CalendarView({ onBack }) {
   };
 
   // ================================
-//   Crear sesión desde cita
-// ================================
-const handleCrearSesion = async () => {
-  try {
-    const token = getToken();
-    await axios.post(
-      "http://localhost:5000/api/sesiones",
-      {
-        id_cita: selectedEvent.resource.id_cita,
-        id_paciente: selectedEvent.resource.id_paciente,
-      },
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
+  //   Crear sesión desde cita
+  // ================================
+  const handleCrearSesion = async () => {
+    try {
+      const token = getToken();
 
-    alert("✅ Sesión creada a partir de la cita");
-    setShowEdit(false);
-    setSelectedEvent(null);
-  } catch (err) {
-    console.error("❌ Error al crear sesión desde cita:", err.response?.data || err.message);
-    alert("⚠️ No se pudo crear la sesión.");
-  }
-};
+      await axios.post(
+        `${API}/api/sesiones`,
+        {
+          id_cita: selectedEvent.resource.id_cita,
+          id_paciente: selectedEvent.resource.id_paciente,
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      alert("✅ Sesión creada a partir de la cita");
+      setShowEdit(false);
+      setSelectedEvent(null);
+    } catch (err) {
+      console.error(
+        "❌ Error al crear sesión desde cita:",
+        err.response?.data || err.message
+      );
+      alert("⚠️ No se pudo crear la sesión.");
+    }
+  };
+
 
 
   return (

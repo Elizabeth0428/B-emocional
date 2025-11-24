@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { getToken } from "../services/AuthService";
 import { useNavigate } from "react-router-dom";
 
+const API = import.meta.env.VITE_API_URL; // ⬅️ PRODUCCIÓN
+
 export default function PacienteDetalle({ idPaciente, onBack }) {
   console.log("PacienteDetalle montado con idPaciente:", idPaciente);
   const [paciente, setPaciente] = useState(null);
@@ -36,69 +38,78 @@ const [reportesGuardados, setReportesGuardados] = useState([]);
 
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const headers = { Authorization: `Bearer ${getToken()}` };
+useEffect(() => {
+  const fetchData = async () => {
+    try {
+      const headers = { Authorization: `Bearer ${getToken()}` };
 
-        const resPaciente = await fetch(`http://localhost:5000/api/pacientes/${idPaciente}`, { headers });
-        if (resPaciente.ok) setPaciente(await resPaciente.json());
+      // 🧍 Paciente
+      const resPaciente = await fetch(`${API}/api/pacientes/${idPaciente}`, { headers });
+      if (resPaciente.ok) setPaciente(await resPaciente.json());
 
-        const resHist = await fetch(`http://localhost:5000/api/historial-inicial/${idPaciente}`, { headers });
-        if (resHist.ok) setHistorialInicial(await resHist.json());
+      // 📋 Historial clínico inicial
+      const resHist = await fetch(`${API}/api/historial-inicial/${idPaciente}`, { headers });
+      if (resHist.ok) setHistorialInicial(await resHist.json());
 
-        const resSeg = await fetch(`http://localhost:5000/api/seguimiento/${idPaciente}`, { headers });
-        if (resSeg.ok) setSeguimiento(await resSeg.json());
+      // 📑 Seguimiento
+      const resSeg = await fetch(`${API}/api/seguimiento/${idPaciente}`, { headers });
+      if (resSeg.ok) setSeguimiento(await resSeg.json());
 
-        // ✅ Cargar sesiones + incluir videos reales desde backend
-const res = await fetch("http://localhost:5000/api/sesiones", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${token}`,
-  },
-  body: JSON.stringify({
-    id_paciente: Number(idPaciente),
-    notas: "Sesión con videollamada",
-  }),
-});
+      // 🎥 Crear sesión para videollamada
+      const resSesion = await fetch(`${API}/api/sesiones`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          id_paciente: Number(idPaciente),
+          notas: "Sesión con videollamada",
+        }),
+      });
 
-const data = await res.json();
-const idSesion = data.id_sesion; // ✅ ESTE ID DEBE USARSE EN LA VIDEOLLAMADA
+      const dataSesion = await resSesion.json();
+      const idSesion = dataSesion.id_sesion;
 
+      // 📚 Catálogo de pruebas
+      const resCat = await fetch(`${API}/api/pruebas`, { headers });
+      if (resCat.ok) setCatalogoPruebas(await resCat.json());
 
-        const resCat = await fetch("http://localhost:5000/api/pruebas", { headers });
-        if (resCat.ok) setCatalogoPruebas(await resCat.json());
+      // 🟢 Pruebas habilitadas
+      const resHab = await fetch(`${API}/api/pruebas/habilitadas/${idPaciente}`, { headers });
+      if (resHab.ok) setPruebasHabilitadas(await resHab.json());
 
-        const resHab = await fetch(`http://localhost:5000/api/pruebas/habilitadas/${idPaciente}`, { headers });
-        if (resHab.ok) setPruebasHabilitadas(await resHab.json());
-
-       const resResultados = await fetch(`http://localhost:5000/api/reportes/${idPaciente}`, { headers });
-if (resResultados.ok) {
-  const data = await resResultados.json();
-  setResultados(data.resultados || []);
-}
-
-      } catch (err) {
-        console.error("❌ Error al obtener datos del paciente:", err);
-      } finally {
-        setLoading(false);
+      // 📊 Resultados de pruebas
+      const resResultados = await fetch(`${API}/api/reportes/${idPaciente}`, { headers });
+      if (resResultados.ok) {
+        const data = await resResultados.json();
+        setResultados(data.resultados || []);
       }
-    };
-    fetchData();
-  }, [idPaciente]);
 
-// 📑 Cargar reportes guardados del paciente
+    } catch (err) {
+      console.error("❌ Error al obtener datos del paciente:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  fetchData();
+}, [idPaciente]);
+
+// ===============================================
+// 📑 useEffect para cargar reportes IA guardados
+// ===============================================
 useEffect(() => {
   const fetchReportesGuardados = async () => {
     try {
-      const res = await fetch(`http://localhost:5000/api/pacientes/${idPaciente}/reportes-ia`, {
+      const res = await fetch(`${API}/api/pacientes/${idPaciente}/reportes-ia`, {
         headers: { Authorization: `Bearer ${getToken()}` }
       });
+
       if (res.ok) {
-        const data = await res.json();
-        setReportesGuardados(data);
+        setReportesGuardados(await res.json());
       }
+
     } catch (err) {
       console.error("❌ Error al obtener reportes guardados:", err);
     }
@@ -115,7 +126,7 @@ useEffect(() => {
 const handleAddSeguimiento = async () => {
   try {
     const token = getToken();
-    const res = await fetch("http://localhost:5000/api/seguimiento", {
+    const res = await fetch(`${API}/api/seguimiento`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -136,11 +147,15 @@ const handleAddSeguimiento = async () => {
   }
 };
 
+// ===============================================
 // ✅ 2. Generar texto IA (se guarda en BD, NO PDF)
+// ===============================================
+
 const generarReporteIA = async () => {
   try {
     setLoadingIA(true);
-    const res = await fetch(`http://localhost:5000/api/pacientes/${idPaciente}/generar-reporte-ia`, {
+
+    const res = await fetch(`${API}/api/pacientes/${idPaciente}/generar-reporte-ia`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -153,16 +168,19 @@ const generarReporteIA = async () => {
     if (res.ok) {
       alert("✅ Reporte IA generado correctamente");
 
-      // Refrescar historial de reportes IA
-      const resReportes = await fetch(`http://localhost:5000/api/pacientes/${idPaciente}/reportes-ia`, {
+      // 🔄 Refrescar historial de reportes IA
+      const resReportes = await fetch(`${API}/api/pacientes/${idPaciente}/reportes-ia`, {
         headers: { Authorization: `Bearer ${getToken()}` },
       });
+
       if (resReportes.ok) {
         setReportesGuardados(await resReportes.json());
       }
+
     } else {
       alert("❌ Error al generar reporte IA: " + data.message);
     }
+
   } catch (err) {
     console.error("❌ Error al generar reporte IA:", err);
     alert("No se pudo generar el reporte IA");
@@ -171,61 +189,68 @@ const generarReporteIA = async () => {
   }
 };
 
-// ✅ Generar PDF y actualizar historial
+
+// ===============================================
+// 🖨 Generar PDF y actualizar historial
+// ===============================================
 const generarPDF = async () => {
   try {
-    const res = await fetch(
-      `http://localhost:5000/api/pacientes/${idPaciente}/generar-reporte-pdf`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${getToken()}`,
-        },
-      }
-    );
+    const res = await fetch(`${API}/api/pacientes/${idPaciente}/generar-reporte-pdf`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${getToken()}`,
+      },
+    });
 
     const data = await res.json();
 
     if (res.ok) {
       alert("✅ PDF generado correctamente");
 
-      // 🔄 Recargar historial de reportes para mostrar la ruta PDF actualizada
-      const resReportes = await fetch(
-        `http://localhost:5000/api/pacientes/${idPaciente}/reportes-ia`,
-        { headers: { Authorization: `Bearer ${getToken()}` } }
-      );
+      // 🔄 Recargar historial de reportes IA
+      const resReportes = await fetch(`${API}/api/pacientes/${idPaciente}/reportes-ia`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
 
       if (resReportes.ok) {
         const nuevosReportes = await resReportes.json();
-        setReportesGuardados(nuevosReportes); // ✅ Esto refresca la vista en pantalla
+        setReportesGuardados(nuevosReportes);
       }
 
       // 📂 Abrir el PDF automáticamente
       if (data.ruta) {
-        window.open(`http://localhost:5000${data.ruta}`, "_blank");
+        window.open(`${API}${data.ruta}`, "_blank");
       }
+
     } else {
       alert("⚠ No se pudo generar el PDF");
     }
+
   } catch (err) {
     console.error("❌ Error al generar PDF:", err);
   }
 };
 
 
-// ✅ Habilitar prueba para el paciente
+
+// ===============================================
+// ✅ Habilitar prueba para el paciente (PRODUCCIÓN)
+// ===============================================
+
 const handleHabilitarPrueba = async () => {
   if (!historialInicial) {
     alert("⚠️ Debes completar el Historial Clínico Inicial antes de habilitar pruebas.");
     return;
   }
+
   if (!selectedPrueba) {
     return alert("⚠️ Selecciona una prueba");
   }
 
   try {
-    const res = await fetch("http://localhost:5000/api/pruebas/habilitar", {
+    // 🟢 Crear habilitación de prueba
+    const res = await fetch(`${API}/api/pruebas/habilitar`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -239,10 +264,11 @@ const handleHabilitarPrueba = async () => {
     });
 
     if (!res.ok) throw new Error("Error al habilitar prueba");
+
     alert("✅ Prueba habilitada");
 
     // 🔄 Actualizar listado de pruebas habilitadas
-    const resHab = await fetch(`http://localhost:5000/api/pruebas/habilitadas/${idPaciente}`, {
+    const resHab = await fetch(`${API}/api/pruebas/habilitadas/${idPaciente}`, {
       headers: { Authorization: `Bearer ${getToken()}` },
     });
 
@@ -251,8 +277,10 @@ const handleHabilitarPrueba = async () => {
       setPruebasHabilitadas(data);
     }
 
+    // reset inputs
     setSelectedPrueba("");
     setNotasPrueba("");
+
   } catch (err) {
     console.error("❌ Error:", err);
     alert("❌ No se pudo habilitar la prueba");
@@ -344,38 +372,34 @@ const handleHabilitarPrueba = async () => {
           <b>🗓️ {new Date(r.fecha).toLocaleString("es-MX")}</b> <br />
 
           {/* ✅ Mostrar botón de PDF si existe la ruta */}
-          {r.ruta_pdf ? (
-            <a
-              href={`http://localhost:5000${r.ruta_pdf}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                display: "inline-block",
-                marginTop: "5px",
-                backgroundColor: "#3f51b5",
-                color: "white",
-                padding: "6px 12px",
-                borderRadius: "6px",
-                textDecoration: "none",
-                fontWeight: "bold",
-              }}
-            >
-              📄 Ver reporte PDF
-            </a>
-          ) : (
-            <p style={{ color: "gray" }}>⚠️ Reporte generado, pero sin PDF</p>
-          )}
-        </li>
+{r.ruta_pdf ? (
+  <a
+    href={`${API}${r.ruta_pdf}`}
+    target="_blank"
+    rel="noopener noreferrer"
+    style={{
+      display: "inline-block",
+      marginTop: "5px",
+      backgroundColor: "#3f51b5",
+      color: "white",
+      padding: "6px 12px",
+      borderRadius: "6px",
+      textDecoration: "none",
+      fontWeight: "bold",
+    }}
+  >
+    📄 Ver reporte PDF
+  </a>
+) : (
+  <p style={{ color: "gray" }}>⚠️ Reporte generado, pero sin PDF</p>
+)}
+</li>
       ))}
     </ul>
   ) : (
     <p className="text-gray-500">No hay reportes generados todavía.</p>
   )}
 </div>
-
-
-
-
 
       {/* 🚀 Videollamada */}
       <hr />
@@ -390,7 +414,7 @@ const handleHabilitarPrueba = async () => {
               const token = getToken();
 
               // 1️⃣ Crear sesión en backend
-              const res = await fetch("http://localhost:5000/api/sesiones", {
+              const res = await fetch(`${API}/api/sesiones`, {
                 method: "POST",
                 headers: {
                   "Content-Type": "application/json",
@@ -408,7 +432,7 @@ const handleHabilitarPrueba = async () => {
 
               // 2️⃣ Generar link en backend
               const resLink = await fetch(
-                `http://localhost:5000/api/sesiones/${idSesion}/videollamada`,
+                `${API}/api/sesiones/${idSesion}/videollamada`,
                 {
                   method: "POST",
                   headers: { Authorization: `Bearer ${token}` },

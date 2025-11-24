@@ -3,6 +3,8 @@ import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getToken } from "../services/AuthService";
 
+const API = import.meta.env.VITE_API_URL; // ⭐ API dinámico
+
 export default function HistorialInicialView() {
   const { idPaciente } = useParams();
   const navigate = useNavigate();
@@ -13,7 +15,7 @@ export default function HistorialInicialView() {
     const fetchHistorial = async () => {
       try {
         const res = await fetch(
-          `http://localhost:5000/api/historial-inicial/${idPaciente}`,
+          `${API}/api/historial-inicial/${idPaciente}`,
           { headers: { Authorization: `Bearer ${getToken()}` } }
         );
         if (res.ok) {
@@ -33,7 +35,7 @@ export default function HistorialInicialView() {
   const handleSave = async () => {
     try {
       const res = await fetch(
-        `http://localhost:5000/api/historial-inicial/${idPaciente}`,
+        `${API}/api/historial-inicial/${idPaciente}`,
         {
           method: "PUT",
           headers: {
@@ -53,7 +55,11 @@ export default function HistorialInicialView() {
   };
 
   if (historial === null) {
-    return <p style={{ textAlign: "center", marginTop: "30px" }}>⏳ Cargando historial...</p>;
+    return (
+      <p style={{ textAlign: "center", marginTop: "30px" }}>
+        ⏳ Cargando historial...
+      </p>
+    );
   }
 
   if (Object.keys(historial).length === 0) {
@@ -61,7 +67,9 @@ export default function HistorialInicialView() {
       <div style={container}>
         <h2>📋 Historial Clínico Inicial</h2>
         <p>⚠️ No hay historial registrado para este paciente.</p>
-        <button style={btnBack} onClick={() => navigate(-1)}>⬅ Volver</button>
+        <button style={btnBack} onClick={() => navigate(-1)}>
+          ⬅ Volver
+        </button>
       </div>
     );
   }
@@ -76,13 +84,18 @@ export default function HistorialInicialView() {
             {Object.keys(historial).map((campo, index) =>
               campo !== "id_paciente" && campo !== "id_historial" ? (
                 <tr key={campo} style={index % 2 === 0 ? rowEven : rowOdd}>
-                  <td style={cellLabel}>{campo.replace(/_/g, " ")}</td>
+                  <td style={cellLabel}>
+                    {campo.replace(/_/g, " ")}
+                  </td>
                   <td style={cellValue}>
                     {editMode ? (
                       <textarea
                         value={historial[campo] || ""}
                         onChange={(e) =>
-                          setHistorial({ ...historial, [campo]: e.target.value })
+                          setHistorial({
+                            ...historial,
+                            [campo]: e.target.value,
+                          })
                         }
                         style={textarea}
                       />
@@ -98,14 +111,22 @@ export default function HistorialInicialView() {
 
         {editMode ? (
           <div style={{ marginTop: "20px" }}>
-            <button style={btnSave} onClick={handleSave}>💾 Guardar</button>
-            <button style={btnCancel} onClick={() => setEditMode(false)}>Cancelar</button>
+            <button style={btnSave} onClick={handleSave}>
+              💾 Guardar
+            </button>
+            <button style={btnCancel} onClick={() => setEditMode(false)}>
+              Cancelar
+            </button>
           </div>
         ) : (
-          <button style={btnEdit} onClick={() => setEditMode(true)}>✏️ Editar</button>
+          <button style={btnEdit} onClick={() => setEditMode(true)}>
+            ✏️ Editar
+          </button>
         )}
 
-        <button style={btnBack} onClick={() => navigate(-1)}>⬅ Volver</button>
+        <button style={btnBack} onClick={() => navigate(-1)}>
+          ⬅ Volver
+        </button>
       </div>
     </div>
   );
@@ -114,7 +135,7 @@ export default function HistorialInicialView() {
 // === Estilos ===
 const background = {
   minHeight: "100vh",
-  background: "linear-gradient(to bottom, #a1c4fd, #c2e9fb)", // Fondo azul degradado
+  background: "linear-gradient(to bottom, #a1c4fd, #c2e9fb)",
   padding: "30px 15px",
 };
 
@@ -165,7 +186,41 @@ const textarea = {
   padding: "8px",
 };
 
-const btnSave = { background: "#4CAF50", color: "white", border: "none", padding: "10px 16px", borderRadius: "6px", marginRight: "8px", cursor: "pointer" };
-const btnCancel = { background: "#E53935", color: "white", border: "none", padding: "10px 16px", borderRadius: "6px", cursor: "pointer" };
-const btnEdit = { background: "#FFC107", color: "black", border: "none", padding: "10px 16px", borderRadius: "6px", cursor: "pointer", marginTop: "10px" };
-const btnBack = { marginTop: "15px", padding: "10px 16px", borderRadius: "8px", border: "none", backgroundColor: "#90CAF9", color: "#0D47A1", cursor: "pointer" };
+const btnSave = {
+  background: "#4CAF50",
+  color: "white",
+  border: "none",
+  padding: "10px 16px",
+  borderRadius: "6px",
+  marginRight: "8px",
+  cursor: "pointer",
+};
+
+const btnCancel = {
+  background: "#E53935",
+  color: "white",
+  border: "none",
+  padding: "10px 16px",
+  borderRadius: "6px",
+  cursor: "pointer",
+};
+
+const btnEdit = {
+  background: "#FFC107",
+  color: "black",
+  border: "none",
+  padding: "10px 16px",
+  borderRadius: "6px",
+  cursor: "pointer",
+  marginTop: "10px",
+};
+
+const btnBack = {
+  marginTop: "15px",
+  padding: "10px 16px",
+  borderRadius: "8px",
+  border: "none",
+  backgroundColor: "#90CAF9",
+  color: "#0D47A1",
+  cursor: "pointer",
+};

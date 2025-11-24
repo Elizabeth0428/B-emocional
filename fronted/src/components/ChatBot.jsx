@@ -3,12 +3,12 @@ import TestManager from "./TestManager";
 import ReportViewer from "./ReportViewer";
 import { getToken } from "../services/AuthService";
 
-// ✅ API dinámico desde .env
+// ✅ API dinámico desde .env (Render / Railway)
 const API_URL = import.meta.env.VITE_API_URL;
 
 export default function ChatBot({
   paciente,
-  idSesion,          // 👈 requerido
+  idSesion,
   respuestas = {},
   setRespuestas,
   emociones = [],
@@ -50,6 +50,7 @@ export default function ChatBot({
       });
 
       if (!res.ok) throw new Error(`Servidor respondió ${res.status}`);
+
       const data = await res.json();
 
       if (!data.contenido) {
@@ -81,7 +82,11 @@ Este reporte fue generado sin IA debido a un error de conexión.`,
 
   // ⚠️ Si no hay paciente seleccionado
   if (!paciente) {
-    return <p style={{ textAlign: "center" }}>Debe seleccionar un paciente primero.</p>;
+    return (
+      <p style={{ textAlign: "center" }}>
+        Debe seleccionar un paciente primero.
+      </p>
+    );
   }
 
   return (
@@ -105,11 +110,13 @@ Este reporte fue generado sin IA debido a un error de conexión.`,
               <> considerando las emociones detectadas: <b>{emociones.join(", ")}</b></>
             )}
           </p>
+
           {mode === "ia" && (
             <p style={{ fontStyle: "italic", color: "#666" }}>
               Modo IA activado: se generarán preguntas abiertas y análisis cualitativos al final.
             </p>
           )}
+
           <button
             onClick={() => setFase("pruebas")}
             style={{
@@ -153,16 +160,24 @@ Este reporte fue generado sin IA debido a un error de conexión.`,
           ) : (
             <>
               {errorMsg && (
-                <p style={{ color: "red", fontWeight: "600", marginBottom: "12px" }}>
+                <p
+                  style={{
+                    color: "red",
+                    fontWeight: "600",
+                    marginBottom: "12px",
+                  }}
+                >
                   {errorMsg}
                 </p>
               )}
+
               <ReportViewer
                 reporte={reporte?.contenido}
                 iaInsights={reporte?.iaInsights}
                 pacienteId={paciente.id_paciente}
                 idSesion={idSesion}
               />
+
               <div style={{ textAlign: "center", marginTop: "20px" }}>
                 <button
                   onClick={() => {

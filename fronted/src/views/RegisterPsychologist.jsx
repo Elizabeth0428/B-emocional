@@ -2,6 +2,8 @@
 import React, { useState } from "react";
 import { getToken } from "../services/AuthService";
 
+const API = import.meta.env.VITE_API_URL; // ⭐ Ruta dinámica para producción
+
 const RegisterPsychologist = ({ onBack }) => {
   const [form, setForm] = useState({
     cedula_profesional: "",
@@ -28,7 +30,7 @@ const RegisterPsychologist = ({ onBack }) => {
 
     try {
       const token = getToken();
-      const res = await fetch("http://localhost:5000/api/psicologos/register", {
+      const res = await fetch(`${API}/api/psicologos/register`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

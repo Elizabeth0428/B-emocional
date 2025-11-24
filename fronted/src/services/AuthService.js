@@ -1,8 +1,11 @@
 // src/services/AuthService.js
 
-const API = import.meta.env.VITE_API_URL; // 👈 usamos la variable del .env
+// ⭐ API dinámico desde .env (Render / Vercel / Producción)
+const API = import.meta.env.VITE_API_URL;
 
-// 🔹 Login (para todos los usuarios: admin y psicólogos)
+// ===============================================================
+// 🔐 LOGIN (Admin / Psicólogos / Usuarios)
+// ===============================================================
 export const login = async (correo, password) => {
   const res = await fetch(`${API}/api/login`, {
     method: "POST",
@@ -16,11 +19,11 @@ export const login = async (correo, password) => {
     throw new Error(data.message || "Error en login");
   }
 
-  // Guardar sesión en localStorage (token + user con permisos)
+  // Guardar token + datos del usuario
   if (data.token) {
     const userData = {
       ...data.user,
-      id_psicologo: data.user?.id_psicologo || null, // 👈 aseguramos que exista
+      id_psicologo: data.user?.id_psicologo || null, // Siempre definido
     };
 
     localStorage.setItem("token", data.token);
@@ -30,14 +33,10 @@ export const login = async (correo, password) => {
   return data;
 };
 
-// 🔹 Registro de psicólogos (solo un admin puede hacerlo)
-export const register = async ({
-  cedula_profesional,
-  nombre,
-  correo,
-  password,
-  especialidad,
-}) => {
+// ===============================================================
+// 👨‍⚕️ REGISTRO DE PSICÓLOGOS (Solo Admin)
+// ===============================================================
+export const register = async (payload) => {
   const token = getToken();
 
   const res = await fetch(`${API}/api/psicologos/register`, {
@@ -46,13 +45,7 @@ export const register = async ({
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({
-      cedula_profesional,
-      nombre,
-      correo,
-      password,
-      especialidad,
-    }),
+    body: JSON.stringify(payload),
   });
 
   const data = await res.json();
@@ -64,14 +57,18 @@ export const register = async ({
   return data;
 };
 
-// 🔹 Logout (elimina token y datos de usuario)
+// ===============================================================
+// 🔓 LOGOUT
+// ===============================================================
 export const logout = () => {
   localStorage.removeItem("token");
   localStorage.removeItem("user");
   console.log("✅ Sesión cerrada correctamente");
 };
 
-// 🔹 Obtener usuario actual de localStorage
+// ===============================================================
+// 👤 OBTENER USUARIO ACTUAL
+// ===============================================================
 export const getCurrentUser = () => {
   try {
     const user = localStorage.getItem("user");
@@ -82,7 +79,9 @@ export const getCurrentUser = () => {
   }
 };
 
-// 🔹 Cambiar contraseña (usuarios y psicólogos)
+// ===============================================================
+// 🔑 CAMBIAR CONTRASEÑA
+// ===============================================================
 export const changePassword = async (oldPassword, newPassword) => {
   const token = getToken();
 
@@ -104,7 +103,9 @@ export const changePassword = async (oldPassword, newPassword) => {
   return data;
 };
 
-// 🔹 Obtener token guardado
+// ===============================================================
+// 🔑 OBTENER TOKEN ACTUAL
+// ===============================================================
 export const getToken = () => {
   return localStorage.getItem("token") || null;
 };

@@ -2,17 +2,19 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 
+const API = import.meta.env.VITE_API_URL; // ⭐ PRODUCCIÓN
+
 export default function ResponderPrueba() {
-  const { idHabilitacion } = useParams();
+  const { id_habilitacion } = useParams(); // 👈 corregido
   const [prueba, setPrueba] = useState(null);
   const [respuestas, setRespuestas] = useState({});
   const [finalizado, setFinalizado] = useState(null);
 
-  // Cargar la prueba + preguntas
+  // 📌 Cargar prueba + preguntas
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await fetch(`http://localhost:5000/api/pruebas/habilitacion/${idHabilitacion}`);
+        const res = await fetch(`${API}/api/pruebas/habilitacion/${id_habilitacion}`);
         if (!res.ok) throw new Error("No se pudo cargar la prueba");
         const data = await res.json();
         setPrueba(data);
@@ -21,19 +23,16 @@ export default function ResponderPrueba() {
       }
     };
     fetchData();
-  }, [idHabilitacion]);
+  }, [id_habilitacion]);
 
-  // Guardar respuesta marcada
   const handleRespuesta = (idPregunta, idOpcion) => {
     setRespuestas({ ...respuestas, [idPregunta]: idOpcion });
   };
 
-  // Enviar respuestas al backend
   const handleEnviar = async () => {
     try {
       if (!prueba) return;
 
-      // Formatear respuestas
       const values = Object.entries(respuestas).map(([id_pregunta, id_opcion]) => ({
         id_paciente: prueba.id_paciente,
         id_prueba: prueba.id_prueba,
@@ -41,19 +40,28 @@ export default function ResponderPrueba() {
         id_opcion
       }));
 
-      // Guardar respuestas en el endpoint público
-      await fetch("http://localhost:5000/api/respuestas/publico", {
+      // enviar respuestas
+      await fetch(`${API}/api/respuestas/publico`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id_habilitacion: prueba.id_habilitacion, respuestas: values })
+        body: JSON.stringify({
+          id_habilitacion: prueba.id_habilitacion,
+          respuestas: values
+        })
       });
 
-      // Finalizar prueba y calcular resultado
-      const resFinal = await fetch(`http://localhost:5000/api/pruebas/${prueba.id_prueba}/finalizar/publico`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id_paciente: prueba.id_paciente, id_habilitacion: prueba.id_habilitacion })
-      });
+      // finalizar prueba
+      const resFinal = await fetch(
+        `${API}/api/pruebas/${prueba.id_prueba}/finalizar/publico`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id_paciente: prueba.id_paciente,
+            id_habilitacion: prueba.id_habilitacion
+          })
+        }
+      );
 
       const dataFinal = await resFinal.json();
       setFinalizado(dataFinal);
@@ -67,13 +75,16 @@ export default function ResponderPrueba() {
     return <p style={{ textAlign: "center", marginTop: "30px" }}>⏳ Cargando prueba...</p>;
   }
 
-  // ✅ Resultado mostrado
+  // ================================================
+  //   RESULTADO FINAL
+  // ================================================
   if (finalizado) {
     return (
       <div style={container}>
         <h2 style={{ color: "#2E7D32", textAlign: "center", marginBottom: "20px" }}>
           ✅ Prueba finalizada
         </h2>
+
         <div style={resultadoBox}>
           <p><b>Puntaje total:</b> {finalizado.puntaje_total}</p>
           <p><b>Interpretación:</b> {finalizado.interpretacion}</p>
@@ -82,12 +93,15 @@ export default function ResponderPrueba() {
     );
   }
 
-  // ✅ Vista de preguntas
+  // ================================================
+  //   PREGUNTAS
+  // ================================================
   return (
     <div style={container}>
       <h2 style={{ textAlign: "center", color: "#0D47A1", marginBottom: "10px" }}>
         🧪 {prueba.nombre}
       </h2>
+
       <p style={{ textAlign: "center", marginBottom: "25px", color: "#555" }}>
         {prueba.descripcion}
       </p>
@@ -97,6 +111,7 @@ export default function ResponderPrueba() {
           <p style={{ fontWeight: "600", marginBottom: "12px", color: "#333" }}>
             {index + 1}. {p.texto}
           </p>
+
           {p.opciones.map((o) => (
             <label
               key={o.id_opcion}
@@ -140,7 +155,10 @@ export default function ResponderPrueba() {
   );
 }
 
-// === 🎨 Estilos mejorados ===
+// =========================
+// 🎨 Estilos
+// =========================
+
 const container = {
   maxWidth: "750px",
   margin: "30px auto",
@@ -183,3 +201,4 @@ const btnEnviar = {
   transition: "all 0.3s ease",
   boxShadow: "0 4px 12px rgba(25,118,210,0.4)"
 };
+

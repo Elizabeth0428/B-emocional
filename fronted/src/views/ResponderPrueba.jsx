@@ -2,8 +2,10 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 
+const API = import.meta.env.VITE_API_URL; // ⭐ Ruta dinámica para producción
+
 export default function ResponderPrueba() {
-  const { id_habilitacion } = useParams();  
+  const { id_habilitacion } = useParams();
   const navigate = useNavigate();
   const [prueba, setPrueba] = useState(null);
   const [respuestas, setRespuestas] = useState({});
@@ -13,7 +15,7 @@ export default function ResponderPrueba() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await fetch(`http://localhost:5000/api/pruebas/habilitacion/${id_habilitacion}`);
+        const res = await fetch(`${API}/api/pruebas/habilitacion/${id_habilitacion}`);
         if (!res.ok) throw new Error("No se pudo cargar la prueba");
         const data = await res.json();
         setPrueba(data);
@@ -38,30 +40,30 @@ export default function ResponderPrueba() {
         id_paciente: prueba.id_paciente,
         id_prueba: prueba.id_prueba,
         id_pregunta,
-        id_opcion
+        id_opcion,
       }));
 
       // Guardar respuestas
-      await fetch("http://localhost:5000/api/respuestas/publico", {
+      await fetch(`${API}/api/respuestas/publico`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          id_habilitacion: prueba.id_habilitacion, 
-          respuestas: values 
-        })
+        body: JSON.stringify({
+          id_habilitacion: prueba.id_habilitacion,
+          respuestas: values,
+        }),
       });
 
       // Finalizar prueba y calcular resultado
       const resFinal = await fetch(
-        `http://localhost:5000/api/pruebas/${prueba.id_prueba}/finalizar/publico`,
+        `${API}/api/pruebas/${prueba.id_prueba}/finalizar/publico`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            id_paciente: prueba.id_paciente,       // ✅ usamos prueba.id_paciente
+            id_paciente: prueba.id_paciente,
             id_habilitacion: prueba.id_habilitacion,
-            id_sesion: null                        // ✅ no tienes idSesion aquí, así que enviamos null
-          })
+            id_sesion: null, // 👈 No hay sesión para esta vista pública
+          }),
         }
       );
 
@@ -74,27 +76,36 @@ export default function ResponderPrueba() {
   };
 
   if (!prueba) {
-    return <p style={{ textAlign: "center", marginTop: "30px" }}>⏳ Cargando prueba...</p>;
+    return (
+      <p style={{ textAlign: "center", marginTop: "30px" }}>
+        ⏳ Cargando prueba...
+      </p>
+    );
   }
 
-  // ✅ Vista de resultado final
+  // ==========================================
+  //  ✅ Vista de resultado final
+  // ==========================================
   if (finalizado) {
     return (
       <div style={container}>
-        <h2 style={{ color: "#2E7D32", textAlign: "center", marginBottom: "20px" }}>
+        <h2
+          style={{ color: "#2E7D32", textAlign: "center", marginBottom: "20px" }}
+        >
           ✅ Prueba finalizada
         </h2>
+
         <div style={resultadoBox}>
-          <p><b>Puntaje total:</b> {finalizado.puntaje_total}</p>
-          <p><b>Interpretación:</b> {finalizado.interpretacion}</p>
+          <p>
+            <b>Puntaje total:</b> {finalizado.puntaje_total}
+          </p>
+          <p>
+            <b>Interpretación:</b> {finalizado.interpretacion}
+          </p>
         </div>
 
-        {/* 🔙 Ahora siempre regresa al Dashboard */}
         <div style={{ textAlign: "center", marginTop: "30px" }}>
-          <button
-            style={btnVolver}
-            onClick={() => navigate("/dashboard")}
-          >
+          <button style={btnVolver} onClick={() => navigate("/dashboard")}>
             ⬅ Volver al Dashboard
           </button>
         </div>
@@ -102,21 +113,31 @@ export default function ResponderPrueba() {
     );
   }
 
-  // ✅ Vista de preguntas
+  // ==========================================
+  //  📝 Vista de preguntas
+  // ==========================================
   return (
     <div style={container}>
       <h2 style={{ textAlign: "center", color: "#0D47A1", marginBottom: "10px" }}>
         🧪 {prueba.nombre}
       </h2>
+
       <p style={{ textAlign: "center", marginBottom: "25px", color: "#555" }}>
         {prueba.descripcion}
       </p>
 
       {prueba.preguntas?.map((p, index) => (
         <div key={`preg-${p.id_pregunta}`} style={preguntaBox}>
-          <p style={{ fontWeight: "600", marginBottom: "12px", color: "#333" }}>
+          <p
+            style={{
+              fontWeight: "600",
+              marginBottom: "12px",
+              color: "#333",
+            }}
+          >
             {index + 1}. {p.texto}
           </p>
+
           {p.opciones.map((o) => (
             <label
               key={`op-${p.id_pregunta}-${o.id_opcion}`}
@@ -127,10 +148,12 @@ export default function ResponderPrueba() {
                 cursor: "pointer",
                 padding: "6px 10px",
                 borderRadius: "6px",
-                transition: "background 0.2s"
+                transition: "background 0.2s",
               }}
               onMouseEnter={(e) => (e.currentTarget.style.background = "#f0f4ff")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.background = "transparent")
+              }
             >
               <input
                 type="radio"
@@ -169,7 +192,7 @@ const container = {
   borderRadius: "16px",
   boxShadow: "0 6px 20px rgba(0,0,0,0.12)",
   fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
-  color: "#212121"
+  color: "#212121",
 };
 
 const preguntaBox = {
@@ -177,7 +200,7 @@ const preguntaBox = {
   padding: "18px",
   background: "#f9f9f9",
   borderRadius: "12px",
-  boxShadow: "0 3px 8px rgba(0,0,0,0.08)"
+  boxShadow: "0 3px 8px rgba(0,0,0,0.08)",
 };
 
 const resultadoBox = {
@@ -188,7 +211,7 @@ const resultadoBox = {
   color: "#1B5E20",
   fontSize: "16px",
   fontWeight: "500",
-  textAlign: "center"
+  textAlign: "center",
 };
 
 const btnEnviar = {
@@ -201,7 +224,7 @@ const btnEnviar = {
   fontWeight: "600",
   fontSize: "16px",
   transition: "all 0.3s ease",
-  boxShadow: "0 4px 12px rgba(25,118,210,0.4)"
+  boxShadow: "0 4px 12px rgba(25,118,210,0.4)",
 };
 
 const btnVolver = {
@@ -214,5 +237,5 @@ const btnVolver = {
   fontWeight: "600",
   fontSize: "16px",
   transition: "all 0.3s ease",
-  boxShadow: "0 4px 12px rgba(67,160,71,0.4)"
+  boxShadow: "0 4px 12px rgba(67,160,71,0.4)",
 };

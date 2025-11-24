@@ -2,24 +2,35 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import Swal from "sweetalert2";
+import { getToken } from "../services/AuthService";
 
-const API_URL = "http://localhost:5000/api"; // 👈 Base correcta
+const API = import.meta.env.VITE_API_URL; // ⭐ SIEMPRE desde .env
 
 const BackupManager = ({ onBack }) => {
   const [backups, setBackups] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // ✅ 1. Cargar lista de respaldos
+  // ============================================================
+  // 🔹 1. Cargar lista de respaldos
+  // ============================================================
   const fetchBackups = async () => {
     try {
-      const { data } = await axios.get(`${API_URL}/backup/list`);
-      setBackups(data.backups || []);
+      const res = await axios.get(`${API}/api/backup/list`, {
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+        },
+      });
+
+      setBackups(res.data.backups || []);
     } catch (error) {
+      console.error("❌ Error", error);
       Swal.fire("❌ Error", "No se pudieron cargar los backups", "error");
     }
   };
 
-  // ✅ 2. Crear un nuevo backup
+  // ============================================================
+  // 🔹 2. Crear un nuevo backup
+  // ============================================================
   const handleCreateBackup = async () => {
     const confirm = await Swal.fire({
       title: "¿Crear respaldo?",
@@ -34,17 +45,22 @@ const BackupManager = ({ onBack }) => {
     setLoading(true);
 
     try {
-      await axios.get(`${API_URL}/backup/create`);
+      await axios.get(`${API}/api/backup/create`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+
       Swal.fire("✅ Listo", "Backup generado correctamente", "success");
       fetchBackups();
-    } catch {
+    } catch (err) {
       Swal.fire("❌ Error", "No se pudo generar el backup", "error");
     } finally {
       setLoading(false);
     }
   };
 
-  // ✅ 3. Restaurar backup
+  // ============================================================
+  // 🔹 3. Restaurar backup
+  // ============================================================
   const handleRestore = async (file) => {
     const confirm = await Swal.fire({
       title: "⚠ Restaurar Base de Datos",
@@ -59,20 +75,30 @@ const BackupManager = ({ onBack }) => {
     setLoading(true);
 
     try {
-      await axios.post(`${API_URL}/backup/restore`, { file });
+      await axios.post(
+        `${API}/api/backup/restore`,
+        { file },
+        {
+          headers: { Authorization: `Bearer ${getToken()}` },
+        }
+      );
+
       Swal.fire("✅ Restaurado", "Base de datos restaurada correctamente", "success");
-    } catch {
+    } catch (err) {
       Swal.fire("❌ Error", "No se pudo restaurar la base", "error");
     } finally {
       setLoading(false);
     }
   };
 
-  // ✅ 4. Descargar .sql
+  // ============================================================
+  // 🔹 4. Descargar archivo .sql
+  // ============================================================
   const handleDownload = (file) => {
-    window.open(`${API_URL}/backup/download/${file}`, "_blank");
+    window.open(`${API}/api/backup/download/${file}`, "_blank");
   };
 
+  // Cargar lista inicial
   useEffect(() => {
     fetchBackups();
   }, []);
@@ -85,6 +111,7 @@ const BackupManager = ({ onBack }) => {
         <button style={styles.createBtn} onClick={handleCreateBackup} disabled={loading}>
           {loading ? "Procesando..." : "📁 Crear Backup"}
         </button>
+
         <button style={styles.backBtn} onClick={onBack}>
           ⬅ Volver
         </button>
@@ -97,16 +124,24 @@ const BackupManager = ({ onBack }) => {
             <th>⚙ Acciones</th>
           </tr>
         </thead>
+
         <tbody>
           {backups.length > 0 ? (
             backups.map((b, i) => (
               <tr key={i}>
                 <td>{b.file}</td>
                 <td>
-                  <button style={styles.restoreBtn} onClick={() => handleRestore(b.file)}>
+                  <button
+                    style={styles.restoreBtn}
+                    onClick={() => handleRestore(b.file)}
+                  >
                     ♻ Restaurar
                   </button>
-                  <button style={styles.downloadBtn} onClick={() => handleDownload(b.file)}>
+
+                  <button
+                    style={styles.downloadBtn}
+                    onClick={() => handleDownload(b.file)}
+                  >
                     ⬇ Descargar
                   </button>
                 </td>
@@ -122,7 +157,6 @@ const BackupManager = ({ onBack }) => {
     </div>
   );
 };
-
 /* ✅ Estilos */
 const styles = {
   container: {
