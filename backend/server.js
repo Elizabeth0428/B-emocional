@@ -38,7 +38,7 @@ app.use(helmet());
 const allowedOrigin = process.env.CORS_ORIGIN;
 
 // 💥 1. Responder siempre al preflight OPTIONS
-app.options("*", cors());
+app.options("/*", cors());
 
 // 💥 2. Configurar CORS dinámico
 app.use(
