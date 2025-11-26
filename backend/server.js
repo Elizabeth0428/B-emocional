@@ -23,6 +23,20 @@ import PDFDocument from "pdfkit";
 import moment from "moment";
 import authRoutes from "./routes/auth.routes.js";
 
+import { verificarConexion } from './db.js';
+
+async function iniciarApp() {
+  const conectado = await verificarConexion();
+  if (conectado) {
+    console.log('Base de datos conectada correctamente');
+    // Aquí arrancas tu servidor o continúas con la lógica
+  } else {
+    console.error('No se pudo conectar a la base de datos');
+    process.exit(1); // Opcional: detener la aplicación si no hay conexión
+  }
+}
+
+iniciarApp();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
