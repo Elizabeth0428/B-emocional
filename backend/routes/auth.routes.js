@@ -6,10 +6,16 @@ import { db } from "../db.js";
 const router = Router();
 
 // POST /api/login
+//router.post("/login", async (req, res) => {
+  //try {
+    //const { email, password } = req.body;
 router.post("/login", async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password } = req.body || {};
 
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email y contraseña son requeridos" });
+    }
     const [rows] = await db.query(
       "SELECT * FROM usuarios WHERE email = ?",
       [email]
