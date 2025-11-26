@@ -13,8 +13,8 @@ router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body || {};
 
-    const email = "lizma883@gmail.com";
-const password = "12345678";
+    email = "lizma883@gmail.com";
+password = "12345678";
     if (!email || !password) {
       return res.status(400).json({ error: "Email y contraseña son requeridos" });
     }
