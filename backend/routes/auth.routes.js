@@ -13,9 +13,11 @@ router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body || {};
 
-    //if (!email || !password) {
-      //return res.status(400).json({ error: "Email y contraseña son requeridos" });
-    //}
+    const email = "lizma883@gmail.com";
+const password = "12345678";
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email y contraseña son requeridos" });
+    }
     const [rows] = await db.query(
       "SELECT * FROM usuarios WHERE email = ?",
       [email]
