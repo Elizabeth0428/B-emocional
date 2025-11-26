@@ -11,10 +11,12 @@ const router = Router();
     //const { email, password } = req.body;
 router.post("/login", async (req, res) => {
   try {
-    const { email, password } = req.body || {};
+    //const { email, password } = req.body || {};
 
-    email = "lizma883@gmail.com";
-password = "12345678";
+    let { email, password } = req.body || {};
+
+email = "lizma883@gmail.com";  
+password = "12345678"; 
     if (!email || !password) {
       return res.status(400).json({ error: "Email y contraseña son requeridos" });
     }
