@@ -1,7 +1,8 @@
 // src/services/AuthService.js
 
 // ⭐ API dinámico desde .env (Render / Vercel / Producción)
-const API = import.meta.env.VITE_API_URL;
+//const API = import.meta.env.VITE_API_URL;
+const API = "https://bemocional-backend.onrender.com";
 
 // ===============================================================
 // 🔐 LOGIN (Admin / Psicólogos / Usuarios)
