@@ -21,7 +21,7 @@ password = "12345678";
       return res.status(400).json({ error: "Email y contraseña son requeridos" });
     }
     const [rows] = await db.query(
-      "SELECT * FROM usuarios WHERE email = ?",
+      "SELECT * FROM usuarios WHERE correo = ?",
       [email]
     );
 
