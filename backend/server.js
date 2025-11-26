@@ -27,7 +27,23 @@ import authRoutes from "./routes/auth.routes.js";
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+const allowedOrigin = "https://b-emocional-3ua7.onrender.com";
 
+const corsOptions = {
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true);
+    if (origin.startsWith("http://localhost")) return callback(null, true);
+    if (origin === allowedOrigin) return callback(null, true);
+    console.log("❌ CORS bloqueado:::", origin);
+    callback(new Error("No autorizado por CORS::: " + origin));
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  optionsSuccessStatus: 200 // Responde 200 para preflight en navegadores antiguos
+};
+
+app.use(cors(corsOptions));
 
 // Rutas globales
 app.use("/api", sesionesRoutes);
@@ -39,7 +55,7 @@ app.use(helmet());
 
 /* ===================== CORS para Render ===================== */
 //const allowedOrigin = process.env.CORS_ORIGIN;
-const allowedOrigin = "https://b-emocional-3ua7.onrender.com";
+//const allowedOrigin = "https://b-emocional-3ua7.onrender.com";
 
 // 💥 2. Configurar CORS dinámico
 app.use(
