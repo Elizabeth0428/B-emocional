@@ -30,11 +30,11 @@ dotenv.config();
   //}
 //});
 export const db = await mysql.createPool({
-  host: mysql.railway.internal,
+  host: shortline.proxy.rlwy.net,
   user: root,
   password: pmyevOYtoEIhVmpsRzvpyRyLDbtHuhhI,
   database: railway,
-  port: 3306,
+  port: 43845,
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
