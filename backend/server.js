@@ -38,7 +38,8 @@ app.use(helmet());
 
 
 /* ===================== CORS para Render ===================== */
-const allowedOrigin = process.env.CORS_ORIGIN;
+//const allowedOrigin = process.env.CORS_ORIGIN;
+const allowedOrigin = "https://b-emocional-3ua7.onrender.com";
 
 // 💥 2. Configurar CORS dinámico
 app.use(
