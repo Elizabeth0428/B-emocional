@@ -42,7 +42,6 @@ const corsOptions = {
   optionsSuccessStatus: 200 // Responde 200 para preflight en navegadores antiguos
 };
 
-const express = require('express');
 const app = express();
 
 app.use(express.json());
