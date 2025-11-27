@@ -22,6 +22,8 @@ import sesionesRoutes from "./routes/sesiones.routes.js";
 import PDFDocument from "pdfkit";
 import moment from "moment";
 import authRoutes from "./routes/auth.routes.js";
+import pacientesRoutes from "./routes/pacientes.routes.js";
+
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -50,7 +52,7 @@ app.use(cors(corsOptions));
 // Rutas globales
 app.use("/api", sesionesRoutes);
 app.use("/api", authRoutes);
-
+app.use("/api", pacientesRoutes); 
 /* ===================== Seguridad ===================== */
 app.use(helmet());
 
