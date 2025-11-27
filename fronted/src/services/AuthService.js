@@ -21,6 +21,7 @@ export const login = async (correo, password) => {
     const userData = {
       ...data.user,
       id_psicologo: data.user?.id_psicologo || null,
+      role: data.user.rol === "psicologo" ? 2 : 1
     };
 
     // 🔥 FIX para Render
