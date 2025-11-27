@@ -14,9 +14,11 @@ router.post("/login", async (req, res) => {
     //const { email, password } = req.body || {};
 
     let { email, password } = req.body || {};
+console.log("Email recibido:", email);
+console.log("Password recibido:", password);
 
-email = "lizma883@gmail.com";  
-password = "12345678"; 
+//email = "lizma883@gmail.com";  
+//password = "12345678"; 
     if (!email || !password) {
       return res.status(400).json({ error: "Email y contraseña son requeridos" });
     }
