@@ -8,23 +8,23 @@ const router = Router();
 // POST /api/login
 //router.post("/login", async (req, res) => {
   //try {
-    //const { email, password } = req.body;
+    //const { correo, password } = req.body;
 router.post("/login", async (req, res) => {
   try {
-    //const { email, password } = req.body || {};
+    //const { correo, password } = req.body || {};
 
-    let { email, password } = req.body || {};
-console.log("Email recibido:", email);
+    let { correo, password } = req.body || {};
+console.log("Correo recibido:", correo);
 console.log("Password recibido:", password);
 
-//email = "lizma883@gmail.com";  
+//correo = "lizma883@gmail.com";  
 //password = "12345678"; 
-    if (!email || !password) {
-      return res.status(400).json({ error: "Email y contraseña son requeridos" });
+    if (!correo || !password) {
+      return res.status(400).json({ error: "Correo y contraseña son requeridos" });
     }
     const [rows] = await db.query(
       "SELECT * FROM usuarios WHERE correo = ?",
-      [email]
+      [correo]
     );
 
     if (rows.length === 0) {
@@ -40,7 +40,7 @@ console.log("Password recibido:", password);
     }
 
     const token = jwt.sign(
-      { id: user.id, email: user.email },
+      { id: user.id, correo: user.correo },
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
