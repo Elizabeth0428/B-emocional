@@ -45,7 +45,7 @@ const corsOptions = {
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-//app.use(cors(corsOptions));
+app.use(cors(corsOptions));
 
 // Rutas globales
 app.use("/api", sesionesRoutes);
