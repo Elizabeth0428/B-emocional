@@ -39,11 +39,20 @@ console.log("Password recibido:", password);
       return res.status(400).json({ error: "Contraseña incorrecta" });
     }
 
-    const token = jwt.sign(
-      { id: user.id, correo: user.correo },
-      process.env.JWT_SECRET,
-      { expiresIn: "7d" }
-    );
+    //cambio aqui 26/11/2025
+   const token = jwt.sign(
+  {
+    id: user.id_usuario,        // el ID real
+    correo: user.correo,
+    rol: user.rol,              // agregar rol
+    role: user.role,            // por compatibilidad
+    id_psicologo: user.id_psicologo, // crítico
+    nombre: user.nombre
+  },
+  process.env.JWT_SECRET,
+  { expiresIn: "7d" }
+);
+
 
     res.json({ token, user });
   } catch (error) {
