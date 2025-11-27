@@ -42,8 +42,6 @@ const corsOptions = {
   optionsSuccessStatus: 200 // Responde 200 para preflight en navegadores antiguos
 };
 
-const app = express();
-
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
