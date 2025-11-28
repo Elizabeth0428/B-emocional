@@ -10,7 +10,8 @@ import bcrypt from "bcryptjs";
 import { body, validationResult } from "express-validator";
 import jwt from "jsonwebtoken";
 import multer from "multer";
-
+//agregado
+import { db } from "./db.js";
 import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
@@ -118,8 +119,10 @@ app.use("/peerjs", (req, res, next) => {
 
   next();
 }, peerServer);
+//nuevo
+const PEER_HOST = process.env.RENDER_EXTERNAL_HOSTNAME || "bemocional-backend.onrender.com";
 
-console.log("✅ PeerJS activo en: ws://localhost:5000/peerjs/myapp");
+console.log(`✅ PeerJS activo en: wss://${PEER_HOST}/peerjs/myapp`);
 
 
 
@@ -195,14 +198,16 @@ function verifyToken(req, res, next) {
 // ✅ Recolectar correctamente el contexto clínico del paciente
 async function getPacienteContextData(id_paciente) {
   // 1) Datos básicos del paciente
-  const [pacRow] = await pool.query(
+  //modif
+  const [pacRow] = await db.query(
     `SELECT nombre, sexo, edad, correo, antecedentes
      FROM pacientes WHERE id_paciente = ?`,
     [id_paciente]
   );
 
   // 2) Historial inicial (usa nombres reales de columnas)
-  const [histRow] = await pool.query(
+  //const [histRow] = await pool.query( se cambia en todos por el de abajo 
+  const [histRow] = await db.query(
     `SELECT diagnostico_inicial, tratamiento_inicial, notas
      FROM historial_inicial
      WHERE id_paciente = ?
@@ -212,7 +217,8 @@ async function getPacienteContextData(id_paciente) {
   );
 
   // 3) Últimas 3 pruebas contestadas 
-  const [pruebasRows] = await pool.query(
+  //modificado
+  const [pruebasRows] = await db.query(
     `SELECT p.nombre AS nombre_prueba, r.puntaje_total, r.interpretacion, r.fecha AS fecha_prueba
      FROM resultados_prueba r
      JOIN pruebas p ON r.id_prueba = p.id_prueba
@@ -223,7 +229,7 @@ async function getPacienteContextData(id_paciente) {
   );
 
   // 4) Últimos seguimientos clínicos
-  const [seguimientos] = await pool.query(
+  const [seguimientos] = await db.query(
     `SELECT fecha, diagnostico, tratamiento, evolucion, observaciones
      FROM historial_seguimiento
      WHERE id_paciente = ?
@@ -315,7 +321,7 @@ app.get("/stream/multimedia/:filename", verifyToken, async (req, res) => {
 
   // ✅ 2. Buscar en la BD si este video pertenece a una sesión del psicólogo
   const ruta = `/uploads/multimedia/${filename}`;
-  const [rows] = await pool.query(
+  const [rows] = await db.query(
     `SELECT v.id_video 
      FROM videos_sesion v
      JOIN sesiones s ON v.id_sesion = s.id_sesion
@@ -368,7 +374,7 @@ app.get("/stream/multimedia/:filename", verifyToken, async (req, res) => {
 app.get("/api/sesiones/:id/videos", verifyToken, async (req, res) => {
   const { id } = req.params;
   try {
-    const [rows] = await pool.query(
+    const [rows] = await db.query( //mod
       "SELECT id_video, ruta_video, tipo, fecha_subida FROM videos_sesion WHERE id_sesion = ?",
       [id]
     );
@@ -416,11 +422,11 @@ app.post(
     const { cedula_profesional, nombre, correo, password, especialidad } = req.body;
 
     try {
-      // ⚠ Evitar duplicados de correo o cédula
-      const [uExist] = await pool.query("SELECT id_usuario FROM usuarios WHERE correo = ?", [correo]);
+      // ⚠ Evitar duplicados de correo o cédula modif
+      const [uExist] = await db.query("SELECT id_usuario FROM usuarios WHERE correo = ?", [correo]);
       if (uExist.length) return res.status(400).json({ message: "El correo ya está registrado" });
 
-      const [cExist] = await pool.query(
+      const [cExist] = await db.query(
         "SELECT id_psicologo FROM psicologos WHERE cedula_profesional = ?",
         [cedula_profesional]
       );
@@ -429,14 +435,14 @@ app.post(
       // 🔐 Cifrar contraseña (seguridad)
       const hashedPassword = await bcrypt.hash(password, 10);
 
-      // 👤 Crear usuario base
-      const [uIns] = await pool.query(
+      // 👤 Crear usuario base quede mod
+      const [uIns] = await db.query(
         "INSERT INTO usuarios (nombre, correo, password, rol) VALUES (?, ?, ?, ?)",
         [nombre, correo, hashedPassword, "psicologo"]
       );
 
-      // 👨‍⚕ Crear en tabla psicólogos y vincular al usuario
-      const [pIns] = await pool.query(
+      // 👨‍⚕ Crear en tabla psicólogos y vincular al usuario modif
+      const [pIns] = await db.query(
         "INSERT INTO psicologos (id_usuario, cedula_profesional, especialidad) VALUES (?, ?, ?)",
         [uIns.insertId, cedula_profesional, especialidad || null]
       );
@@ -472,8 +478,8 @@ app.post(
     const { correo, password } = req.body;
 
     try {
-      // 🔎 Buscar usuario por correo
-      const [rows] = await pool.query(
+      // 🔎 Buscar usuario por correo modif
+      const [rows] = await db.query(
         "SELECT id_usuario, nombre, correo, password, rol FROM usuarios WHERE correo = ? LIMIT 1",
         [correo]
       );
@@ -492,7 +498,7 @@ app.post(
       // 📌 Si es psicólogo, obtener su id_psicologo
       let id_psicologo = null;
       if (user.rol === "psicologo") {
-        const [p] = await pool.query(
+        const [p] = await db.query(
           "SELECT id_psicologo FROM psicologos WHERE id_usuario = ?",
           [user.id_usuario]
         );
@@ -544,14 +550,14 @@ app.put(
     const { id_usuario } = req.user;
 
     try {
-      const [rows] = await pool.query("SELECT password FROM usuarios WHERE id_usuario = ?", [id_usuario]);
+      const [rows] = await db.query("SELECT password FROM usuarios WHERE id_usuario = ?", [id_usuario]);
       if (!rows.length) return res.status(404).json({ message: "Usuario no encontrado" });
 
       const ok = await bcrypt.compare(oldPassword, rows[0].password);
       if (!ok) return res.status(401).json({ message: "La contraseña actual es incorrecta" });
 
       const hashed = await bcrypt.hash(newPassword, 10);
-      await pool.query("UPDATE usuarios SET password = ? WHERE id_usuario = ?", [hashed, id_usuario]);
+      await db.query("UPDATE usuarios SET password = ? WHERE id_usuario = ?", [hashed, id_usuario]);
 
       res.json({ message: "Contraseña actualizada" });
     } catch (err) {
@@ -581,7 +587,7 @@ export async function generarReporteIA(req, res) {
     console.log("🧠 Generando reporte IA actualizado para paciente:", id_paciente);
 
     // 2️⃣ Verificar existencia del paciente
-    const [pacienteRows] = await pool.query(
+    const [pacienteRows] = await db.query(
       `SELECT nombre, edad, sexo, antecedentes
        FROM pacientes
        WHERE id_paciente = ?`,
@@ -595,7 +601,7 @@ export async function generarReporteIA(req, res) {
     const paciente = pacienteRows[0];
 
     // 3️⃣ Obtener historial inicial
-    const [historialInicial] = await pool.query(
+    const [historialInicial] = await db.query(
       `SELECT diagnostico_inicial, tratamiento_inicial, notas
        FROM historial_inicial
        WHERE id_paciente = ?
@@ -605,7 +611,7 @@ export async function generarReporteIA(req, res) {
     );
 
     // 4️⃣ Obtener últimos seguimientos
-    const [seguimientos] = await pool.query(
+    const [seguimientos] = await db.query(
       `SELECT fecha, diagnostico, tratamiento, evolucion, observaciones
        FROM historial_seguimiento
        WHERE id_paciente = ?
@@ -615,7 +621,7 @@ export async function generarReporteIA(req, res) {
     );
 
     // 5️⃣ Obtener resultados de pruebas recientes
-    const [pruebas] = await pool.query(
+    const [pruebas] = await db.query(
       `SELECT p.nombre AS prueba, r.puntaje_total, r.interpretacion, r.fecha
        FROM resultados_prueba r
        JOIN pruebas p ON r.id_prueba = p.id_prueba
@@ -687,21 +693,21 @@ Redacta el reporte clínico final con los apartados:
       "⚠️ No hubo respuesta de Gemini.";
 
     // 8️⃣ Guardar o actualizar el último reporte IA
-    const [reporteExistente] = await pool.query(
+    const [reporteExistente] = await db.query(
       `SELECT id_reporte FROM reportes_ia WHERE id_paciente = ? ORDER BY fecha DESC LIMIT 1`,
       [id_paciente]
     );
 
     if (reporteExistente.length > 0) {
-      // Actualiza el más reciente
-      await pool.query(
+      // Actualiza el más reciente mod
+      await db.query(
         `UPDATE reportes_ia SET contenido = ?, fecha = NOW() WHERE id_reporte = ?`,
         [texto, reporteExistente[0].id_reporte]
       );
       console.log("♻️ Reporte IA actualizado correctamente");
     } else {
       // Inserta uno nuevo si no hay
-      await pool.query(
+      await db.query(
         `INSERT INTO reportes_ia (id_paciente, contenido, fecha) VALUES (?, ?, NOW())`,
         [id_paciente, texto]
       );
@@ -730,7 +736,7 @@ app.post("/api/pacientes/:id/generar-reporte-pdf", verifyToken, async (req, res)
 
   try {
     // 1️⃣ Último reporte IA
-    const [reporte] = await pool.query(
+    const [reporte] = await db.query(
       `SELECT id_reporte, contenido FROM reportes_ia WHERE id_paciente = ? ORDER BY fecha DESC LIMIT 1`,
       [id]
     );
@@ -741,7 +747,7 @@ app.post("/api/pacientes/:id/generar-reporte-pdf", verifyToken, async (req, res)
     const textoIA = reporte[0].contenido || "Reporte no disponible";
 
     // 2️⃣ Datos del paciente
-    const [pacienteRows] = await pool.query(
+    const [pacienteRows] = await db.query(
       `SELECT nombre, edad, sexo FROM pacientes WHERE id_paciente = ?`,
       [id]
     );
@@ -835,7 +841,7 @@ doc.pipe(writeStream);
 
     // Guardar PDF en BD
     writeStream.on("finish", async () => {
-      await pool.query(`UPDATE reportes_ia SET ruta_pdf = ? WHERE id_reporte = ?`, [rutaPublica, idReporte]);
+      await db.query(`UPDATE reportes_ia SET ruta_pdf = ? WHERE id_reporte = ?`, [rutaPublica, idReporte]);
       res.json({ message: "✅ PDF generado correctamente", ruta: rutaPublica });
     });
 
@@ -854,7 +860,7 @@ app.post("/api/sesiones/:id/videollamada", verifyToken, async (req, res) => {
   const sala = `sala-${id}-${Date.now()}`;
   const link = `http://localhost:5173/SalaVideollamada/${sala}`;
 
-  await pool.query(
+  await db.query(
     "UPDATE sesiones SET link_videollamada = ? WHERE id_sesion = ?",
     [link, id]
   );
@@ -876,7 +882,7 @@ app.get("/api/psicologos", verifyToken, async (req, res) => {
 
   try {
     // ✅ 2. Consulta SQL con JOIN para combinar datos de usuario + psicólogo
-    const [rows] = await pool.query(
+    const [rows] = await db.query(
       `SELECT p.id_psicologo, u.nombre, u.correo, 
               p.cedula_profesional, p.especialidad
        FROM psicologos p 
@@ -907,7 +913,7 @@ app.get("/api/pacientes", verifyToken, async (req, res) => {
     }
 
     // ✅ 2. Consulta filtrando solo los pacientes del psicólogo logueado
-    const [rows] = await pool.query(
+    const [rows] = await db.query(
       `SELECT id_paciente, nombre, sexo, fecha_nacimiento, edad, correo, telefono, direccion, antecedentes
        FROM pacientes
        WHERE id_psicologo = ?
@@ -935,7 +941,7 @@ app.get("/api/pacientes/:id", verifyToken, async (req, res) => {
       return res.status(403).json({ message: "Acceso denegado: solo psicólogos" });
     }
 
-    const [rows] = await pool.query(
+    const [rows] = await db.query(
       `SELECT id_paciente, nombre, sexo, fecha_nacimiento, edad, correo, telefono, direccion, antecedentes
        FROM pacientes 
        WHERE id_paciente = ? AND id_psicologo = ?`,
@@ -985,7 +991,7 @@ app.post("/api/pacientes", verifyToken, async (req, res) => {
     }
 
     // ✅ 4. Insertar en la base de datos
-    const [result] = await pool.query(
+    const [result] = await db.query(
       `INSERT INTO pacientes 
         (id_psicologo, nombre, sexo, fecha_nacimiento, edad, correo, telefono, direccion, antecedentes)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -1026,7 +1032,7 @@ app.get("/api/pacientes/:id/reportes-completos", verifyToken, async (req, res) =
 
   try {
     // 1️⃣ Obtener datos del paciente
-    const [pacienteRows] = await pool.query(
+    const [pacienteRows] = await db.query(
       `SELECT id_paciente, nombre, sexo, fecha_nacimiento, edad, correo, telefono, direccion, antecedentes
        FROM pacientes WHERE id_paciente = ?`,
       [id]
@@ -1037,13 +1043,13 @@ app.get("/api/pacientes/:id/reportes-completos", verifyToken, async (req, res) =
     const paciente = pacienteRows[0];
 
     // 2️⃣ Historial clínico inicial (solo 1 registro)
-    const [historialInicial] = await pool.query(
+    const [historialInicial] = await db.query(
       "SELECT * FROM historial_inicial WHERE id_paciente = ? LIMIT 1",
       [id]
     );
 
     // 3️⃣ Resultados de pruebas psicológicas
-    const [resultados] = await pool.query(
+    const [resultados] = await db.query(
       `SELECT r.id_resultado, r.id_prueba, p.nombre AS prueba, r.puntaje_total, r.interpretacion,
               DATE_FORMAT(r.fecha, '%Y-%m-%dT%H:%i:%s') AS fecha
        FROM resultados_prueba r
@@ -1054,7 +1060,7 @@ app.get("/api/pacientes/:id/reportes-completos", verifyToken, async (req, res) =
     );
 
     // 4️⃣ Seguimiento clínico (evoluciones del tratamiento)
-    const [seguimiento] = await pool.query(
+    const [seguimiento] = await db.query(
       `SELECT id_seguimiento, fecha, diagnostico, tratamiento, evolucion, observaciones
        FROM historial_seguimiento
        WHERE id_paciente = ?
@@ -1063,7 +1069,7 @@ app.get("/api/pacientes/:id/reportes-completos", verifyToken, async (req, res) =
     );
 
     // 5️⃣ Sesiones + videos grabados en cada sesión
-    const [sesiones] = await pool.query(
+    const [sesiones] = await db.query(
       `SELECT s.id_sesion, s.fecha, s.notas,
               GROUP_CONCAT(v.ruta_video SEPARATOR '||') AS videos
        FROM sesiones s
@@ -1109,7 +1115,7 @@ app.get("/api/pacientes/:id/reportes-ia", verifyToken, async (req, res) => {
 
   try {
     // Validar que el paciente pertenece al psicólogo
-    const [paciente] = await pool.query(
+    const [paciente] = await db.query(
       "SELECT id_psicologo FROM pacientes WHERE id_paciente = ?",
       [id]
     );
@@ -1123,7 +1129,7 @@ app.get("/api/pacientes/:id/reportes-ia", verifyToken, async (req, res) => {
     }
 
     // ✅ Ahora sí incluimos 'ruta_pdf'
-    const [rows] = await pool.query(
+    const [rows] = await db.query(
       `SELECT id_reporte, fecha, contenido, ruta_pdf
        FROM reportes_ia
        WHERE id_paciente = ?
@@ -1150,7 +1156,7 @@ app.post("/api/pacientes/:id/generar-reporte-ia", verifyToken, async (req, res) 
 
   try {
     // ✅ 1. Validar que el paciente exista y le pertenezca al psicólogo
-    const [pacienteRows] = await pool.query(
+    const [pacienteRows] = await db.query(
       "SELECT id_paciente, id_psicologo, nombre, edad, sexo, antecedentes FROM pacientes WHERE id_paciente = ?",
       [id]
     );
@@ -1213,7 +1219,7 @@ No incluyas teoría, ni definiciones, ni explicación de pruebas.
     const contenido = dataIA?.candidates?.[0]?.content?.parts?.[0]?.text || "⚠️ Sin respuesta de IA";
 
     // ✅ 5. Guardar en BD
-    await pool.query(
+    await db.query(
       "INSERT INTO reportes_ia (id_paciente, fecha, contenido) VALUES (?, NOW(), ?)",
       [id, contenido]
     );
@@ -1225,8 +1231,6 @@ No incluyas teoría, ni definiciones, ni explicación de pruebas.
   }
 });
 
-
-
 //nos quedamos aqui 
 /* ==================================================
    Obtener historial inicial de un paciente
@@ -1234,7 +1238,7 @@ No incluyas teoría, ni definiciones, ni explicación de pruebas.
 app.get("/api/historial-inicial/:id_paciente", verifyToken, async (req, res) => {
   const { id_paciente } = req.params;
   try {
-    const [rows] = await pool.query(
+    const [rows] = await db.query(
       `SELECT * FROM historial_inicial WHERE id_paciente = ? LIMIT 1`,
       [id_paciente]
     );
@@ -1257,7 +1261,7 @@ app.put("/api/historial-inicial/:id_paciente", verifyToken, async (req, res) => 
 
   try {
     // Verificamos si existe
-    const [rows] = await pool.query(
+    const [rows] = await db.query(
   `SELECT id_historial_inicial FROM historial_inicial WHERE id_paciente = ? LIMIT 1`,
   [id_paciente]
 );
@@ -1267,7 +1271,7 @@ app.put("/api/historial-inicial/:id_paciente", verifyToken, async (req, res) => 
     }
 
     // Actualizamos
-    await pool.query(
+    await db.query(
       `UPDATE historial_inicial 
        SET diagnostico_inicial = ?, tratamiento_inicial = ?, observaciones = ?, fecha = NOW()
        WHERE id_paciente = ?`,
@@ -1288,7 +1292,7 @@ app.put("/api/historial-inicial/:id_paciente", verifyToken, async (req, res) => 
 app.get("/api/sesiones/paciente/:id_paciente", verifyToken, async (req, res) => {
   const { id_paciente } = req.params;
   try {
-    const [rows] = await pool.query(
+    const [rows] = await db.query(
       `
       SELECT * FROM (
         SELECT id_sesion, id_paciente, fecha, notas
@@ -1330,7 +1334,7 @@ app.post("/api/sesiones", verifyToken, async (req, res) => {
   }
 
   // 2️⃣ Validar que el paciente exista
-  const [checkPaciente] = await pool.query(
+  const [checkPaciente] = await db.query(
     "SELECT * FROM pacientes WHERE id_paciente = ?",
     [id_paciente]
   );
@@ -1344,7 +1348,7 @@ app.post("/api/sesiones", verifyToken, async (req, res) => {
 
     // 3️⃣ Si viene desde cita, validar que coincida con el paciente
     if (id_cita) {
-      const [cita] = await pool.query(
+      const [cita] = await db.query(
         "SELECT id_paciente, motivo, notas FROM citas WHERE id_cita = ?",
         [id_cita]
       );
@@ -1360,7 +1364,7 @@ app.post("/api/sesiones", verifyToken, async (req, res) => {
     }
 
     // 4️⃣ Insertar en la tabla sesiones
-    const [result] = await pool.query(
+    const [result] = await db.query(
       `INSERT INTO sesiones (id_cita, id_paciente, notas, link_videollamada)
        VALUES (?, ?, ?, ?)`,
       [id_cita ?? null, id_paciente, textoNotas, null] // 👈 iniciamos link en NULL
@@ -1376,10 +1380,6 @@ app.post("/api/sesiones", verifyToken, async (req, res) => {
   }
 });
 
-
-
-
-
 /* ==================================================
    Subir multimedia (video o audio) de sesión
 ================================================== */
@@ -1391,7 +1391,7 @@ app.post("/api/multimedia", verifyToken, uploadMultimedia.single("file"), async 
     if (!req.file) return res.status(400).json({ message: "No se recibió archivo" });
 
     // ✅ 1) Validar que la sesión exista
-    const [sesion] = await pool.query(
+    const [sesion] = await db.query(
       "SELECT id_sesion FROM sesiones WHERE id_sesion = ?",
       [id_sesion]
     );
@@ -1403,7 +1403,7 @@ app.post("/api/multimedia", verifyToken, uploadMultimedia.single("file"), async 
     const formato = req.file.mimetype;
 
     // ✅ 2) Insert usando nombres correctos
-    const [result] = await pool.query(
+    const [result] = await db.query(
       `INSERT INTO videos_sesion 
        (id_sesion, ruta_video, tipo, descripcion, duracion_segundos, formato, fecha_subida)
        VALUES (?, ?, ?, ?, ?, ?, NOW())`,
@@ -1427,7 +1427,7 @@ app.post("/api/multimedia", verifyToken, uploadMultimedia.single("file"), async 
 ================================================== */
 app.get("/api/pruebas", verifyToken, async (_req, res) => {
   try {
-   const [rows] = await pool.query(
+   const [rows] = await db.query(
   "SELECT id_prueba, nombre, descripcion, tipo, version, activo FROM pruebas ORDER BY id_prueba DESC"
 );
 
@@ -1449,7 +1449,7 @@ app.post("/api/pruebas/habilitar", verifyToken, async (req, res) => {
     return res.status(400).json({ message: "Faltan datos" });
   }
   try {
-    await pool.query(
+    await db.query(
       "INSERT INTO pruebas_habilitadas (id_paciente, id_prueba, id_psicologo, notas) VALUES (?,?,?,?)",
       [id_paciente, id_prueba, id_psicologo, notas || null]
     );
@@ -1467,7 +1467,7 @@ app.post("/api/pruebas/habilitar", verifyToken, async (req, res) => {
 app.get("/api/pruebas/habilitadas/:id_paciente", verifyToken, async (req, res) => {
   const { id_paciente } = req.params;
   try {
-    const [rows] = await pool.query(
+    const [rows] = await db.query(
       `SELECT ph.id_habilitacion, pr.id_prueba, pr.nombre, pr.descripcion, pr.tipo, ph.fecha
        FROM pruebas_habilitadas ph
        JOIN pruebas pr ON ph.id_prueba = pr.id_prueba
@@ -1488,11 +1488,11 @@ app.get("/api/pruebas/habilitadas/:id_paciente", verifyToken, async (req, res) =
 app.get("/api/pruebas/:id/preguntas", verifyToken, async (req, res) => {
   const { id } = req.params;
   try {
-    const [preguntas] = await pool.query("SELECT * FROM preguntas_prueba WHERE id_prueba = ?", [id]);
+    const [preguntas] = await db.query("SELECT * FROM preguntas_prueba WHERE id_prueba = ?", [id]);
 
     // Traer opciones de cada pregunta
     for (let p of preguntas) {
-      const [opciones] = await pool.query(
+      const [opciones] = await db.query(
         "SELECT * FROM opciones_respuesta WHERE id_pregunta = ?",
         [p.id_pregunta]
       );
@@ -1521,7 +1521,7 @@ app.post("/api/pruebas/:id/finalizar", verifyToken, async (req, res) => {
 
   try {
     // 1️⃣ Calcular puntaje total
-    const [rows] = await pool.query(
+    const [rows] = await db.query(
       `SELECT SUM(o.valor) AS total
        FROM respuestas_prueba r
        JOIN opciones_respuesta o ON r.id_opcion = o.id_opcion
@@ -1583,7 +1583,7 @@ Genera un **reporte clínico breve, claro y estructurado en español** con posib
     }
 
     // 4️⃣ Guardar en resultados_prueba (UPDATE si ya existe)
-    const [existe] = await pool.query(
+    const [existe] = await db.query(
       `SELECT id_resultado 
        FROM resultados_prueba 
        WHERE id_paciente = ? AND id_prueba = ? AND id_habilitacion = ?`,
@@ -1591,7 +1591,7 @@ Genera un **reporte clínico breve, claro y estructurado en español** con posib
     );
 
     if (existe.length > 0) {
-      await pool.query(
+      await db.query(
         `UPDATE resultados_prueba 
          SET puntaje_total = ?, interpretacion = ?, reporte_ia = ?, id_sesion = ?, fecha = NOW()
          WHERE id_resultado = ?`,
@@ -1604,7 +1604,7 @@ Genera un **reporte clínico breve, claro y estructurado en español** con posib
         ]
       );
     } else {
-      await pool.query(
+      await db.query(
         `INSERT INTO resultados_prueba 
          (id_paciente, id_prueba, id_habilitacion, puntaje_total, interpretacion, reporte_ia, id_sesion, fecha)
          VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
@@ -1635,10 +1635,6 @@ Genera un **reporte clínico breve, claro y estructurado en español** con posib
   }
 });
 
-
-
-
-
 /* ==================================================
    Finalizar prueba (versión pública)
 ================================================== */
@@ -1656,7 +1652,7 @@ app.post("/api/pruebas/:id/finalizar/publico", async (req, res) => {
     console.log("📩 Finalizar público recibido:", JSON.stringify(req.body, null, 2));
 
     // 1️⃣ Calcular puntaje total
-    const [rows] = await pool.query(
+    const [rows] = await db.query(
       `SELECT SUM(o.valor) AS total
        FROM respuestas_prueba r
        JOIN opciones_respuesta o ON r.id_opcion = o.id_opcion
@@ -1705,7 +1701,7 @@ Genera un reporte en lenguaje clínico breve, claro y estructurado en español c
     }
 
     // 4️⃣ Guardar o actualizar resultado en la BD
-    await pool.query(
+    await db.query(
       `INSERT INTO resultados_prueba 
         (id_paciente, id_prueba, id_habilitacion, id_sesion, puntaje_total, interpretacion, reporte_ia, fecha)
        VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
@@ -1755,7 +1751,7 @@ app.post("/api/respuestas", verifyToken, async (req, res) => {
       r.respuesta_abierta ?? null
     ]);
 
-    await pool.query(
+    await db.query(
       `INSERT INTO respuestas_prueba 
        (id_paciente, id_prueba, id_habilitacion, id_pregunta, id_opcion, respuesta_abierta) 
        VALUES ?`,
@@ -1776,7 +1772,7 @@ app.get("/api/videos/paciente/:id_paciente", verifyToken, async (req, res) => {
   const { id_paciente } = req.params;
 
   try {
-    const [rows] = await pool.query(
+    const [rows] = await db.query(
       `SELECT v.id_video, v.id_sesion, v.ruta_video, 
               s.fecha AS fecha_sesion
        FROM videos_sesion v
@@ -1826,7 +1822,7 @@ app.post("/api/respuestas/publico", async (req, res) => {
     ]);
 
     // ✅ Inserción masiva
-    await pool.query(
+    await db.query(
       `INSERT INTO respuestas_prueba 
        (id_paciente, id_prueba, id_habilitacion, id_pregunta, id_opcion, respuesta_abierta, id_sesion) 
        VALUES ?`,
@@ -1856,7 +1852,7 @@ app.post("/api/respuestas/publico", async (req, res) => {
 app.get("/api/pruebas/habilitacion/:id_habilitacion", async (req, res) => {
   const { id_habilitacion } = req.params;
   try {
-    const [rows] = await pool.query(
+    const [rows] = await db.query(
       `SELECT 
          ph.id_habilitacion AS id_habilitacion,
          ph.id_paciente,
@@ -1876,13 +1872,13 @@ app.get("/api/pruebas/habilitacion/:id_habilitacion", async (req, res) => {
     const prueba = rows[0];
 
     // Traer preguntas con sus opciones
-    const [preguntas] = await pool.query(
+    const [preguntas] = await db.query(
       "SELECT * FROM preguntas_prueba WHERE id_prueba = ?",
       [prueba.id_prueba]
     );
 
     for (let p of preguntas) {
-      const [opciones] = await pool.query(
+      const [opciones] = await db.query(
         "SELECT * FROM opciones_respuesta WHERE id_pregunta = ?",
         [p.id_pregunta]
       );
@@ -1896,8 +1892,6 @@ app.get("/api/pruebas/habilitacion/:id_habilitacion", async (req, res) => {
   }
 });
 
-
-
 /* ==================================================
    Reportes del paciente (incluye reporte_ia)
 ================================================== */
@@ -1905,7 +1899,7 @@ app.get("/api/reportes/:id_paciente", verifyToken, async (req, res) => {
   const { id_paciente } = req.params;
 
   try {
-    const [rows] = await pool.query(
+    const [rows] = await db.query(
       `SELECT 
           r.id_resultado,
           r.id_prueba,
@@ -1946,7 +1940,6 @@ app.get("/api/reportes/:id_paciente", verifyToken, async (req, res) => {
   }
 });
 
-
 /* ==================================================
    Historial inicial (solo una vez por paciente)
 ================================================== */
@@ -1973,7 +1966,7 @@ app.post("/api/historial-inicial", verifyToken, async (req, res) => {
   } = req.body;
 
   try {
-    const [exist] = await pool.query(
+    const [exist] = await db.query(
       "SELECT id_historial_inicial FROM historial_inicial WHERE id_paciente = ?",
       [id_paciente]
     );
@@ -1981,7 +1974,7 @@ app.post("/api/historial-inicial", verifyToken, async (req, res) => {
       return res.status(400).json({ message: "⚠️ El historial inicial ya fue registrado" });
     }
 
-    const [result] = await pool.query(
+    const [result] = await db.query(
       `INSERT INTO historial_inicial 
       (id_paciente, fecha_registro, estado_civil, ocupacion, escolaridad,
        antecedentes_personales, antecedentes_familiares, antecedentes_patologicos, antecedentes_emocionales,
@@ -2024,7 +2017,7 @@ app.post("/api/seguimiento", verifyToken, async (req, res) => {
   const { id_paciente, id_sesion, diagnostico, tratamiento, evolucion, observaciones } = req.body;
 
   try {
-    const [result] = await pool.query(
+    const [result] = await db.query(
       `INSERT INTO historial_seguimiento 
       (id_paciente, id_sesion, fecha, diagnostico, tratamiento, evolucion, observaciones) 
       VALUES (?, ?, NOW(), ?, ?, ?, ?)`,
@@ -2041,7 +2034,7 @@ app.post("/api/seguimiento", verifyToken, async (req, res) => {
 app.get("/api/seguimiento/:id_paciente", verifyToken, async (req, res) => {
   const { id_paciente } = req.params;
   try {
-    const [rows] = await pool.query(
+    const [rows] = await db.query(
       "SELECT * FROM historial_seguimiento WHERE id_paciente = ? ORDER BY fecha DESC",
       [id_paciente]
     );
@@ -2052,9 +2045,6 @@ app.get("/api/seguimiento/:id_paciente", verifyToken, async (req, res) => {
   }
 });
 
-
-
-
 /* ==================================================
    Notas / Chat manual de sesión (notas_sesion)
 ================================================== */
@@ -2063,7 +2053,7 @@ app.post("/api/notas", verifyToken, async (req, res) => {
   if (!id_sesion || !pregunta) return res.status(400).json({ message: "Faltan datos" });
 
   try {
-    await pool.query(
+    await db.query(
       "INSERT INTO notas_sesion (id_sesion, autor, pregunta, respuesta, tipo, fecha) VALUES (?, ?, ?, ?, ?, NOW())",
       [id_sesion, autor, pregunta, respuesta, tipo]
     );
@@ -2077,7 +2067,7 @@ app.post("/api/notas", verifyToken, async (req, res) => {
 app.get("/api/notas/sesion/:id_sesion", verifyToken, async (req, res) => {
   const { id_sesion } = req.params;
   try {
-    const [rows] = await pool.query(
+    const [rows] = await db.query(
       "SELECT id_chat, autor, pregunta, respuesta, tipo, fecha FROM notas_sesion WHERE id_sesion = ? ORDER BY fecha ASC",
       [id_sesion]
     );
@@ -2100,7 +2090,7 @@ app.get("/api/citas", verifyToken, async (req, res) => {
       return res.status(403).json({ message: "Acceso denegado: psicólogo no válido" });
     }
 
-    const [rows] = await pool.query(
+    const [rows] = await db.query(
       `
       SELECT 
         c.id_cita,
@@ -2143,7 +2133,7 @@ app.post("/api/citas", verifyToken, async (req, res) => {
     const { id_paciente, fecha, hora, motivo, notas } = req.body;
 
     // Validar que el paciente exista
-    const [paciente] = await pool.query(
+    const [paciente] = await db.query(
       "SELECT id_paciente FROM pacientes WHERE id_paciente = ?",
       [id_paciente]
     );
@@ -2153,7 +2143,7 @@ app.post("/api/citas", verifyToken, async (req, res) => {
     }
 
     // Crear cita vinculada al psicólogo logueado
-    await pool.query(
+    await db.query(
       "INSERT INTO citas (id_paciente, id_psicologo, fecha, hora, motivo, notas, estado) VALUES (?,?,?,?,?,?,?)",
       [id_paciente, user.id_psicologo, fecha, hora, motivo, notas || "", "pendiente"]
     );
@@ -2172,7 +2162,7 @@ app.put("/api/sesiones/:id/finalizar", verifyToken, async (req, res) => {
   const { id } = req.params;
 
   try {
-    const [result] = await pool.query(
+    const [result] = await db.query(
       "UPDATE sesiones SET estado = 'finalizada', fecha_fin = NOW() WHERE id_sesion = ?",
       [id]
     );
@@ -2197,13 +2187,13 @@ app.delete("/api/pacientes/:id", verifyToken, async (req, res) => {
 
   try {
     // Primero validar que el paciente exista
-    const [rows] = await pool.query("SELECT * FROM pacientes WHERE id_paciente = ?", [id]);
+    const [rows] = await db.query("SELECT * FROM pacientes WHERE id_paciente = ?", [id]);
     if (!rows.length) {
       return res.status(404).json({ message: "Paciente no encontrado" });
     }
 
     // Eliminar paciente
-    await pool.query("DELETE FROM pacientes WHERE id_paciente = ?", [id]);
+    await db.query("DELETE FROM pacientes WHERE id_paciente = ?", [id]);
 
     res.json({ message: "✅ Paciente eliminado correctamente" });
   } catch (err) {
@@ -2221,7 +2211,7 @@ app.put("/api/citas/:id/estado", verifyToken, async (req, res) => {
   const { estado } = req.body;
 
   try {
-    const [result] = await pool.query(
+    const [result] = await db.query(
       "UPDATE citas SET estado = ? WHERE id_cita = ?",
       [estado, id]
     );
