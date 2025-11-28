@@ -11,20 +11,20 @@ const LoginView = ({ onLoginSuccess, onBack }) => {
 
   const handleLogin = async () => {
     setError("");
+
     if (!correo || !password) {
       setError("Por favor ingresa correo y contraseña");
       return;
     }
 
     setLoading(true);
-    try {
-      const data = await login(correo, password);
-//  CORREGIDO — unir almacenamiento con AuthService
-      
-      if (data && data.user && data.token) {
-        sessionStorage.setItem("token", data.token);
-        sessionStorage.setItem("user", JSON.stringify(data.user));
 
+    try {
+      // 👇 Aquí se hace el fetch y AuthService guarda token + user en sessionStorage
+      const data = await login(correo, password);
+
+      if (data && data.user && data.token) {
+        // Ya NO guardamos nada aquí, solo avisamos al padre
         onLoginSuccess({ ...data.user, token: data.token });
       } else {
         setError("Error: respuesta inesperada del servidor");
@@ -61,6 +61,7 @@ const LoginView = ({ onLoginSuccess, onBack }) => {
       <button onClick={handleLogin} style={buttonStyle} disabled={loading}>
         {loading ? "Ingresando..." : "Ingresar"}
       </button>
+
       <button onClick={onBack} style={backStyle}>
         ← Volver
       </button>
