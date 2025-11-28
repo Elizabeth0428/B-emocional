@@ -21,8 +21,8 @@ const LoginView = ({ onLoginSuccess, onBack }) => {
       const data = await login(correo, password);
 
       if (data && data.user && data.token) {
-        localStorage.setItem("authToken", data.token);
-        localStorage.setItem("user", JSON.stringify(data.user));
+        sessionStorage.setItem("token", data.token);
+        sessionStorage.setItem("user", JSON.stringify(data.user));
 
         onLoginSuccess({ ...data.user, token: data.token });
       } else {
