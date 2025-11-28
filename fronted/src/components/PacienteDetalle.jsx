@@ -6,13 +6,16 @@ const API = import.meta.env.VITE_API_URL || "https://bemocional-backend.onrender
 
 export default function PacienteDetalle({ idPaciente, onBack }) {
   console.log("PacienteDetalle montado con idPaciente:", idPaciente);
+
   const [paciente, setPaciente] = useState(null);
   const [historialInicial, setHistorialInicial] = useState(null);
   const [seguimiento, setSeguimiento] = useState([]);
   const [sesiones, setSesiones] = useState([]);
-  const [resultados, setResultados] = useState([]); 
+  const [resultados, setResultados] = useState([]);
   const [loading, setLoading] = useState(true);
+
   const [links, setLinks] = useState(null);
+
   const [newSeguimiento, setNewSeguimiento] = useState({
     diagnostico: "",
     tratamiento: "",
@@ -20,43 +23,222 @@ export default function PacienteDetalle({ idPaciente, onBack }) {
     observaciones: "",
   });
 
-  const token = getToken(); // NUEVO
-// === Estado para reportes guardados (historial IA) ===
-const [reportesGuardados, setReportesGuardados] = useState([]);
+  // 📌 Reportes IA
+  const [reportesGuardados, setReportesGuardados] = useState([]);
 
-
-  // Estados para pruebas
+  // 📌 Pruebas
   const [catalogoPruebas, setCatalogoPruebas] = useState([]);
   const [pruebasHabilitadas, setPruebasHabilitadas] = useState([]);
   const [selectedPrueba, setSelectedPrueba] = useState("");
   const [notasPrueba, setNotasPrueba] = useState("");
 
-  // === Estado para reporte IA ===
+  // 📌 IA
   const [reporteIA, setReporteIA] = useState(null);
   const [loadingIA, setLoadingIA] = useState(false);
-  const [idSesion, setIdSesion] = useState(null);
 
   const navigate = useNavigate();
 
-useEffect(() => {
-  const fetchData = async () => {
+  // ======================================================
+  // 🟦 Cargar toda la información general del paciente
+  // ======================================================
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const headers = { Authorization: `Bearer ${getToken()}` };
+
+        // 🧍 Datos del paciente
+        const resPaciente = await fetch(`${API}/api/pacientes/${idPaciente}`, { headers });
+        if (resPaciente.ok) setPaciente(await resPaciente.json());
+
+        // 📋 Historial inicial
+        const resHist = await fetch(`${API}/api/historial-inicial/${idPaciente}`, { headers });
+        if (resHist.ok) setHistorialInicial(await resHist.json());
+
+        // 📑 Seguimiento
+        const resSeg = await fetch(`${API}/api/seguimiento/${idPaciente}`, { headers });
+        if (resSeg.ok) setSeguimiento(await resSeg.json());
+
+        // 📚 Catálogo de pruebas
+        const resCat = await fetch(`${API}/api/pruebas`, { headers });
+        if (resCat.ok) setCatalogoPruebas(await resCat.json());
+
+        // 🟢 Pruebas habilitadas
+        const resHab = await fetch(`${API}/api/pruebas/habilitadas/${idPaciente}`, { headers });
+        if (resHab.ok) setPruebasHabilitadas(await resHab.json());
+
+        // 📊 Resultados (IA)
+        const resResultados = await fetch(`${API}/api/reportes/${idPaciente}`, { headers });
+        if (resResultados.ok) {
+          const data = await resResultados.json();
+          setResultados(data.resultados || []);
+        }
+
+      } catch (err) {
+        console.error("❌ Error cargando datos:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [idPaciente]);
+
+  // ======================================================
+  // 🟦 Cargar reportes IA guardados
+  // ======================================================
+  useEffect(() => {
+    const fetchReportesGuardados = async () => {
+      try {
+        const res = await fetch(`${API}/api/pacientes/${idPaciente}/reportes-ia`, {
+          headers: { Authorization: `Bearer ${getToken()}` }
+        });
+
+        if (res.ok) {
+          setReportesGuardados(await res.json());
+        }
+
+      } catch (err) {
+        console.error("❌ Error cargando reportes IA:", err);
+      }
+    };
+
+    if (idPaciente) fetchReportesGuardados();
+  }, [idPaciente]);
+
+  // ======================================================
+  // 🟦 Guardar seguimiento
+  // ======================================================
+  const handleAddSeguimiento = async () => {
     try {
-      const headers = { Authorization: `Bearer ${getToken()}` };
+      const res = await fetch(`${API}/api/seguimiento`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${getToken()}`,
+        },
+        body: JSON.stringify({
+          ...newSeguimiento,
+          id_paciente: Number(idPaciente)
+        }),
+      });
 
-      // 🧍 Paciente
-      const resPaciente = await fetch(`${API}/api/pacientes/${idPaciente}`, { headers });
-      if (resPaciente.ok) setPaciente(await resPaciente.json());
+      if (!res.ok) throw new Error("Error al guardar seguimiento");
 
-      // 📋 Historial clínico inicial
-      const resHist = await fetch(`${API}/api/historial-inicial/${idPaciente}`, { headers });
-      if (resHist.ok) setHistorialInicial(await resHist.json());
+      const data = await res.json();
 
-      // 📑 Seguimiento
-      const resSeg = await fetch(`${API}/api/seguimiento/${idPaciente}`, { headers });
-      if (resSeg.ok) setSeguimiento(await resSeg.json());
+      setSeguimiento([
+        { ...newSeguimiento, id_seguimiento: data.id_seguimiento, fecha: new Date() },
+        ...seguimiento
+      ]);
 
-      // 🎥 Crear sesión para videollamada
-      const resSesion = await fetch(`${API}/api/sesiones`, {
+      setNewSeguimiento({ diagnostico: "", tratamiento: "", evolucion: "", observaciones: "" });
+
+      alert("✅ Seguimiento agregado");
+
+    } catch (err) {
+      console.error("❌ Error guardando seguimiento:", err);
+      alert("❌ No se pudo guardar seguimiento");
+    }
+  };
+
+
+    // ======================================================
+  // 🟦 Generar reporte IA (solo texto y se guarda en BD)
+  // ======================================================
+  const generarReporteIA = async () => {
+    try {
+      setLoadingIA(true);
+
+      const res = await fetch(`${API}/api/pacientes/${idPaciente}/generar-reporte-ia`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${getToken()}`,
+        },
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        alert("✅ Reporte IA generado correctamente");
+
+        // Recargar historial
+        const resReportes = await fetch(`${API}/api/pacientes/${idPaciente}/reportes-ia`, {
+          headers: { Authorization: `Bearer ${getToken()}` },
+        });
+
+        if (resReportes.ok) {
+          setReportesGuardados(await resReportes.json());
+        }
+
+      } else {
+        alert("❌ Error al generar reporte IA: " + data.message);
+      }
+
+    } catch (err) {
+      console.error("❌ Error generando reporte IA:", err);
+      alert("❌ No se pudo generar el reporte IA");
+    } finally {
+      setLoadingIA(false);
+    }
+  };
+
+  // ======================================================
+  // 🟦 Generar PDF (crea PDF + recarga historial)
+  // ======================================================
+  const generarPDF = async () => {
+    try {
+      const res = await fetch(`${API}/api/pacientes/${idPaciente}/generar-reporte-pdf`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${getToken()}`,
+        },
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        alert("✅ PDF generado correctamente");
+
+        // Recargar historial
+        const resReportes = await fetch(`${API}/api/pacientes/${idPaciente}/reportes-ia`, {
+          headers: { Authorization: `Bearer ${getToken()}` },
+        });
+
+        if (resReportes.ok) {
+          setReportesGuardados(await resReportes.json());
+        }
+
+        // Abrir PDF
+        if (data.ruta) {
+          window.open(`${API}${data.ruta}`, "_blank");
+        }
+
+      } else {
+        alert("⚠ No se pudo generar el PDF");
+      }
+
+    } catch (err) {
+      console.error("❌ Error generando PDF:", err);
+    }
+  };
+
+  // ======================================================
+  // 🟦 Habilitar prueba para el paciente
+  // ======================================================
+  const handleHabilitarPrueba = async () => {
+    if (!historialInicial) {
+      alert("⚠️ Debes completar el Historial Clínico Inicial antes de habilitar pruebas.");
+      return;
+    }
+
+    if (!selectedPrueba) {
+      return alert("⚠️ Selecciona una prueba");
+    }
+
+    try {
+      const res = await fetch(`${API}/api/pruebas/habilitar`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -64,420 +246,284 @@ useEffect(() => {
         },
         body: JSON.stringify({
           id_paciente: Number(idPaciente),
-          notas: "Sesión con videollamada",
+          id_prueba: Number(selectedPrueba),
+          notas: notasPrueba || null,
         }),
       });
 
-      const dataSesion = await resSesion.json();
-      const idSesion = dataSesion.id_sesion;
+      if (!res.ok) throw new Error("Error al habilitar prueba");
 
-      // 📚 Catálogo de pruebas
-      const resCat = await fetch(`${API}/api/pruebas`, { headers });
-      if (resCat.ok) setCatalogoPruebas(await resCat.json());
+      alert("✅ Prueba habilitada");
 
-      // 🟢 Pruebas habilitadas
-      const resHab = await fetch(`${API}/api/pruebas/habilitadas/${idPaciente}`, { headers });
-      if (resHab.ok) setPruebasHabilitadas(await resHab.json());
-
-      // 📊 Resultados de pruebas
-      const resResultados = await fetch(`${API}/api/reportes/${idPaciente}`, { headers });
-      if (resResultados.ok) {
-        const data = await resResultados.json();
-        setResultados(data.resultados || []);
-      }
-
-    } catch (err) {
-      console.error("❌ Error al obtener datos del paciente:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  fetchData();
-}, [idPaciente]);
-
-// ===============================================
-// 📑 useEffect para cargar reportes IA guardados
-// ===============================================
-useEffect(() => {
-  const fetchReportesGuardados = async () => {
-    try {
-      const res = await fetch(`${API}/api/pacientes/${idPaciente}/reportes-ia`, {
-        headers: { Authorization: `Bearer ${getToken()}` }
-      });
-
-      if (res.ok) {
-        setReportesGuardados(await res.json());
-      }
-
-    } catch (err) {
-      console.error("❌ Error al obtener reportes guardados:", err);
-    }
-  };
-
-  if (idPaciente) {
-    fetchReportesGuardados();
-  }
-}, [idPaciente]);
-
-// ===============================================
-// ✅ 1. Guardar seguimiento
-// ===============================================
-const handleAddSeguimiento = async () => {
-  try {
-    const res = await fetch(`${API}/api/seguimiento`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${getToken()}`,
-      },
-      body: JSON.stringify({ ...newSeguimiento, id_paciente: Number(idPaciente) }),
-    });
-
-    if (!res.ok) throw new Error("Error al guardar seguimiento");
-
-    const data = await res.json();
-    setSeguimiento([{ ...newSeguimiento, id_seguimiento: data.id_seguimiento, fecha: new Date() }, ...seguimiento]);
-    setNewSeguimiento({ diagnostico: "", tratamiento: "", evolucion: "", observaciones: "" });
-    alert("✅ Seguimiento agregado");
-
-  } catch (err) {
-    console.error("❌ Error:", err);
-    alert("❌ No se pudo guardar seguimiento");
-  }
-};
-
-// ===============================================
-// ✅ 2. Generar texto IA (se guarda en BD)
-// ===============================================
-const generarReporteIA = async () => {
-  try {
-    setLoadingIA(true);
-
-    const res = await fetch(`${API}/api/pacientes/${idPaciente}/generar-reporte-ia`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${getToken()}`,
-      },
-    });
-
-    const data = await res.json();
-
-    if (res.ok) {
-      alert("✅ Reporte IA generado correctamente");
-
-      const resReportes = await fetch(`${API}/api/pacientes/${idPaciente}/reportes-ia`, {
+      // Recargar pruebas habilitadas
+      const resHab = await fetch(`${API}/api/pruebas/habilitadas/${idPaciente}`, {
         headers: { Authorization: `Bearer ${getToken()}` },
       });
 
-      if (resReportes.ok) {
-        setReportesGuardados(await resReportes.json());
+      if (resHab.ok) {
+        setPruebasHabilitadas(await resHab.json());
       }
 
-    } else {
-      alert("❌ Error al generar reporte IA: " + data.message);
+      setSelectedPrueba("");
+      setNotasPrueba("");
+
+    } catch (err) {
+      console.error("❌ Error habilitando prueba:", err);
+      alert("❌ No se pudo habilitar la prueba");
     }
+  };
 
-  } catch (err) {
-    console.error("❌ Error al generar reporte IA:", err);
-    alert("No se pudo generar el reporte IA");
-  } finally {
-    setLoadingIA(false);
-  }
-};
-
-// ===============================================
-// 🖨 Generar PDF y actualizar historial
-// ===============================================
-const generarPDF = async () => {
-  try {
-    const res = await fetch(`${API}/api/pacientes/${idPaciente}/generar-reporte-pdf`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${getToken()}`,
-      },
-    });
-
-    const data = await res.json();
-
-    if (res.ok) {
-      alert("✅ PDF generado correctamente");
-
-      const resReportes = await fetch(`${API}/api/pacientes/${idPaciente}/reportes-ia`, {
-        headers: { Authorization: `Bearer ${getToken()}` },
-      });
-
-      if (resReportes.ok) {
-        const nuevosReportes = await resReportes.json();
-        setReportesGuardados(nuevosReportes);
-      }
-
-      if (data.ruta) {
-        window.open(`${API}${data.ruta}`, "_blank");
-      }
-
-    } else {
-      alert("⚠ No se pudo generar el PDF");
-    }
-
-  } catch (err) {
-    console.error("❌ Error al generar PDF:", err);
-  }
-};
-
-// ===============================================
-// ✅ Habilitar prueba para el paciente
-// ===============================================
-const handleHabilitarPrueba = async () => {
-  if (!historialInicial) {
-    alert("⚠️ Debes completar el Historial Clínico Inicial antes de habilitar pruebas.");
-    return;
-  }
-
-  if (!selectedPrueba) {
-    return alert("⚠️ Selecciona una prueba");
-  }
-
-  try {
-    const res = await fetch(`${API}/api/pruebas/habilitar`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${getToken()}`,
-      },
-      body: JSON.stringify({
-        id_paciente: Number(idPaciente),
-        id_prueba: Number(selectedPrueba),
-        notas: notasPrueba || null,
-      }),
-    });
-
-    if (!res.ok) throw new Error("Error al habilitar prueba");
-
-    alert("✅ Prueba habilitada");
-
-    const resHab = await fetch(`${API}/api/pruebas/habilitadas/${idPaciente}`, {
-      headers: { Authorization: `Bearer ${getToken()}` },
-    });
-
-    if (resHab.ok) {
-      const data = await resHab.json();
-      setPruebasHabilitadas(data);
-    }
-
-    setSelectedPrueba("");
-    setNotasPrueba("");
-
-  } catch (err) {
-    console.error("❌ Error:", err);
-    alert("❌ No se pudo habilitar la prueba");
-  }
-};
 
 
   if (loading) return <p>Cargando...</p>;
 
-return (
-  <div style={container}>
-    <button onClick={onBack} style={backButton}>⬅ Volver</button>
+  return (
+    <div style={container}>
+      <button onClick={onBack} style={backButton}>⬅ Volver</button>
 
-    <h2>👤 {paciente?.nombre || "Paciente desconocido"}</h2>
-    <div style={card}>
-      <p><b>Sexo:</b> {paciente?.sexo}</p>
-      <p><b>Edad:</b> {paciente?.edad}</p>
-      <p><b>Correo:</b> {paciente?.correo}</p>
-      <p><b>Teléfono:</b> {paciente?.telefono}</p>
-    </div>
-
-    {/* 🔹 Opciones del paciente */}
-    <hr />
-    <h3>📌 Opciones del paciente</h3>
-    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-      <button style={btnOption} onClick={() => navigate(`/historial/${idPaciente}`)}>📋 Ver historial clínico inicial</button>
-      <button style={btnOption} onClick={() => navigate(`/seguimiento/${idPaciente}`)}>📑 Ver historial de seguimiento</button>
-      <button style={btnOption} onClick={() => navigate(`/resultados/${idPaciente}`)}>🧪 Ver resultados de pruebas</button>
-      <button style={btnOption} onClick={() => navigate(`/sesiones/${idPaciente}`)}>📅 Ver sesiones</button>
-    </div>
-
-    {/* 🚀 Pruebas habilitadas */}
-    <hr />
-    <h3>🧾 Pruebas habilitadas</h3>
-    <div style={card}>
-      <select value={selectedPrueba} onChange={(e) => setSelectedPrueba(e.target.value)} style={textarea}>
-        <option value="">-- Selecciona una prueba --</option>
-        {catalogoPruebas.map((p) => (
-          <option key={p.id_prueba} value={p.id_prueba}>{p.nombre} ({p.tipo})</option>
-        ))}
-      </select>
-
-      <textarea
-        placeholder="Notas (opcional)"
-        value={notasPrueba}
-        onChange={(e) => setNotasPrueba(e.target.value)}
-        style={textarea}
-      />
-
-      <button style={btnSave} onClick={handleHabilitarPrueba}>➕ Habilitar prueba</button>
-    </div>
-
-    {pruebasHabilitadas.length > 0 && (
+      {/* ============================
+          🧍 Información del paciente
+      ============================ */}
+      <h2>👤 {paciente?.nombre || "Paciente desconocido"}</h2>
       <div style={card}>
-        <ul>
-          {pruebasHabilitadas.map((p) => (
-            <li key={p.id_habilitacion}>
-              <b>{p.nombre}</b> – {new Date(p.fecha).toLocaleDateString("es-MX")}
-              <br />
-              <small>{p.descripcion}</small>
-              <br />
-              <a
-                href={`${window.location.origin}/responder-prueba/${p.id_habilitacion}`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                📩 Link para paciente
-              </a>
-            </li>
-          ))}
-        </ul>
+        <p><b>Sexo:</b> {paciente?.sexo}</p>
+        <p><b>Edad:</b> {paciente?.edad}</p>
+        <p><b>Correo:</b> {paciente?.correo}</p>
+        <p><b>Teléfono:</b> {paciente?.telefono}</p>
       </div>
-    )}
 
-    {/* 🚀 Reporte IA */}
-    <hr />
-    <h3>🧠 Reporte automático con IA</h3>
-    <div style={card}>
-      <button style={btnSave} disabled={loadingIA} onClick={generarReporteIA}>
-        {loadingIA ? "⏳ Generando..." : "⚡ Generar reporte IA"}
-      </button>
+      {/* ============================
+          📌 MENÚ DE OPCIONES
+      ============================ */}
+      <hr />
+      <h3>📌 Opciones del paciente</h3>
 
-      <button style={{ ...btnSave, background: "#2196F3" }} onClick={generarPDF}>
-        🖨 Generar PDF del último reporte
-      </button>
-    </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+        <button style={btnOption} onClick={() => navigate(`/historial/${idPaciente}`)}>
+          📋 Ver historial clínico inicial
+        </button>
 
-    {/* 🚀 Historial de reportes IA */}
-    <hr />
-    <h3>📑 Historial de reportes IA</h3>
-    <div style={card}>
-      {reportesGuardados.length > 0 ? (
-        <ul>
-          {reportesGuardados.map((r) => (
-            <li key={r.id_reporte} style={{ marginBottom: "12px" }}>
-              <b>🗓️ {new Date(r.fecha).toLocaleString("es-MX")}</b> <br />
+        <button style={btnOption} onClick={() => navigate(`/seguimiento/${idPaciente}`)}>
+          📑 Ver historial de seguimiento
+        </button>
 
-              {r.ruta_pdf ? (
+        <button style={btnOption} onClick={() => navigate(`/resultados/${idPaciente}`)}>
+          🧪 Ver resultados de pruebas
+        </button>
+
+        <button style={btnOption} onClick={() => navigate(`/sesiones/${idPaciente}`)}>
+          📅 Ver sesiones
+        </button>
+      </div>
+
+      {/* ============================
+           🧾 HABILITAR PRUEBAS
+      ============================ */}
+      <hr />
+      <h3>🧾 Pruebas habilitadas</h3>
+
+      <div style={card}>
+        <select
+          value={selectedPrueba}
+          onChange={(e) => setSelectedPrueba(e.target.value)}
+          style={textarea}
+        >
+          <option value="">-- Selecciona una prueba --</option>
+
+          {catalogoPruebas.map((p) => (
+            <option key={p.id_prueba} value={p.id_prueba}>
+              {p.nombre} ({p.tipo})
+            </option>
+          ))}
+        </select>
+
+        <textarea
+          placeholder="Notas (opcional)"
+          value={notasPrueba}
+          onChange={(e) => setNotasPrueba(e.target.value)}
+          style={textarea}
+        />
+
+        <button style={btnSave} onClick={handleHabilitarPrueba}>
+          ➕ Habilitar prueba
+        </button>
+      </div>
+
+      {/* LISTADO DE PRUEBAS HABILITADAS */}
+      {pruebasHabilitadas.length > 0 && (
+        <div style={card}>
+          <ul>
+            {pruebasHabilitadas.map((p) => (
+              <li key={p.id_habilitacion}>
+                <b>{p.nombre}</b> – {new Date(p.fecha).toLocaleDateString("es-MX")}
+                <br />
+                <small>{p.descripcion}</small>
+                <br />
+
                 <a
-                  href={`${API}${r.ruta_pdf}`}
+                  href={`${window.location.origin}/responder-prueba/${p.id_habilitacion}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  style={{
-                    display: "inline-block",
-                    marginTop: "5px",
-                    backgroundColor: "#3f51b5",
-                    color: "white",
-                    padding: "6px 12px",
-                    borderRadius: "6px",
-                    textDecoration: "none",
-                    fontWeight: "bold",
-                  }}
                 >
-                  📄 Ver reporte PDF
+                  📩 Link para paciente
                 </a>
-              ) : (
-                <p style={{ color: "gray" }}>⚠️ Reporte generado, pero sin PDF</p>
-              )}
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="text-gray-500">No hay reportes generados todavía.</p>
-      )}
-    </div>
-
-    {/* 🚀 Videollamada */}
-    <hr />
-    <h3>📞 Videollamada</h3>
-    <div style={card}>
-      <p>Inicia una videollamada con este paciente.</p>
-
-      <button
-        style={btnSave}
-        onClick={async () => {
-          try {
-
-            // 1️⃣ Crear sesión en backend
-            const res = await fetch(`${API}/api/sesiones`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${getToken()}`,
-              },
-              body: JSON.stringify({
-                id_paciente: Number(idPaciente),
-                notas: "Sesión con videollamada",
-              }),
-            });
-
-            if (!res.ok) throw new Error("No se pudo crear sesión");
-            const data = await res.json();
-            const idSesion = data.id_sesion;
-
-            // 2️⃣ Generar link en backend
-            const resLink = await fetch(
-              `${API}/api/sesiones/${idSesion}/videollamada`,
-              {
-                method: "POST",
-                headers: { Authorization: `Bearer ${getToken()}` },
-              }
-            );
-
-            if (!resLink.ok) throw new Error("No se pudo generar link");
-            const { link } = await resLink.json();
-
-            // 3️⃣ Crear enlaces
-            const origin = window.location.origin;
-            const sala = link.split("/").pop();
-
-            setLinks({
-              psicologo: `${origin}/SalaVideollamada/${idSesion}-${sala}`,
-              paciente: `${origin}/videollamada-paciente/${sala}`,
-            });
-
-            alert("✅ Link de videollamada generado y guardado en BD");
-          } catch (err) {
-            console.error("❌ Error al generar link:", err);
-            alert("No se pudo generar link de videollamada");
-          }
-        }}
-      >
-        🔗 Generar link
-      </button>
-
-      {links && (
-        <div style={{ marginTop: "10px" }}>
-          <p>
-            <a
-              href={links.psicologo}
-              target="_blank"
-              rel="noreferrer"
-              style={linkBtn}
-            >
-              🚀 Iniciar videollamada (Psicólogo)
-            </a>
-          </p>
-          <p>
-            <b>👤 Link para el Paciente:</b>{" "}
-            <a href={links.paciente} target="_blank" rel="noreferrer">
-              {links.paciente}
-            </a>
-          </p>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
-    </div>
-  </div>
-);
+
+      {/* ============================
+           🧠 REPORTE IA + PDF
+      ============================ */}
+      <hr />
+      <h3>🧠 Reporte automático con IA</h3>
+
+      <div style={card}>
+        <button style={btnSave} disabled={loadingIA} onClick={generarReporteIA}>
+          {loadingIA ? "⏳ Generando..." : "⚡ Generar reporte IA"}
+        </button>
+
+        <button style={{ ...btnSave, background: "#2196F3" }} onClick={generarPDF}>
+          🖨 Generar PDF del último reporte
+        </button>
+      </div>
+
+      {/* =====================================================
+           📑 HISTORIAL DE REPORTES IA (inicio del bloque)
+         ===================================================== */}
+      <hr />
+      <h3>📑 Historial de reportes IA</h3>
+
+      <div style={card}>
+        {reportesGuardados.length > 0 ? (
+          <ul>
+            {reportesGuardados.map((r) => (
+              <li key={r.id_reporte} style={{ marginBottom: "12px" }}>
+                <b>🗓️ {new Date(r.fecha).toLocaleString("es-MX")}</b> <br />
+
+
+                             {/* Mostrar PDF si existe */}
+                {r.ruta_pdf ? (
+                  <a
+                    href={`${API}${r.ruta_pdf}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: "inline-block",
+                      marginTop: "5px",
+                      backgroundColor: "#3f51b5",
+                      color: "white",
+                      padding: "6px 12px",
+                      borderRadius: "6px",
+                      textDecoration: "none",
+                      fontWeight: "bold",
+                    }}
+                  >
+                    📄 Ver reporte PDF
+                  </a>
+                ) : (
+                  <p style={{ color: "gray" }}>⚠️ Reporte generado, pero sin PDF</p>
+                )}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-gray-500">No hay reportes generados todavía.</p>
+        )}
+      </div>
+
+      {/* ============================
+          📞 VIDEOLLAMADA CON PACIENTE
+      ============================ */}
+      <hr />
+      <h3>📞 Videollamada</h3>
+
+      <div style={card}>
+        <p>Inicia una videollamada con este paciente.</p>
+
+        <button
+          style={btnSave}
+          onClick={async () => {
+            try {
+              // 1️⃣ Crear sesión en backend
+              const res = await fetch(`${API}/api/sesiones`, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${getToken()}`,
+                },
+                body: JSON.stringify({
+                  id_paciente: Number(idPaciente),
+                  notas: "Sesión con videollamada",
+                }),
+              });
+
+              if (!res.ok) throw new Error("No se pudo crear sesión");
+
+              const data = await res.json();
+              const idSesion = data.id_sesion;
+
+              // 2️⃣ Generar link en backend
+              const resLink = await fetch(
+                `${API}/api/sesiones/${idSesion}/videollamada`,
+                {
+                  method: "POST",
+                  headers: { Authorization: `Bearer ${getToken()}` },
+                }
+              );
+
+              if (!resLink.ok) throw new Error("No se pudo generar link");
+
+              const { link } = await resLink.json();
+
+              // 3️⃣ Crear enlaces para psicólogo y paciente
+              const origin = window.location.origin;
+              const sala = link.split("/").pop();
+
+              setLinks({
+                psicologo: `${origin}/SalaVideollamada/${idSesion}-${sala}`,
+                paciente: `${origin}/videollamada-paciente/${sala}`,
+              });
+
+              alert("✅ Link de videollamada generado y guardado en BD");
+            } catch (err) {
+              console.error("❌ Error al generar link:", err);
+              alert("No se pudo generar link de videollamada");
+            }
+          }}
+        >
+          🔗 Generar link
+        </button>
+
+        {/* Mostrar enlaces generados */}
+        {links && (
+          <div style={{ marginTop: "10px" }}>
+            <p>
+              <a
+                href={links.psicologo}
+                target="_blank"
+                rel="noreferrer"
+                style={linkBtn}
+              >
+                🚀 Iniciar videollamada (Psicólogo)
+              </a>
+            </p>
+
+            <p>
+              <b>👤 Link para el Paciente:</b>{" "}
+              <a href={links.paciente} target="_blank" rel="noreferrer">
+                {links.paciente}
+              </a>
+            </p>
+          </div>
+        )}
+
+      </div> {/* Fin card videollamada */}
+
+    </div> // Fin container principal
+  ); // Fin return
+} // Fin componente PacienteDetalle
 
 
 // === Estilos ===
