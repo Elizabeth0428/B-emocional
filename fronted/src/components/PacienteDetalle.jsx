@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { getToken } from "../services/AuthService";
 import { useNavigate } from "react-router-dom";
 
-const API = import.meta.env.VITE_API_URL; // ⬅️ PRODUCCIÓN
+const API = import.meta.env.VITE_API_URL || "https://bemocional-backend.onrender.com";
 
 export default function PacienteDetalle({ idPaciente, onBack }) {
   console.log("PacienteDetalle montado con idPaciente:", idPaciente);
