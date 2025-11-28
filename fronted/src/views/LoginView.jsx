@@ -19,7 +19,8 @@ const LoginView = ({ onLoginSuccess, onBack }) => {
     setLoading(true);
     try {
       const data = await login(correo, password);
-
+//  CORREGIDO — unir almacenamiento con AuthService
+      
       if (data && data.user && data.token) {
         sessionStorage.setItem("token", data.token);
         sessionStorage.setItem("user", JSON.stringify(data.user));
