@@ -1,6 +1,3 @@
-//prueba de conexión.
-//verifica que la base de datos está conectanda
-
 import { db } from './db.js';
 
 async function testConnection() {

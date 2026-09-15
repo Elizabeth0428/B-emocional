@@ -1,50 +1,220 @@
+// backend/routes/evaluation.js
+
 import express from "express";
-import { analyzeWithIA } from "../services/aiService.js";
+
+import {
+
+  obtenerPruebas,
+
+  habilitarPrueba,
+
+  obtenerPruebasHabilitadas,
+
+  obtenerPreguntasPrueba,
+
+  finalizarPrueba,
+
+  finalizarPruebaPublica,
+
+  guardarRespuestas,
+
+  guardarRespuestasPublicas,
+
+  obtenerPruebaPorHabilitacion,
+
+  obtenerResultadosPaciente,
+
+  evaluateTests
+
+} from "../controllers/evaluationController.js";
+
+import {
+  verifyToken
+} from "../middlewares/authMiddleware.js";
+
 
 const router = express.Router();
 
-// ===== Ruta /evaluateTests =====
-router.post("/evaluateTests", (req, res) => {
-  const { paciente, pruebas = {}, emociones = [] } = req.body;
 
-  // 🔹 Aseguramos que Beck es un array
-  const beckResponses = Array.isArray(pruebas.Beck) ? pruebas.Beck : [];
+// ==================================================
+// OBTENER TODAS LAS PRUEBAS
+//
+// GET /api/evaluation/pruebas
+// ==================================================
 
-  // 🔹 Si vinieran respuestas como texto, asignamos puntajes simples
-  let scoreBeck = 0;
-  if (beckResponses.length > 0) {
-    scoreBeck = beckResponses.reduce((acc, r) => {
-      if (typeof r === "number") return acc + r; // caso: ya es número
-      if (typeof r === "object" && r.score) return acc + r.score; // caso: objeto con score
-      return acc + 1; // caso: texto, contamos 1 punto por respuesta
-    }, 0);
-  }
+router.get(
 
-  const reporte = `
-📄 Reporte de ${paciente?.nombre || "Paciente"}
------------------------------------
-Emociones detectadas: ${emociones.join(", ") || "Ninguna"}
+  "/pruebas",
 
-Resultados de pruebas:
-- Beck: ${scoreBeck} puntos (${scoreBeck < 10 ? "Leve" : "Moderado/Alto"})
+  verifyToken,
 
-⚠️ Este reporte es preliminar, el psicólogo tiene la última decisión.
-`;
+  obtenerPruebas
 
-  res.json({ reporte });
-});
+);
 
-// ===== Ruta /analyzeWithIA =====
-router.post("/analyzeWithIA", async (req, res) => {
-  const { paciente, pruebas, emociones, reporte } = req.body;
 
-  try {
-    const insights = await analyzeWithIA(paciente, pruebas, emociones, reporte);
-    res.json({ insights });
-  } catch (error) {
-    console.error("❌ Error en IA:", error);
-    res.status(500).json({ error: "Error generando análisis IA" });
-  }
-});
+// ==================================================
+// HABILITAR PRUEBA
+//
+// POST /api/evaluation/pruebas/habilitar
+// ==================================================
+
+router.post(
+
+  "/pruebas/habilitar",
+
+  verifyToken,
+
+  habilitarPrueba
+
+);
+
+
+// ==================================================
+// PRUEBAS HABILITADAS DE UN PACIENTE
+//
+// GET /api/evaluation/pruebas/habilitadas/:id_paciente
+// ==================================================
+
+router.get(
+
+  "/pruebas/habilitadas/:id_paciente",
+
+  verifyToken,
+
+  obtenerPruebasHabilitadas
+
+);
+
+
+// ==================================================
+// OBTENER RESULTADOS DE UN PACIENTE
+//
+// GET /api/evaluation/resultados/:id_paciente
+// ==================================================
+
+router.get(
+
+  "/resultados/:id_paciente",
+
+  verifyToken,
+
+  obtenerResultadosPaciente
+
+);
+
+
+// ==================================================
+// PREGUNTAS DE UNA PRUEBA
+//
+// GET /api/evaluation/pruebas/:id/preguntas
+// ==================================================
+
+router.get(
+
+  "/pruebas/:id/preguntas",
+
+  verifyToken,
+
+  obtenerPreguntasPrueba
+
+);
+
+
+// ==================================================
+// FINALIZAR PRUEBA
+//
+// POST /api/evaluation/pruebas/:id/finalizar
+// ==================================================
+
+router.post(
+
+  "/pruebas/:id/finalizar",
+
+  verifyToken,
+
+  finalizarPrueba
+
+);
+
+
+// ==================================================
+// FINALIZAR PRUEBA PÚBLICA
+//
+// POST /api/evaluation/pruebas/:id/finalizar/publico
+// ==================================================
+
+router.post(
+
+  "/pruebas/:id/finalizar/publico",
+
+  finalizarPruebaPublica
+
+);
+
+
+// ==================================================
+// GUARDAR RESPUESTAS
+//
+// POST /api/evaluation/respuestas
+// ==================================================
+
+router.post(
+
+  "/respuestas",
+
+  verifyToken,
+
+  guardarRespuestas
+
+);
+
+
+// ==================================================
+// GUARDAR RESPUESTAS PÚBLICAS
+//
+// POST /api/evaluation/respuestas/publico
+// ==================================================
+
+router.post(
+
+  "/respuestas/publico",
+
+  guardarRespuestasPublicas
+
+);
+
+
+// ==================================================
+// OBTENER PRUEBA POR HABILITACIÓN
+//
+// GET /api/evaluation/pruebas/habilitacion/:id_habilitacion
+//
+// Ruta pública
+// ==================================================
+
+router.get(
+
+  "/pruebas/habilitacion/:id_habilitacion",
+
+  obtenerPruebaPorHabilitacion
+
+);
+
+
+// ==================================================
+// EVALUAR TESTS
+//
+// POST /api/evaluation/evaluateTests
+// ==================================================
+
+router.post(
+
+  "/evaluateTests",
+
+  evaluateTests
+
+);
+
 
 export default router;
