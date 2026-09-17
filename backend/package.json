@@ -1,18 +1,19 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "type": "module",
+  "description": "Backend para el proyecto B-emocional",
   "main": "server.js",
+  "type": "module",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
     "start": "node server.js",
     "build": "echo Build complete",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  
-  "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "bcryptjs": "^3.0.3",
