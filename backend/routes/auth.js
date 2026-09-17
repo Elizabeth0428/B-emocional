@@ -2,18 +2,37 @@ import express from "express";
 
 import {
   registerPsicologo,
+  registerAdmin,
   login,
   changePassword,
 } from "../controllers/authController.js";
 
-import { verifyToken } from "../middlewares/authMiddleware.js";
+import {
+  verifyToken,
+  isMasterAdmin
+} from "../middlewares/authMiddleware.js";
+
 
 const router = express.Router();
 
 
-/* ==================================================
-   Registro de psicólogo
-================================================== */
+// ==================================================
+// REGISTRO DE ADMINISTRADOR NORMAL
+//
+// SOLO ADMIN MASTER
+// ==================================================
+
+router.post(
+  "/admin/register",
+  verifyToken,
+  isMasterAdmin,
+  registerAdmin
+);
+
+
+// ==================================================
+// REGISTRO DE PSICÓLOGO
+// ==================================================
 
 router.post(
   "/psicologos/register",
@@ -22,9 +41,9 @@ router.post(
 );
 
 
-/* ==================================================
-   Login
-================================================== */
+// ==================================================
+// LOGIN
+// ==================================================
 
 router.post(
   "/login",
@@ -32,9 +51,9 @@ router.post(
 );
 
 
-/* ==================================================
-   Cambiar contraseña
-================================================== */
+// ==================================================
+// CAMBIAR CONTRASEÑA
+// ==================================================
 
 router.put(
   "/change-password",

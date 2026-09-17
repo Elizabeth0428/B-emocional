@@ -5,21 +5,18 @@ import express from "express";
 import {
   subirArchivo,
   obtenerArchivosSesion,
-  eliminarArchivo
+  eliminarArchivo,
+  transcribirArchivo
 } from "../controllers/archivosController.js";
 
 import { verifyToken } from "../middlewares/authMiddleware.js";
-
 import { uploadMultimedia } from "../config/multer.js";
 
-
 const router = express.Router();
-
 
 /* ==================================================
    SUBIR ARCHIVO MULTIMEDIA
 ================================================== */
-
 router.post(
   "/",
   verifyToken,
@@ -27,27 +24,31 @@ router.post(
   subirArchivo
 );
 
-
 /* ==================================================
    OBTENER ARCHIVOS DE UNA SESIÓN
 ================================================== */
-
 router.get(
   "/sesion/:id_sesion",
   verifyToken,
   obtenerArchivosSesion
 );
 
+/* ==================================================
+   TRANSCRIBIR AUDIO
+================================================== */
+router.post(
+  "/:id/transcribir",
+  verifyToken,
+  transcribirArchivo
+);
 
 /* ==================================================
    ELIMINAR ARCHIVO
 ================================================== */
-
 router.delete(
   "/:id",
   verifyToken,
   eliminarArchivo
 );
-
 
 export default router;

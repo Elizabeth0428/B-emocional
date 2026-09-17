@@ -42,6 +42,27 @@ import streamRoutes from "./routes/stream.js";
 
 
 // ==================================================
+// NUEVAS RUTAS DE USUARIOS POR ÁREA
+// ==================================================
+
+// RH
+import usuarioRHRoutes from "./routes/usuarioRH.js";
+
+// Educativo
+import usuariosEducativoRoutes from "./routes/usuarioEducativo.js";
+
+// Independiente
+import usuariosIndependienteRoutes from "./routes/usuarioIndependiente.js";
+
+
+// ==================================================
+// PROSPECTOS RH
+// ==================================================
+
+import prospectosRoutes from "./routes/prospectos.js";
+
+
+// ==================================================
 // APP
 // ==================================================
 
@@ -63,6 +84,10 @@ app.use(helmet());
 
 const allowedOrigins = [
 
+  // Producción (Hostinger)
+  "https://reflejoyalma.com",
+  "https://www.reflejoyalma.com",
+
   // Casa
   "http://localhost:5173",
   "http://localhost:5174",
@@ -77,7 +102,11 @@ const allowedOrigins = [
   // Red actual
   "http://192.168.1.79:5175",
 
-  "http://192.168.100.31:5175"
+  "http://192.168.100.19:5175",
+
+  "http://192.168.100.31:5175",
+  // Red actual CASA
+  "http://169.254.83.107:5175"
 
 ];
 
@@ -235,6 +264,11 @@ fsExtra.ensureDirSync(
 // RUTAS API
 // ==================================================
 
+
+// ==================================================
+// REPORTES
+// ==================================================
+
 app.use(
   "/api/reportes",
   reporteRoutes
@@ -244,6 +278,10 @@ console.log(
   "✅ Ruta reportes cargada"
 );
 
+
+// ==================================================
+// INTELIGENCIA ARTIFICIAL
+// ==================================================
 
 app.use(
   "/api/ia",
@@ -255,6 +293,10 @@ console.log(
 );
 
 
+// ==================================================
+// AUTENTICACIÓN
+// ==================================================
+
 app.use(
   "/api",
   authRoutes
@@ -265,11 +307,19 @@ console.log(
 );
 
 
+// ==================================================
+// PACIENTES
+// ==================================================
+
 app.use(
   "/api/pacientes",
   pacientesRoutes
 );
 
+
+// ==================================================
+// SESIONES
+// ==================================================
 
 app.use(
   "/api/sesiones",
@@ -277,11 +327,19 @@ app.use(
 );
 
 
+// ==================================================
+// HISTORIAL CLÍNICO INICIAL
+// ==================================================
+
 app.use(
   "/api/historial-inicial",
   historialRoutes
 );
 
+
+// ==================================================
+// SEGUIMIENTO
+// ==================================================
 
 app.use(
   "/api/seguimiento",
@@ -289,11 +347,19 @@ app.use(
 );
 
 
+// ==================================================
+// NOTAS
+// ==================================================
+
 app.use(
   "/api/notas",
   notasRoutes
 );
 
+
+// ==================================================
+// ARCHIVOS
+// ==================================================
 
 app.use(
   "/api/archivos",
@@ -301,11 +367,19 @@ app.use(
 );
 
 
+// ==================================================
+// CITAS
+// ==================================================
+
 app.use(
   "/api/citas",
   citasRoutes
 );
 
+
+// ==================================================
+// PSICÓLOGOS
+// ==================================================
 
 app.use(
   "/api/psicologos",
@@ -317,17 +391,11 @@ app.use(
 // EVALUACIONES / PRUEBAS
 // ==================================================
 //
-// IMPORTANTE:
-//
 // evaluation.js contiene rutas como:
 //
 // /pruebas
 // /pruebas/habilitadas/:id_paciente
 // /resultados/:id_paciente
-//
-// Por eso el router debe montarse en:
-//
-// /api/evaluation
 //
 // Resultado:
 //
@@ -354,6 +422,100 @@ console.log(
 app.use(
   "/stream",
   streamRoutes
+);
+
+
+// ==================================================
+// USUARIO RH
+// ==================================================
+//
+// Archivo:
+//
+// routes/usuarioRH.js
+//
+// Endpoint:
+//
+// /api/usuario-rh
+//
+// ==================================================
+
+app.use(
+  "/api/usuario-rh",
+  usuarioRHRoutes
+);
+
+console.log(
+  "✅ Ruta de usuario RH cargada"
+);
+
+
+// ==================================================
+// USUARIOS EDUCATIVOS
+// ==================================================
+//
+// Endpoint:
+//
+// /api/usuario-educativo
+//
+// ==================================================
+
+app.use(
+  "/api/usuario-educativo",
+  usuariosEducativoRoutes
+);
+
+console.log(
+  "✅ Rutas de usuarios educativos cargadas"
+);
+
+
+// ==================================================
+// USUARIOS INDEPENDIENTES
+// ==================================================
+//
+// Endpoint:
+//
+// /api/usuario-independiente
+//
+// ==================================================
+
+app.use(
+  "/api/usuario-independiente",
+  usuariosIndependienteRoutes
+);
+
+console.log(
+  "✅ Rutas de usuarios independientes cargadas"
+);
+
+
+// ==================================================
+// PROSPECTOS RH
+// ==================================================
+//
+// Archivo:
+//
+// routes/prospectos.js
+//
+// Endpoint base:
+//
+// /api/prospectos
+//
+// Por ejemplo:
+//
+// POST /api/prospectos
+// GET  /api/prospectos
+// GET  /api/prospectos/:id
+//
+// ==================================================
+
+app.use(
+  "/api/prospectos",
+  prospectosRoutes
+);
+
+console.log(
+  "✅ Rutas de prospectos RH cargadas"
 );
 
 

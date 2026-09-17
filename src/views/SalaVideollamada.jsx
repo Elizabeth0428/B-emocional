@@ -155,6 +155,12 @@ function SalaVideollamada() {
   ] = useState(false);
 
 
+  const [
+    streamGrabacion,
+    setStreamGrabacion
+  ] = useState(null);
+
+
   /* ==================================================
      REFERENCIAS
   ================================================== */
@@ -172,6 +178,14 @@ function SalaVideollamada() {
 
 
   const localStreamRef =
+    useRef(null);
+
+
+  const remoteStreamRef =
+    useRef(null);
+
+
+  const audioContextRef =
     useRef(null);
 
 
@@ -509,6 +523,198 @@ const codigoUnico =
 
 
   /* ==================================================
+     CREAR STREAM COMBINADO PARA GRABACIÓN
+
+     Combina:
+     - audio del psicólogo
+     - audio del paciente
+     - video del paciente (o local como respaldo)
+  ================================================== */
+
+  const crearStreamGrabacion = () => {
+
+    const localStream =
+      localStreamRef.current;
+
+    const remoteStream =
+      remoteStreamRef.current;
+
+
+    if (!localStream) {
+
+      return null;
+
+    }
+
+
+    try {
+
+      if (audioContextRef.current) {
+
+        audioContextRef.current
+          .close()
+          .catch(() => {});
+
+        audioContextRef.current =
+          null;
+
+      }
+
+
+      const AudioContextClass =
+        window.AudioContext ||
+        window.webkitAudioContext;
+
+
+      if (!AudioContextClass) {
+
+        console.warn(
+          "⚠️ AudioContext no disponible. Se usará el stream local."
+        );
+
+        return localStream;
+
+      }
+
+
+      const audioContext =
+        new AudioContextClass();
+
+
+      audioContextRef.current =
+        audioContext;
+
+
+      const destination =
+        audioContext
+          .createMediaStreamDestination();
+
+
+      /* ==========================================
+         AUDIO DEL PSICÓLOGO
+      ========================================== */
+
+      const localAudioTracks =
+        localStream.getAudioTracks();
+
+
+      if (localAudioTracks.length) {
+
+        const localAudioStream =
+          new MediaStream(
+            localAudioTracks
+          );
+
+        const localSource =
+          audioContext
+            .createMediaStreamSource(
+              localAudioStream
+            );
+
+        localSource.connect(
+          destination
+        );
+
+      }
+
+
+      /* ==========================================
+         AUDIO DEL PACIENTE
+      ========================================== */
+
+      if (remoteStream) {
+
+        const remoteAudioTracks =
+          remoteStream.getAudioTracks();
+
+
+        if (remoteAudioTracks.length) {
+
+          const remoteAudioStream =
+            new MediaStream(
+              remoteAudioTracks
+            );
+
+          const remoteSource =
+            audioContext
+              .createMediaStreamSource(
+                remoteAudioStream
+              );
+
+          remoteSource.connect(
+            destination
+          );
+
+        }
+
+      }
+
+
+      /* ==========================================
+         VIDEO DE LA GRABACIÓN
+      ========================================== */
+
+      const videoTrack =
+        remoteStream
+          ?.getVideoTracks()?.[0] ||
+        localStream
+          ?.getVideoTracks()?.[0];
+
+
+      const tracks = [
+        ...destination.stream
+          .getAudioTracks()
+      ];
+
+
+      if (videoTrack) {
+
+        tracks.push(
+          videoTrack
+        );
+
+      }
+
+
+      const combinado =
+        new MediaStream(
+          tracks
+        );
+
+
+      console.log(
+        "🎥 Stream combinado listo:",
+        {
+          audio:
+            combinado
+              .getAudioTracks()
+              .length,
+
+          video:
+            combinado
+              .getVideoTracks()
+              .length
+        }
+      );
+
+
+      return combinado;
+
+    } catch (error) {
+
+      console.error(
+        "❌ Error creando stream combinado:",
+        error
+      );
+
+      return localStream;
+
+    }
+
+  };
+
+
+  /* ==================================================
      CONECTAR PSICÓLOGO A PEERJS
 
      SOLO CUANDO EXISTE UNA SALA REAL.
@@ -722,6 +928,19 @@ const codigoUnico =
               );
 
 
+              remoteStreamRef.current =
+                remoteStream;
+
+
+              const combinado =
+                crearStreamGrabacion();
+
+
+              setStreamGrabacion(
+                combinado
+              );
+
+
               if (
                 remoteVideoRef.current
               ) {
@@ -761,6 +980,15 @@ const codigoUnico =
 
               setConnected(
                 false
+              );
+
+
+              remoteStreamRef.current =
+                null;
+
+
+              setStreamGrabacion(
+                null
               );
 
 
@@ -921,6 +1149,29 @@ const codigoUnico =
       }
 
 
+      remoteStreamRef.current =
+        null;
+
+
+      setStreamGrabacion(
+        null
+      );
+
+
+      if (
+        audioContextRef.current
+      ) {
+
+        audioContextRef.current
+          .close()
+          .catch(() => {});
+
+        audioContextRef.current =
+          null;
+
+      }
+
+
       if (
         peerRef.current
       ) {
@@ -1076,228 +1327,92 @@ const codigoUnico =
 
 
   /* ==================================================
-     FINALIZAR SESIÓN
+     TERMINAR VIDEOLLAMADA
+
+     IMPORTANTE:
+     Esto NO finaliza la sesión clínica.
+     Solo cierra la llamada/cámara y mantiene la sesión ACTIVA
+     para continuar con pruebas, IA y cierre clínico.
   ================================================== */
 
-  const finalizarSesion =
-    async () => {
+  const finalizarSesion = () => {
 
-      if (
-        finishing
-      ) {
+    if (finishing) return;
 
-        return;
+    const confirmar = window.confirm(
+      "¿Deseas terminar la videollamada y continuar con la sesión clínica?"
+    );
 
-      }
+    if (!confirmar) return;
 
+    try {
+      setFinishing(true);
 
-      const confirmar =
-        window.confirm(
-          "¿Deseas finalizar esta sesión?"
-        );
-
-
-      if (!confirmar) {
-
-        return;
-
-      }
-
-
-      try {
-
-        setFinishing(
-          true
-        );
-
-
-        const token =
-          getToken();
-
-
-        const API_URL =
-          `http://${window.location.hostname}:5000`;
-
-
-        const res =
-          await fetch(
-            `${API_URL}/api/sesiones/${idSesion}/finalizar`,
-            {
-
-              method:
-                "PUT",
-
-              headers: {
-
-                "Content-Type":
-                  "application/json",
-
-                Authorization:
-                  `Bearer ${token}`
-
-              }
-
-            }
-          );
-
-
-        let data = {};
-
-
+      if (callRef.current) {
         try {
-
-          data =
-            await res.json();
-
-        } catch {
-
-          data = {};
-
-        }
-
-
-        if (!res.ok) {
-
-          throw new Error(
-            data.message ||
-            "Error al finalizar sesión"
-          );
-
-        }
-
-
-        /* ==========================================
-           CERRAR LLAMADA
-        ========================================== */
-
-        if (
-          callRef.current
-        ) {
-
-          try {
-
-            callRef.current.close();
-
-          } catch {}
-
-          callRef.current =
-            null;
-
-        }
-
-
-        /* ==========================================
-           DETENER STREAM
-        ========================================== */
-
-        if (
-          localStreamRef.current
-        ) {
-
-          localStreamRef.current
-            .getTracks()
-            .forEach(
-              track =>
-                track.stop()
-            );
-
-
-          localStreamRef.current =
-            null;
-
-        }
-
-
-        /* ==========================================
-           LIMPIAR VIDEO LOCAL
-        ========================================== */
-
-        if (
-          localVideoRef.current
-        ) {
-
-          localVideoRef.current
-            .srcObject =
-            null;
-
-        }
-
-
-        /* ==========================================
-           LIMPIAR VIDEO REMOTO
-        ========================================== */
-
-        if (
-          remoteVideoRef.current
-        ) {
-
-          remoteVideoRef.current
-            .srcObject =
-            null;
-
-        }
-
-
-        /* ==========================================
-           CERRAR PEER
-        ========================================== */
-
-        if (
-          peerRef.current
-        ) {
-
-          try {
-
-            peerRef.current.destroy();
-
-          } catch {}
-
-          peerRef.current =
-            null;
-
-        }
-
-
-        setConnected(
-          false
-        );
-
-
-        setCameraStarted(
-          false
-        );
-
-
-        alert(
-          "✅ Sesión finalizada correctamente"
-        );
-
-
-        navigate(
-          `/paciente/${idPacienteSala}`
-        );
-
-      } catch (error) {
-
-        console.error(
-          "❌ Error al finalizar sesión:",
-          error
-        );
-
-
-        alert(
-          error.message ||
-          "❌ No se pudo finalizar la sesión."
-        );
-
-
-        setFinishing(
-          false
-        );
-
+          callRef.current.close();
+        } catch {}
+        callRef.current = null;
       }
 
-    };
+      if (localStreamRef.current) {
+        localStreamRef.current
+          .getTracks()
+          .forEach(track => track.stop());
+        localStreamRef.current = null;
+      }
+
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = null;
+      }
+
+      if (remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = null;
+      }
+
+      remoteStreamRef.current = null;
+      setStreamGrabacion(null);
+
+      if (audioContextRef.current) {
+        audioContextRef.current
+          .close()
+          .catch(() => {});
+        audioContextRef.current = null;
+      }
+
+      if (peerRef.current) {
+        try {
+          peerRef.current.destroy();
+        } catch {}
+        peerRef.current = null;
+      }
+
+      setConnected(false);
+      setCameraStarted(false);
+
+      console.log(
+        "📴 Videollamada terminada. La sesión clínica continúa activa:",
+        { idSesion, idPaciente: idPacienteSala }
+      );
+
+      navigate(
+        `/paciente/${idPacienteSala}/sesion/${idSesion}/pruebas`
+      );
+
+    } catch (error) {
+      console.error(
+        "❌ Error al terminar videollamada:",
+        error
+      );
+
+      alert(
+        error.message ||
+        "❌ No se pudo terminar la videollamada."
+      );
+
+      setFinishing(false);
+    }
+  };
 
 
   /* ==================================================
@@ -1764,17 +1879,92 @@ const codigoUnico =
 
 
           <VideoRecorder
-            idSesion={
-              Number(idSesion)
-            }
+            idSesion={Number(idSesion)}
             tipo="video"
+            stream={
+              streamGrabacion ||
+              localStreamRef.current
+            }
+            onSaved={async (data) => {
+
+              if (!data?.id_video) {
+
+                console.warn(
+                  "⚠️ El archivo guardado no devolvió id_video."
+                );
+
+                return;
+
+              }
+
+
+              try {
+
+                const token =
+                  getToken();
+
+                const API_URL =
+                  `http://${window.location.hostname}:5000`;
+
+
+                console.log(
+                  "🎙️ Iniciando transcripción automática de videollamada:",
+                  data.id_video
+                );
+
+
+                const res =
+                  await fetch(
+                    `${API_URL}/api/archivos/${data.id_video}/transcribir`,
+                    {
+                      method: "POST",
+                      headers: {
+                        Authorization:
+                          `Bearer ${token}`
+                      }
+                    }
+                  );
+
+
+                const resultado =
+                  await res
+                    .json()
+                    .catch(() => ({}));
+
+
+                if (!res.ok) {
+
+                  throw new Error(
+                    resultado.message ||
+                    resultado.error ||
+                    "No se pudo transcribir la videollamada."
+                  );
+
+                }
+
+
+                console.log(
+                  "✅ Videollamada transcrita:",
+                  resultado
+                );
+
+              } catch (error) {
+
+                console.error(
+                  "❌ Error transcribiendo videollamada:",
+                  error
+                );
+
+              }
+
+            }}
           />
 
         </div>
 
 
         {/* ==========================================
-            FINALIZAR
+            TERMINAR VIDEOLLAMADA
         ========================================== */}
 
         <button
@@ -1821,728 +2011,301 @@ const codigoUnico =
 ===================================================== */
 
 const page = {
-
-  minHeight:
-    "100vh",
-
-  padding:
-    "30px 20px",
-
-  boxSizing:
-    "border-box",
-
-  textAlign:
-    "center",
-
-  background:
-    "linear-gradient(180deg, #E3F2FD, #BBDEFB)",
-
-  fontFamily:
-    "'Segoe UI', sans-serif"
-
+  minHeight: "100vh",
+  padding: "30px 20px",
+  boxSizing: "border-box",
+  textAlign: "center",
+  background: "linear-gradient(180deg, #E3F2FD, #BBDEFB)",
+  fontFamily: "'Segoe UI', sans-serif"
 };
-
 
 const container = {
-
-  width:
-    "100%",
-
-  maxWidth:
-    "1100px",
-
-  margin:
-    "0 auto"
-
+  width: "100%",
+  maxWidth: "1100px",
+  margin: "0 auto"
 };
 
-
-const header = {
-
-  marginBottom:
-    "18px"
-
-};
-
+const header = { marginBottom: "18px" };
 
 const iconContainer = {
-
-  width:
-    "70px",
-
-  height:
-    "70px",
-
-  margin:
-    "0 auto 12px",
-
-  borderRadius:
-    "20px",
-
-  background:
-    "linear-gradient(135deg, #E3F2FD, #BBDEFB)",
-
-  display:
-    "flex",
-
-  alignItems:
-    "center",
-
-  justifyContent:
-    "center",
-
-  fontSize:
-    "34px"
-
+  width: "70px",
+  height: "70px",
+  margin: "0 auto 12px",
+  borderRadius: "20px",
+  background: "linear-gradient(135deg, #E3F2FD, #BBDEFB)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  fontSize: "34px"
 };
-
 
 const title = {
-
-  margin:
-    "0 0 6px",
-
-  color:
-    "#0D47A1",
-
-  fontSize:
-    "30px"
-
+  margin: "0 0 6px",
+  color: "#0D47A1",
+  fontSize: "30px"
 };
-
 
 const subtitle = {
-
-  margin:
-    0,
-
-  color:
-    "#546E7A",
-
-  fontSize:
-    "14px"
-
+  margin: 0,
+  color: "#546E7A",
+  fontSize: "14px"
 };
-
 
 const statusBox = {
-
-  display:
-    "inline-flex",
-
-  alignItems:
-    "center",
-
-  justifyContent:
-    "center",
-
-  gap:
-    "8px",
-
-  padding:
-    "8px 16px",
-
-  borderRadius:
-    "20px",
-
-  fontWeight:
-    "700",
-
-  marginBottom:
-    "18px"
-
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: "8px",
+  padding: "8px 16px",
+  borderRadius: "20px",
+  fontWeight: "700",
+  marginBottom: "18px"
 };
-
 
 const roomInfo = {
-
-  maxWidth:
-    "800px",
-
-  margin:
-    "0 auto 18px",
-
-  padding:
-    "12px 16px",
-
-  background:
-    "#ffffff",
-
-  border:
-    "1px solid #D6E4F0",
-
-  borderRadius:
-    "12px",
-
-  boxShadow:
-    "0 6px 18px rgba(30,70,120,.07)"
-
+  maxWidth: "800px",
+  margin: "0 auto 18px",
+  padding: "12px 16px",
+  background: "#fff",
+  border: "1px solid #D6E4F0",
+  borderRadius: "12px",
+  boxShadow: "0 6px 18px rgba(30,70,120,.07)"
 };
-
 
 const roomLabel = {
-
-  display:
-    "block",
-
-  fontSize:
-    "10px",
-
-  fontWeight:
-    "800",
-
-  letterSpacing:
-    "1.5px",
-
-  color:
-    "#90A4AE",
-
-  marginBottom:
-    "4px"
-
+  display: "block",
+  fontSize: "10px",
+  fontWeight: "800",
+  letterSpacing: "1.5px",
+  color: "#90A4AE",
+  marginBottom: "4px"
 };
-
 
 const roomValue = {
-
-  color:
-    "#1565C0",
-
-  fontSize:
-    "13px",
-
-  wordBreak:
-    "break-all"
-
+  color: "#1565C0",
+  fontSize: "13px",
+  wordBreak: "break-all"
 };
-
 
 /* =====================================================
    LINK DEL PACIENTE
 ===================================================== */
 
 const patientLinkBox = {
-
-  maxWidth:
-    "800px",
-
-  margin:
-    "0 auto 20px",
-
-  padding:
-    "16px",
-
-  background:
-    "#F8FAFC",
-
-  border:
-    "1px solid #D6E4F0",
-
-  borderRadius:
-    "12px",
-
-  textAlign:
-    "left",
-
-  boxShadow:
-    "0 6px 18px rgba(30,70,120,.07)"
-
+  maxWidth: "800px",
+  margin: "0 auto 20px",
+  padding: "16px",
+  background: "#F8FAFC",
+  border: "1px solid #D6E4F0",
+  borderRadius: "12px",
+  textAlign: "left",
+  boxShadow: "0 6px 18px rgba(30,70,120,.07)"
 };
-
 
 const patientLinkLabel = {
-
-  display:
-    "block",
-
-  fontSize:
-    "11px",
-
-  fontWeight:
-    "800",
-
-  letterSpacing:
-    "1px",
-
-  color:
-    "#607D8B",
-
-  marginBottom:
-    "9px"
-
+  display: "block",
+  fontSize: "11px",
+  fontWeight: "800",
+  letterSpacing: "1px",
+  color: "#607D8B",
+  marginBottom: "9px"
 };
-
 
 const patientLinkRow = {
-
-  display:
-    "flex",
-
-  gap:
-    "10px"
-
+  display: "flex",
+  gap: "10px"
 };
-
 
 const patientLinkInput = {
-
-  flex:
-    1,
-
-  minWidth:
-    0,
-
-  padding:
-    "11px",
-
-  border:
-    "1px solid #D5DDE5",
-
-  borderRadius:
-    "9px",
-
-  fontSize:
-    "13px",
-
-  color:
-    "#455A64",
-
-  background:
-    "#FFFFFF",
-
-  boxSizing:
-    "border-box"
-
+  flex: 1,
+  minWidth: 0,
+  padding: "11px",
+  border: "1px solid #D5DDE5",
+  borderRadius: "9px",
+  fontSize: "13px",
+  color: "#455A64",
+  background: "#fff",
+  boxSizing: "border-box"
 };
-
 
 const copyPatientButton = {
-
-  flexShrink:
-    0,
-
-  border:
-    "none",
-
-  borderRadius:
-    "9px",
-
-  padding:
-    "0 16px",
-
-  background:
-    "#E3F2FD",
-
-  color:
-    "#1565C0",
-
-  fontWeight:
-    "700",
-
-  cursor:
-    "pointer"
-
+  flexShrink: 0,
+  border: "none",
+  borderRadius: "9px",
+  padding: "0 16px",
+  background: "#E3F2FD",
+  color: "#1565C0",
+  fontWeight: "700",
+  cursor: "pointer"
 };
-
 
 const patientLinkHelp = {
-
-  margin:
-    "9px 0 0",
-
-  color:
-    "#78909C",
-
-  fontSize:
-    "12px",
-
-  lineHeight:
-    "1.5"
-
+  margin: "9px 0 0",
+  color: "#78909C",
+  fontSize: "12px",
+  lineHeight: "1.5"
 };
 
+/* =====================================================
+   CÁMARA Y VIDEOS
+===================================================== */
 
 const cameraButton = {
-
-  padding:
-    "13px 25px",
-
-  marginBottom:
-    "25px",
-
-  background:
-    "linear-gradient(135deg, #42A5F5, #1976D2)",
-
-  border:
-    "none",
-
-  borderRadius:
-    "10px",
-
-  color:
-    "#fff",
-
-  fontWeight:
-    "700",
-
-  cursor:
-    "pointer",
-
-  fontSize:
-    "15px",
-
-  boxShadow:
-    "0 6px 15px rgba(25,118,210,.25)"
-
+  padding: "13px 25px",
+  marginBottom: "25px",
+  background: "linear-gradient(135deg, #42A5F5, #1976D2)",
+  border: "none",
+  borderRadius: "10px",
+  color: "#fff",
+  fontWeight: "700",
+  cursor: "pointer",
+  fontSize: "15px",
+  boxShadow: "0 6px 15px rgba(25,118,210,.25)"
 };
-
 
 const videosGrid = {
-
-  display:
-    "grid",
-
-  gridTemplateColumns:
-    "repeat(auto-fit, minmax(320px, 1fr))",
-
-  gap:
-    "25px",
-
-  marginTop:
-    "15px"
-
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+  gap: "25px",
+  marginTop: "15px"
 };
-
 
 const videoCard = {
-
-  background:
-    "#fff",
-
-  padding:
-    "15px",
-
-  borderRadius:
-    "18px",
-
-  boxShadow:
-    "0 10px 25px rgba(0,0,0,.10)"
-
+  background: "#fff",
+  padding: "15px",
+  borderRadius: "18px",
+  boxShadow: "0 10px 25px rgba(0,0,0,.10)"
 };
 
-
-const psychologistTitle = {
-
-  color:
-    "#2E7D32"
-
-};
-
-
-const patientTitle = {
-
-  color:
-    "#1565C0"
-
-};
-
+const psychologistTitle = { color: "#2E7D32" };
+const patientTitle = { color: "#1565C0" };
 
 const videoLocal = {
-
-  width:
-    "100%",
-
-  maxWidth:
-    "500px",
-
-  minHeight:
-    "280px",
-
-  objectFit:
-    "cover",
-
-  background:
-    "#263238",
-
-  border:
-    "3px solid #4CAF50",
-
-  borderRadius:
-    "14px"
-
+  width: "100%",
+  maxWidth: "500px",
+  minHeight: "280px",
+  objectFit: "cover",
+  background: "#263238",
+  border: "3px solid #4CAF50",
+  borderRadius: "14px"
 };
-
 
 const videoRemote = {
-
-  width:
-    "100%",
-
-  maxWidth:
-    "500px",
-
-  minHeight:
-    "280px",
-
-  objectFit:
-    "cover",
-
-  background:
-    "#263238",
-
-  border:
-    "3px solid #2196F3",
-
-  borderRadius:
-    "14px"
-
+  width: "100%",
+  maxWidth: "500px",
+  minHeight: "280px",
+  objectFit: "cover",
+  background: "#263238",
+  border: "3px solid #2196F3",
+  borderRadius: "14px"
 };
 
+/* =====================================================
+   GRABACIÓN
+===================================================== */
 
 const recordingCard = {
-
-  marginTop:
-    "30px",
-
-  background:
-    "#fff",
-
-  padding:
-    "25px",
-
-  borderRadius:
-    "18px",
-
-  boxShadow:
-    "0 10px 25px rgba(0,0,0,.10)"
-
+  marginTop: "30px",
+  background: "#fff",
+  padding: "25px",
+  borderRadius: "18px",
+  boxShadow: "0 10px 25px rgba(0,0,0,.10)"
 };
 
-
-const recordingTitle = {
-
-  color:
-    "#37474F"
-
-};
-
+const recordingTitle = { color: "#37474F" };
 
 const recordingText = {
-
-  color:
-    "#78909C",
-
-  fontSize:
-    "14px"
-
+  color: "#78909C",
+  fontSize: "14px"
 };
-
 
 const finishButton = {
-
-  marginTop:
-    "30px",
-
-  padding:
-    "13px 30px",
-
-  border:
-    "none",
-
-  borderRadius:
-    "10px",
-
-  color:
-    "#fff",
-
-  fontWeight:
-    "700",
-
-  fontSize:
-    "15px",
-
-  boxShadow:
-    "0 6px 15px rgba(229,57,53,.25)"
-
+  marginTop: "30px",
+  padding: "13px 30px",
+  border: "none",
+  borderRadius: "10px",
+  color: "#fff",
+  fontWeight: "700",
+  fontSize: "15px",
+  boxShadow: "0 6px 15px rgba(229,57,53,.25)"
 };
 
+/* =====================================================
+   PREPARACIÓN
+===================================================== */
 
 const preparingPage = {
-
-  minHeight:
-    "100vh",
-
-  display:
-    "flex",
-
-  alignItems:
-    "center",
-
-  justifyContent:
-    "center",
-
-  background:
-    "linear-gradient(135deg, #E3F2FD, #BBDEFB)",
-
-  fontFamily:
-    "'Segoe UI', sans-serif",
-
-  padding:
-    "20px"
-
+  minHeight: "100vh",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  background: "linear-gradient(135deg, #E3F2FD, #BBDEFB)",
+  fontFamily: "'Segoe UI', sans-serif",
+  padding: "20px"
 };
-
 
 const preparingCard = {
-
-  background:
-    "#fff",
-
-  padding:
-    "45px",
-
-  borderRadius:
-    "22px",
-
-  textAlign:
-    "center",
-
-  boxShadow:
-    "0 15px 40px rgba(0,0,0,.12)",
-
-  maxWidth:
-    "500px",
-
-  width:
-    "100%"
-
+  background: "#fff",
+  padding: "45px",
+  borderRadius: "22px",
+  textAlign: "center",
+  boxShadow: "0 15px 40px rgba(0,0,0,.12)",
+  maxWidth: "500px",
+  width: "100%"
 };
-
 
 const preparingIcon = {
-
-  fontSize:
-    "50px",
-
-  marginBottom:
-    "15px"
-
+  fontSize: "50px",
+  marginBottom: "15px"
 };
-
 
 const preparingTitle = {
-
-  color:
-    "#0D47A1",
-
-  margin:
-    "0 0 10px"
-
+  color: "#0D47A1",
+  margin: "0 0 10px"
 };
-
 
 const preparingText = {
-
-  color:
-    "#607D8B",
-
-  lineHeight:
-    "1.6"
-
+  color: "#607D8B",
+  lineHeight: "1.6"
 };
-
 
 const preparingStatus = {
-
-  marginTop:
-    "25px",
-
-  color:
-    "#1976D2",
-
-  fontWeight:
-    "700"
-
+  marginTop: "25px",
+  color: "#1976D2",
+  fontWeight: "700"
 };
 
+/* =====================================================
+   ERRORES
+===================================================== */
 
 const errorCard = {
-
-  background:
-    "#fff",
-
-  padding:
-    "35px",
-
-  borderRadius:
-    "20px",
-
-  boxShadow:
-    "0 10px 30px rgba(0,0,0,.12)",
-
-  textAlign:
-    "center",
-
-  maxWidth:
-    "500px"
-
+  background: "#fff",
+  padding: "35px",
+  borderRadius: "20px",
+  boxShadow: "0 10px 30px rgba(0,0,0,.12)",
+  textAlign: "center",
+  maxWidth: "500px"
 };
 
+const errorIcon = { fontSize: "45px" };
 
-const errorIcon = {
-
-  fontSize:
-    "45px"
-
-};
-
-
-const errorTitle = {
-
-  color:
-    "#C62828"
-
-};
-
+const errorTitle = { color: "#C62828" };
 
 const errorText = {
-
-  color:
-    "#607D8B",
-
-  lineHeight:
-    "1.5"
-
+  color: "#607D8B",
+  lineHeight: "1.5"
 };
-
 
 const backButton = {
-
-  marginTop:
-    "15px",
-
-  padding:
-    "11px 22px",
-
-  border:
-    "none",
-
-  borderRadius:
-    "10px",
-
-  background:
-    "#1976D2",
-
-  color:
-    "#fff",
-
-  fontWeight:
-    "700",
-
-  cursor:
-    "pointer"
-
+  marginTop: "15px",
+  padding: "11px 22px",
+  border: "none",
+  borderRadius: "10px",
+  background: "#1976D2",
+  color: "#fff",
+  fontWeight: "700",
+  cursor: "pointer"
 };
-
 
 export default SalaVideollamada;

@@ -2,7 +2,6 @@
 
 import pool from "../config/database.js";
 
-
 /* ==================================================
    OBTENER TODAS LAS PRUEBAS
 ================================================== */
@@ -40,9 +39,14 @@ export async function obtenerPruebas(req, res) {
 
 }
 
-
 /* ==================================================
    HABILITAR PRUEBA PARA PACIENTE
+
+   Puede pertenecer a una sesión clínica
+   o ser una prueba independiente.
+
+   id_sesion = número  -> prueba de sesión
+   id_sesion = NULL    -> prueba independiente
 ================================================== */
 
 export async function habilitarPrueba(req, res) {
@@ -50,12 +54,12 @@ export async function habilitarPrueba(req, res) {
   const {
     id_paciente,
     id_prueba,
+    id_sesion = null,
     notas
   } = req.body;
 
   const id_psicologo =
     req.user?.id_psicologo;
-
 
   if (
     !id_paciente ||
@@ -69,31 +73,126 @@ export async function habilitarPrueba(req, res) {
 
   }
 
-
   try {
 
-    await pool.query(
-      `INSERT INTO pruebas_habilitadas
-       (
-         id_paciente,
-         id_prueba,
-         id_psicologo,
-         notas
-       )
-       VALUES (?, ?, ?, ?)`,
-      [
-        id_paciente,
-        id_prueba,
-        id_psicologo,
-        notas || null
-      ]
-    );
+    const idPaciente =
+      Number(id_paciente);
 
+    const idPrueba =
+      Number(id_prueba);
+
+    const idSesion =
+      id_sesion
+        ? Number(id_sesion)
+        : null;
+
+    /* ================================================
+       VALIDAR PACIENTE
+    ================================================ */
+
+    const [paciente] =
+      await pool.query(
+        `SELECT id_paciente
+         FROM pacientes
+         WHERE id_paciente = ?`,
+        [idPaciente]
+      );
+
+    if (!paciente.length) {
+
+      return res.status(404).json({
+        message:
+          "Paciente no encontrado"
+      });
+
+    }
+
+    /* ================================================
+       VALIDAR SESIÓN SI FUE ENVIADA
+    ================================================ */
+
+    if (idSesion) {
+
+      const [sesion] =
+        await pool.query(
+          `SELECT
+            id_sesion,
+            id_paciente,
+            estado
+           FROM sesiones
+           WHERE id_sesion = ?`,
+          [idSesion]
+        );
+
+      if (!sesion.length) {
+
+        return res.status(404).json({
+          message:
+            "Sesión no encontrada"
+        });
+
+      }
+
+      if (
+        Number(sesion[0].id_paciente) !==
+        idPaciente
+      ) {
+
+        return res.status(400).json({
+          message:
+            "La sesión no pertenece a este paciente"
+        });
+
+      }
+
+    }
+
+    /* ================================================
+       GUARDAR HABILITACIÓN
+    ================================================ */
+
+    const [result] =
+      await pool.query(
+        `INSERT INTO pruebas_habilitadas
+        (
+          id_paciente,
+          id_sesion,
+          id_prueba,
+          id_psicologo,
+          notas
+        )
+        VALUES (?, ?, ?, ?, ?)`,
+        [
+          idPaciente,
+          idSesion,
+          idPrueba,
+          id_psicologo,
+          notas || null
+        ]
+      );
 
     res.json({
-      message: "✅ Prueba habilitada"
-    });
 
+      success: true,
+
+      id_habilitacion:
+        result.insertId,
+
+      id_paciente:
+        idPaciente,
+
+      id_prueba:
+        idPrueba,
+
+      id_sesion:
+        idSesion,
+
+      message:
+        idSesion
+          ? "✅ Prueba habilitada para la sesión"
+          : "✅ Prueba habilitada de forma independiente"
+
+    });
 
   } catch (err) {
 
@@ -103,13 +202,13 @@ export async function habilitarPrueba(req, res) {
     );
 
     res.status(500).json({
-      message: "Error al habilitar prueba"
+      message:
+        "Error al habilitar prueba"
     });
 
   }
 
 }
-
 
 /* ==================================================
    OBTENER PRUEBAS HABILITADAS DE UN PACIENTE
@@ -123,28 +222,37 @@ export async function obtenerPruebasHabilitadas(
   const { id_paciente } =
     req.params;
 
-
   try {
 
     const [rows] = await pool.query(
       `SELECT
         ph.id_habilitacion,
+        ph.id_paciente,
+        ph.id_sesion,
         pr.id_prueba,
         pr.nombre,
         pr.descripcion,
         pr.tipo,
-        ph.fecha
+        ph.fecha,
+        rp.id_resultado,
+        rp.puntaje_total,
+        rp.interpretacion,
+        rp.fecha AS fecha_resultado,
+        CASE
+          WHEN rp.id_resultado IS NOT NULL THEN 1
+          ELSE 0
+        END AS completada
        FROM pruebas_habilitadas ph
        JOIN pruebas pr
          ON ph.id_prueba = pr.id_prueba
+       LEFT JOIN resultados_prueba rp
+         ON rp.id_habilitacion = ph.id_habilitacion
        WHERE ph.id_paciente = ?
        ORDER BY ph.fecha DESC`,
       [id_paciente]
     );
 
-
     res.json(rows || []);
-
 
   } catch (err) {
 
@@ -162,7 +270,6 @@ export async function obtenerPruebasHabilitadas(
 
 }
 
-
 /* ==================================================
    OBTENER PREGUNTAS DE UNA PRUEBA
    INCLUYE OPCIONES DE RESPUESTA
@@ -175,7 +282,6 @@ export async function obtenerPreguntasPrueba(
 
   const { id } = req.params;
 
-
   try {
 
     const [preguntas] =
@@ -185,7 +291,6 @@ export async function obtenerPreguntasPrueba(
          WHERE id_prueba = ?`,
         [id]
       );
-
 
     /* ================================================
        OBTENER OPCIONES DE CADA PREGUNTA
@@ -206,11 +311,9 @@ export async function obtenerPreguntasPrueba(
 
     }
 
-
     res.json(
       preguntas || []
     );
-
 
   } catch (err) {
 
@@ -228,7 +331,6 @@ export async function obtenerPreguntasPrueba(
 
 }
 
-
 /* ==================================================
    FUNCIÓN PARA INTERPRETAR RESULTADO
 ================================================== */
@@ -240,7 +342,6 @@ function obtenerInterpretacion(
 
   let interpretacion =
     "Sin interpretación";
-
 
   /* ================================================
      PRUEBA 3 — ANSIEDAD
@@ -259,7 +360,6 @@ function obtenerInterpretacion(
 
   }
 
-
   /* ================================================
      PRUEBA 2 — ESTRÉS
   ================================================ */
@@ -274,7 +374,6 @@ function obtenerInterpretacion(
         : "Estrés alto";
 
   }
-
 
   /* ================================================
      PRUEBA 1 — DEPRESIÓN
@@ -293,11 +392,43 @@ function obtenerInterpretacion(
 
   }
 
-
   return interpretacion;
 
 }
 
+/* ==================================================
+   OBTENER ID_SESION DESDE LA HABILITACIÓN
+
+   Esta función evita depender del frontend.
+
+   La habilitación es la fuente de verdad.
+================================================== */
+
+async function obtenerSesionHabilitacion(
+  id_habilitacion
+) {
+
+  const [rows] =
+    await pool.query(
+      `SELECT
+        id_habilitacion,
+        id_paciente,
+        id_prueba,
+        id_sesion
+       FROM pruebas_habilitadas
+       WHERE id_habilitacion = ?`,
+      [id_habilitacion]
+    );
+
+  if (!rows.length) {
+
+    return null;
+
+  }
+
+  return rows[0];
+
+}
 
 /* ==================================================
    FINALIZAR PRUEBA
@@ -314,10 +445,8 @@ export async function finalizarPrueba(
 
   const {
     id_paciente,
-    id_habilitacion,
-    id_sesion
+    id_habilitacion
   } = req.body;
-
 
   if (
     !id_paciente ||
@@ -331,11 +460,57 @@ export async function finalizarPrueba(
 
   }
 
-
   try {
 
     /* ================================================
-       1. CALCULAR PUNTAJE
+       1. OBTENER HABILITACIÓN
+    ================================================ */
+
+    const habilitacion =
+      await obtenerSesionHabilitacion(
+        id_habilitacion
+      );
+
+    if (!habilitacion) {
+
+      return res.status(404).json({
+        message:
+          "Habilitación de prueba no encontrada"
+      });
+
+    }
+
+    if (
+      Number(habilitacion.id_paciente) !==
+      Number(id_paciente)
+    ) {
+
+      return res.status(400).json({
+        message:
+          "La habilitación no pertenece al paciente"
+      });
+
+    }
+
+    if (
+      Number(habilitacion.id_prueba) !==
+      Number(id)
+    ) {
+
+      return res.status(400).json({
+        message:
+          "La habilitación no corresponde a esta prueba"
+      });
+
+    }
+
+    const idSesion =
+      habilitacion.id_sesion
+        ? Number(habilitacion.id_sesion)
+        : null;
+
+    /* ================================================
+       2. CALCULAR PUNTAJE
     ================================================ */
 
     const [rows] =
@@ -355,13 +530,11 @@ export async function finalizarPrueba(
         ]
       );
 
-
     const puntaje_total =
-      rows[0]?.total || 0;
-
+      Number(rows[0]?.total || 0);
 
     /* ================================================
-       2. INTERPRETACIÓN
+       3. INTERPRETACIÓN
     ================================================ */
 
     const interpretacion =
@@ -370,9 +543,8 @@ export async function finalizarPrueba(
         puntaje_total
       );
 
-
     /* ================================================
-       3. BUSCAR RESULTADO EXISTENTE
+       4. BUSCAR RESULTADO EXISTENTE
     ================================================ */
 
     const [existe] =
@@ -390,9 +562,8 @@ export async function finalizarPrueba(
         ]
       );
 
-
     /* ================================================
-       4. ACTUALIZAR O INSERTAR
+       5. ACTUALIZAR O INSERTAR
     ================================================ */
 
     if (existe.length > 0) {
@@ -408,7 +579,7 @@ export async function finalizarPrueba(
         [
           puntaje_total,
           interpretacion,
-          id_sesion || null,
+          idSesion,
           existe[0].id_resultado
         ]
       );
@@ -417,38 +588,44 @@ export async function finalizarPrueba(
 
       await pool.query(
         `INSERT INTO resultados_prueba
-         (
-           id_paciente,
-           id_prueba,
-           id_habilitacion,
-           puntaje_total,
-           interpretacion,
-           id_sesion,
-           fecha
-         )
-         VALUES (?, ?, ?, ?, ?, ?, NOW())`,
+        (
+          id_paciente,
+          id_prueba,
+          id_habilitacion,
+          puntaje_total,
+          interpretacion,
+          id_sesion,
+          fecha
+        )
+        VALUES (?, ?, ?, ?, ?, ?, NOW())`,
         [
           id_paciente,
           id,
           id_habilitacion,
           puntaje_total,
           interpretacion,
-          id_sesion || null
+          idSesion
         ]
       );
 
     }
 
-
     /* ================================================
-       5. RESPUESTA
+       6. RESPUESTA
     ================================================ */
 
     res.json({
-      puntaje_total,
-      interpretacion
-    });
 
+      success: true,
+
+      id_sesion:
+        idSesion,
+
+      puntaje_total,
+
+      interpretacion
+
+    });
 
   } catch (err) {
 
@@ -466,7 +643,6 @@ export async function finalizarPrueba(
 
 }
 
-
 /* ==================================================
    FINALIZAR PRUEBA PÚBLICA
    SIN LOGIN
@@ -482,10 +658,8 @@ export async function finalizarPruebaPublica(
 
   const {
     id_paciente,
-    id_habilitacion,
-    id_sesion
+    id_habilitacion
   } = req.body;
-
 
   if (
     !id_paciente ||
@@ -499,11 +673,57 @@ export async function finalizarPruebaPublica(
 
   }
 
-
   try {
 
     /* ================================================
-       1. CALCULAR PUNTAJE
+       1. OBTENER HABILITACIÓN
+    ================================================ */
+
+    const habilitacion =
+      await obtenerSesionHabilitacion(
+        id_habilitacion
+      );
+
+    if (!habilitacion) {
+
+      return res.status(404).json({
+        message:
+          "Habilitación de prueba no encontrada"
+      });
+
+    }
+
+    if (
+      Number(habilitacion.id_paciente) !==
+      Number(id_paciente)
+    ) {
+
+      return res.status(400).json({
+        message:
+          "La habilitación no pertenece al paciente"
+      });
+
+    }
+
+    if (
+      Number(habilitacion.id_prueba) !==
+      Number(id)
+    ) {
+
+      return res.status(400).json({
+        message:
+          "La habilitación no corresponde a esta prueba"
+      });
+
+    }
+
+    const idSesion =
+      habilitacion.id_sesion
+        ? Number(habilitacion.id_sesion)
+        : null;
+
+    /* ================================================
+       2. CALCULAR PUNTAJE
     ================================================ */
 
     const [rows] =
@@ -523,13 +743,11 @@ export async function finalizarPruebaPublica(
         ]
       );
 
-
     const puntaje_total =
-      rows[0]?.total || 0;
-
+      Number(rows[0]?.total || 0);
 
     /* ================================================
-       2. INTERPRETACIÓN
+       3. INTERPRETACIÓN
     ================================================ */
 
     const interpretacion =
@@ -538,51 +756,56 @@ export async function finalizarPruebaPublica(
         puntaje_total
       );
 
-
     /* ================================================
-       3. GUARDAR RESULTADO
+       4. GUARDAR RESULTADO
     ================================================ */
 
     await pool.query(
       `INSERT INTO resultados_prueba
-       (
-         id_paciente,
-         id_prueba,
-         id_habilitacion,
-         id_sesion,
-         puntaje_total,
-         interpretacion,
-         fecha
-       )
-       VALUES (?, ?, ?, ?, ?, ?, NOW())
-       ON DUPLICATE KEY UPDATE
-         puntaje_total =
-           VALUES(puntaje_total),
-         interpretacion =
-           VALUES(interpretacion),
-         id_sesion =
-           VALUES(id_sesion),
-         fecha = NOW()`,
+      (
+        id_paciente,
+        id_prueba,
+        id_habilitacion,
+        id_sesion,
+        puntaje_total,
+        interpretacion,
+        fecha
+      )
+      VALUES (?, ?, ?, ?, ?, ?, NOW())
+      ON DUPLICATE KEY UPDATE
+        puntaje_total =
+          VALUES(puntaje_total),
+        interpretacion =
+          VALUES(interpretacion),
+        id_sesion =
+          VALUES(id_sesion),
+        fecha = NOW()`,
       [
         id_paciente,
         id,
         id_habilitacion,
-        id_sesion || null,
+        idSesion,
         puntaje_total,
         interpretacion
       ]
     );
 
-
     /* ================================================
-       4. RESPUESTA
+       5. RESPUESTA
     ================================================ */
 
     res.json({
-      puntaje_total,
-      interpretacion
-    });
 
+      success: true,
+
+      id_sesion:
+        idSesion,
+
+      puntaje_total,
+
+      interpretacion
+
+    });
 
   } catch (err) {
 
@@ -602,10 +825,12 @@ export async function finalizarPruebaPublica(
 
 }
 
-
 /* ==================================================
    GUARDAR RESPUESTAS
    REQUIERE LOGIN
+
+   IMPORTANTE:
+   id_sesion se obtiene desde pruebas_habilitadas.
 ================================================== */
 
 export async function guardarRespuestas(
@@ -614,14 +839,11 @@ export async function guardarRespuestas(
 ) {
 
   const {
-    id_sesion,
     id_habilitacion,
     respuestas
   } = req.body;
 
-
   if (
-    !id_sesion ||
     !id_habilitacion ||
     !Array.isArray(respuestas) ||
     !respuestas.length
@@ -634,8 +856,34 @@ export async function guardarRespuestas(
 
   }
 
-
   try {
+
+    /* ================================================
+       OBTENER HABILITACIÓN
+    ================================================ */
+
+    const habilitacion =
+      await obtenerSesionHabilitacion(
+        id_habilitacion
+      );
+
+    if (!habilitacion) {
+
+      return res.status(404).json({
+        message:
+          "Habilitación de prueba no encontrada"
+      });
+
+    }
+
+    const idSesion =
+      habilitacion.id_sesion
+        ? Number(habilitacion.id_sesion)
+        : null;
+
+    /* ================================================
+       PREPARAR RESPUESTAS
+    ================================================ */
 
     const values =
       respuestas.map((r) => [
@@ -650,31 +898,42 @@ export async function guardarRespuestas(
 
         r.id_opcion ?? null,
 
-        r.respuesta_abierta ?? null
+        r.respuesta_abierta ?? null,
+
+        idSesion
 
       ]);
 
+    /* ================================================
+       GUARDAR RESPUESTAS
+    ================================================ */
 
     await pool.query(
       `INSERT INTO respuestas_prueba
-       (
-         id_paciente,
-         id_prueba,
-         id_habilitacion,
-         id_pregunta,
-         id_opcion,
-         respuesta_abierta
-       )
-       VALUES ?`,
+      (
+        id_paciente,
+        id_prueba,
+        id_habilitacion,
+        id_pregunta,
+        id_opcion,
+        respuesta_abierta,
+        id_sesion
+      )
+      VALUES ?`,
       [values]
     );
 
-
     res.json({
+
+      success: true,
+
+      id_sesion:
+        idSesion,
+
       message:
         "✅ Respuestas guardadas"
-    });
 
+    });
 
   } catch (err) {
 
@@ -692,9 +951,13 @@ export async function guardarRespuestas(
 
 }
 
-
 /* ==================================================
    GUARDAR RESPUESTAS PÚBLICAS
+
+   No confiamos en un id_sesion enviado desde el
+   navegador.
+
+   Lo obtenemos directamente de pruebas_habilitadas.
 ================================================== */
 
 export async function guardarRespuestasPublicas(
@@ -704,10 +967,8 @@ export async function guardarRespuestasPublicas(
 
   const {
     id_habilitacion,
-    id_sesion,
     respuestas
   } = req.body;
-
 
   if (
     !id_habilitacion ||
@@ -722,8 +983,34 @@ export async function guardarRespuestasPublicas(
 
   }
 
-
   try {
+
+    /* ================================================
+       OBTENER HABILITACIÓN
+    ================================================ */
+
+    const habilitacion =
+      await obtenerSesionHabilitacion(
+        id_habilitacion
+      );
+
+    if (!habilitacion) {
+
+      return res.status(404).json({
+        message:
+          "Habilitación de prueba no encontrada"
+      });
+
+    }
+
+    const idSesion =
+      habilitacion.id_sesion
+        ? Number(habilitacion.id_sesion)
+        : null;
+
+    /* ================================================
+       PREPARAR RESPUESTAS
+    ================================================ */
 
     const values =
       respuestas.map((r) => [
@@ -740,32 +1027,40 @@ export async function guardarRespuestasPublicas(
 
         r.respuesta_abierta ?? null,
 
-        id_sesion || null
+        idSesion
 
       ]);
 
+    /* ================================================
+       GUARDAR
+    ================================================ */
 
     await pool.query(
       `INSERT INTO respuestas_prueba
-       (
-         id_paciente,
-         id_prueba,
-         id_habilitacion,
-         id_pregunta,
-         id_opcion,
-         respuesta_abierta,
-         id_sesion
-       )
-       VALUES ?`,
+      (
+        id_paciente,
+        id_prueba,
+        id_habilitacion,
+        id_pregunta,
+        id_opcion,
+        respuesta_abierta,
+        id_sesion
+      )
+      VALUES ?`,
       [values]
     );
 
-
     res.json({
+
+      success: true,
+
+      id_sesion:
+        idSesion,
+
       message:
         "✅ Respuestas guardadas (público)"
-    });
 
+    });
 
   } catch (err) {
 
@@ -783,10 +1078,12 @@ export async function guardarRespuestasPublicas(
 
 }
 
-
 /* ==================================================
    OBTENER PRUEBA MEDIANTE HABILITACIÓN
    RUTA PÚBLICA
+
+   IMPORTANTE:
+   Ahora también devuelve id_sesion.
 ================================================== */
 
 export async function obtenerPruebaPorHabilitacion(
@@ -797,7 +1094,6 @@ export async function obtenerPruebaPorHabilitacion(
   const {
     id_habilitacion
   } = req.params;
-
 
   try {
 
@@ -810,6 +1106,7 @@ export async function obtenerPruebaPorHabilitacion(
         `SELECT
           ph.id_habilitacion AS id_habilitacion,
           ph.id_paciente,
+          ph.id_sesion,
           pr.id_prueba,
           pr.nombre,
           pr.descripcion,
@@ -822,7 +1119,6 @@ export async function obtenerPruebaPorHabilitacion(
         [id_habilitacion]
       );
 
-
     if (!rows.length) {
 
       return res.status(404).json({
@@ -832,10 +1128,8 @@ export async function obtenerPruebaPorHabilitacion(
 
     }
 
-
     const prueba =
       rows[0];
-
 
     /* ================================================
        2. OBTENER PREGUNTAS
@@ -848,7 +1142,6 @@ export async function obtenerPruebaPorHabilitacion(
          WHERE id_prueba = ?`,
         [prueba.id_prueba]
       );
-
 
     /* ================================================
        3. OBTENER OPCIONES
@@ -864,12 +1157,10 @@ export async function obtenerPruebaPorHabilitacion(
           [pregunta.id_pregunta]
         );
 
-
       pregunta.opciones =
         opciones;
 
     }
-
 
     /* ================================================
        4. RESPUESTA
@@ -879,7 +1170,6 @@ export async function obtenerPruebaPorHabilitacion(
       ...prueba,
       preguntas
     });
-
 
   } catch (err) {
 
@@ -901,43 +1191,51 @@ export async function obtenerPruebaPorHabilitacion(
    OBTENER RESULTADOS DE PRUEBAS DE UN PACIENTE
 ================================================== */
 
-export async function obtenerResultadosPaciente(req, res) {
+export async function obtenerResultadosPaciente(
+  req,
+  res
+) {
 
-  const { id_paciente } = req.params;
+  const { id_paciente } =
+    req.params;
 
   if (!id_paciente) {
+
     return res.status(400).json({
-      message: "Falta el id del paciente"
+      message:
+        "Falta el id del paciente"
     });
+
   }
 
   try {
 
-    const [rows] = await pool.query(
-      `SELECT
-        rp.id_resultado,
-        rp.id_paciente,
-        rp.id_prueba,
-        rp.id_habilitacion,
-        rp.id_sesion,
-        rp.puntaje_total,
-        rp.interpretacion,
-        rp.fecha,
+    const [rows] =
+      await pool.query(
+        `SELECT
+          rp.id_resultado,
+          rp.id_paciente,
+          rp.id_prueba,
+          rp.id_habilitacion,
+          rp.id_sesion,
+          rp.puntaje_total,
+          rp.interpretacion,
+          rp.fecha,
 
-        p.nombre AS nombre_prueba,
-        p.descripcion,
-        p.tipo
+          p.nombre AS nombre_prueba,
+          p.descripcion,
+          p.tipo
 
-       FROM resultados_prueba rp
+         FROM resultados_prueba rp
 
-       INNER JOIN pruebas p
-         ON rp.id_prueba = p.id_prueba
+         INNER JOIN pruebas p
+           ON rp.id_prueba = p.id_prueba
 
-       WHERE rp.id_paciente = ?
+         WHERE rp.id_paciente = ?
 
-       ORDER BY rp.fecha DESC`,
-      [id_paciente]
-    );
+         ORDER BY rp.fecha DESC`,
+        [id_paciente]
+      );
 
     res.json(rows || []);
 
@@ -949,7 +1247,8 @@ export async function obtenerResultadosPaciente(req, res) {
     );
 
     res.status(500).json({
-      message: "Error al obtener resultados del paciente"
+      message:
+        "Error al obtener resultados del paciente"
     });
 
   }
@@ -969,7 +1268,6 @@ export function evaluateTests(req, res) {
     emociones = []
   } = req.body;
 
-
   /* ================================================
      BECK COMO ARRAY
   ================================================ */
@@ -979,13 +1277,11 @@ export function evaluateTests(req, res) {
       ? pruebas.Beck
       : [];
 
-
   /* ================================================
      CALCULAR SCORE BECK
   ================================================ */
 
   let scoreBeck = 0;
-
 
   if (beckResponses.length > 0) {
 
@@ -1001,7 +1297,6 @@ export function evaluateTests(req, res) {
 
           }
 
-
           if (
             typeof r === "object" &&
             r &&
@@ -1012,7 +1307,6 @@ export function evaluateTests(req, res) {
 
           }
 
-
           return acc + 1;
 
         },
@@ -1020,7 +1314,6 @@ export function evaluateTests(req, res) {
       );
 
   }
-
 
   /* ================================================
      CREAR REPORTE
@@ -1036,7 +1329,6 @@ Resultados de pruebas:
 
 ⚠️ Este reporte es preliminar, el psicólogo tiene la última decisión.
 `;
-
 
   res.json({
     reporte

@@ -4,17 +4,17 @@ import express from "express";
 
 import {
   crearNota,
+  guardarNotaIA,
+  obtenerNotaIA,
   obtenerNotasSesion
 } from "../controllers/notasController.js";
 
 import { verifyToken } from "../middlewares/authMiddleware.js";
 
-
 const router = express.Router();
 
-
 /* ==================================================
-   CREAR NOTA / CHAT MANUAL DE SESIÓN
+   CREAR NOTA / CHAT MANUAL
 ================================================== */
 
 router.post(
@@ -23,9 +23,24 @@ router.post(
   crearNota
 );
 
+/* ==================================================
+   NOTA PARA PREANÁLISIS IA
+================================================== */
+
+router.post(
+  "/ia",
+  verifyToken,
+  guardarNotaIA
+);
+
+router.get(
+  "/ia/:id_sesion",
+  verifyToken,
+  obtenerNotaIA
+);
 
 /* ==================================================
-   OBTENER NOTAS DE UNA SESIÓN
+   OBTENER TODAS LAS NOTAS DE UNA SESIÓN
 ================================================== */
 
 router.get(
@@ -33,6 +48,5 @@ router.get(
   verifyToken,
   obtenerNotasSesion
 );
-
 
 export default router;

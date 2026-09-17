@@ -2,11 +2,9 @@
 
 import pool from "../config/database.js";
 
-
 /* ==================================================
    CREAR SEGUIMIENTO
 ================================================== */
-
 export async function crearSeguimiento(req, res) {
 
   const {
@@ -15,7 +13,8 @@ export async function crearSeguimiento(req, res) {
     diagnostico,
     tratamiento,
     evolucion,
-    observaciones
+    observaciones,
+    tareas_acuerdos
   } = req.body;
 
   try {
@@ -29,16 +28,18 @@ export async function crearSeguimiento(req, res) {
          diagnostico,
          tratamiento,
          evolucion,
-         observaciones
+         observaciones,
+         tareas_acuerdos
        )
-       VALUES (?, ?, NOW(), ?, ?, ?, ?)`,
+       VALUES (?, ?, NOW(), ?, ?, ?, ?, ?)`,
       [
         id_paciente,
         id_sesion || null,
         diagnostico,
         tratamiento,
         evolucion,
-        observaciones
+        observaciones,
+        tareas_acuerdos || null
       ]
     );
 
@@ -60,11 +61,9 @@ export async function crearSeguimiento(req, res) {
   }
 }
 
-
 /* ==================================================
    OBTENER SEGUIMIENTO DE UN PACIENTE
 ================================================== */
-
 export async function obtenerSeguimiento(req, res) {
 
   const { id_paciente } = req.params;

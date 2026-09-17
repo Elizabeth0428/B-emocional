@@ -7,16 +7,21 @@ import {
   crearCita,
   obtenerCita,
   actualizarCita,
+  cambiarEstadoCita,
   eliminarCita
 } from "../controllers/citaController.js";
 
-import { verifyToken } from "../middlewares/authMiddleware.js";
+import {
+  verifyToken
+} from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
 
 
 /* ==================================================
-   LISTAR CITAS
+   LISTAR CITAS Y EVENTOS
+
+   GET /api/citas
 ================================================== */
 
 router.get(
@@ -27,7 +32,9 @@ router.get(
 
 
 /* ==================================================
-   CREAR CITA
+   CREAR CITA O EVENTO
+
+   POST /api/citas
 ================================================== */
 
 router.post(
@@ -38,7 +45,25 @@ router.post(
 
 
 /* ==================================================
-   OBTENER UNA CITA
+   CAMBIAR ESTADO DE CITA O EVENTO
+
+   PATCH /api/citas/:id/estado
+
+   IMPORTANTE:
+   Esta ruta debe estar ANTES de /:id
+================================================== */
+
+router.patch(
+  "/:id/estado",
+  verifyToken,
+  cambiarEstadoCita
+);
+
+
+/* ==================================================
+   OBTENER UNA CITA O EVENTO
+
+   GET /api/citas/:id
 ================================================== */
 
 router.get(
@@ -49,7 +74,9 @@ router.get(
 
 
 /* ==================================================
-   ACTUALIZAR CITA
+   ACTUALIZAR CITA O EVENTO
+
+   PUT /api/citas/:id
 ================================================== */
 
 router.put(
@@ -60,7 +87,9 @@ router.put(
 
 
 /* ==================================================
-   ELIMINAR CITA
+   ELIMINAR CITA O EVENTO
+
+   DELETE /api/citas/:id
 ================================================== */
 
 router.delete(

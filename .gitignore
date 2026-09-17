@@ -23,9 +23,4 @@ dist-ssr
 *.sln
 *.sw?
 
-backend/keys/node_modules/
-dist/
-backend/.env
-backend/keys/firebase.json
-backend/.env
 backend/keys/

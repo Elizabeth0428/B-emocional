@@ -28,6 +28,9 @@ function VideoRecorder({
   const streamRef =
     useRef(null);
 
+  const ownsStreamRef =
+    useRef(false);
+
   const [recording, setRecording] =
     useState(false);
 
@@ -90,6 +93,7 @@ function VideoRecorder({
 
     streamRef.current =
       stream;
+    ownsStreamRef.current = false;
 
 
     if (
@@ -200,19 +204,11 @@ function VideoRecorder({
 
           streamRef.current =
             recordingStream;
+          ownsStreamRef.current = true;
 
-
-          if (
-            mediaRef.current
-          ) {
-
-            mediaRef.current.srcObject =
-              recordingStream;
-
-            mediaRef.current
-              .play()
-              .catch(() => {});
-
+          if (mediaRef.current && tipo === "video") {
+            mediaRef.current.srcObject = recordingStream;
+            mediaRef.current.play().catch(() => {});
           }
 
         }
@@ -668,6 +664,12 @@ function VideoRecorder({
 
 
         mediaRecorderRef.current.stop();
+
+        if (ownsStreamRef.current && streamRef.current) {
+          streamRef.current.getTracks().forEach((track) => track.stop());
+          streamRef.current = null;
+          ownsStreamRef.current = false;
+        }
 
       }
 
