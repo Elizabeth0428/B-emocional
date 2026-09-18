@@ -619,18 +619,7 @@ app.use(
 // INICIAR SERVIDOR
 // ==================================================
 
-server.listen(
-  PORT,
-  "0.0.0.0",
-  () => {
-
-    console.log(
-      `✅ Servidor backend corriendo en http://0.0.0.0:${PORT}`
-    );
-
-    console.log(
-      `✅ PeerJS corriendo en ws://0.0.0.0:${PORT}/peerjs/myapp`
-    );
-
-  }
-);
+server.listen(PORT, () => {
+    console.log(`✅ Servidor backend corriendo en el puerto ${PORT}`);
+    console.log(`✅ PeerJS corriendo en el puerto ${PORT} (ruta /peerjs/myapp)`);
+});
