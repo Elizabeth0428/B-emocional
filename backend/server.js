@@ -616,10 +616,10 @@ app.use(
 
 
 // ==================================================
-// INICIAR SERVIDOR
+// SERVIR FRONTEND EN PRODUCCIÓN
 // ==================================================
+app.use(express.static(path.join(__dirname, 'dist')));
 
-server.listen(PORT, () => {
-    console.log(`✅ Servidor backend corriendo en el puerto ${PORT}`);
-    console.log(`✅ PeerJS corriendo en el puerto ${PORT} (ruta /peerjs/myapp)`);
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
