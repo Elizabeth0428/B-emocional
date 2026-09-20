@@ -29,7 +29,8 @@
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.0.2",
     "mysql2": "^3.10.0",
-    "openai": "^5.20.0"
+    "openai": "^5.20.0",
+    "peer": "^1.0.2"
   },
   "devDependencies": {
     "nodemon": "^3.1.0"
