@@ -30,6 +30,7 @@
     "multer": "^2.0.2",
     "mysql2": "^3.10.0",
     "openai": "^5.20.0",
+    "pdfkit": "^0.20.2",
     "peer": "^1.0.2"
   },
   "devDependencies": {
