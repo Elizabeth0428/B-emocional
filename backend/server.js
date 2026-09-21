@@ -626,3 +626,7 @@ app.use(express.static(path.join(__dirname, 'dist')));
 app.use((req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
+const PORT = process.env.PORT || 5000;
+server.listen(PORT, () => {
+  console.log(`Servidor de Mirror Soul corriendo en el puerto ${PORT}`);
+});
