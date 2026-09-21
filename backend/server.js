@@ -69,11 +69,6 @@ import prospectosRoutes from "./routes/prospectos.js";
 const app = express();
 app.set('trust proxy', 1);
 
-const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => {
-  console.log(`Servidor de Mirror Soul corriendo en el puerto ${PORT}`);
-});
-
 // ==================================================
 // SEGURIDAD
 // ==================================================
