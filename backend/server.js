@@ -85,6 +85,8 @@ const allowedOrigins = [
   // Producción (Hostinger)
   "https://reflejoyalma.com",
   "https://www.reflejoyalma.com",
+  "https://red-caribou-571136.hostingersite.com", // <-- El nuevo dominio autorizado
+  "http://localhost:5173",
 
   // Casa
   "http://localhost:5173",
@@ -478,7 +480,7 @@ console.log(
 // ==================================================
 
 app.use(
-  "/api/usuario-independiente",
+  "/api/usuarios-independiente",
   usuariosIndependienteRoutes
 );
 
