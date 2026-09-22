@@ -30,7 +30,7 @@ export default function ChatBot({
 
     try {
       const activeToken = token || getToken();
-      const res = await fetch("http://localhost:5000/api/reportes/generar", {
+      const res = await fetch("https://reflejoyalma.com/api/reportes/generar", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

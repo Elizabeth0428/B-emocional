@@ -25,7 +25,7 @@ export default function HistorialInicialView() {
       try {
 
         const res = await fetch(
-          `http://localhost:5000/api/historial-inicial/${idPaciente}`,
+          `https://reflejoyalma.com/api/historial-inicial/${idPaciente}`,
           {
             headers: {
               Authorization: `Bearer ${getToken()}`
@@ -94,7 +94,7 @@ export default function HistorialInicialView() {
       setGuardando(true);
 
       const res = await fetch(
-        `http://localhost:5000/api/historial-inicial/${idPaciente}`,
+        `https://reflejoyalma.com/api/historial-inicial/${idPaciente}`,
         {
           method: "PUT",
 

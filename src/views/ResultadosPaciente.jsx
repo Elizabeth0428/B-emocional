@@ -12,7 +12,7 @@ export default function ResponderPrueba() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await fetch(`http://localhost:5000/api/pruebas/habilitacion/${idHabilitacion}`);
+        const res = await fetch(`https://reflejoyalma.com/api/pruebas/habilitacion/${idHabilitacion}`);
         if (!res.ok) throw new Error("No se pudo cargar la prueba");
         const data = await res.json();
         setPrueba(data);
@@ -42,14 +42,14 @@ export default function ResponderPrueba() {
       }));
 
       // Guardar respuestas en el endpoint público
-      await fetch("http://localhost:5000/api/respuestas/publico", {
+      await fetch("https://reflejoyalma.com/api/respuestas/publico", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id_habilitacion: prueba.id_habilitacion, respuestas: values })
       });
 
       // Finalizar prueba y calcular resultado
-      const resFinal = await fetch(`http://localhost:5000/api/pruebas/${prueba.id_prueba}/finalizar/publico`, {
+      const resFinal = await fetch(`https://reflejoyalma.com/api/pruebas/${prueba.id_prueba}/finalizar/publico`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id_paciente: prueba.id_paciente, id_habilitacion: prueba.id_habilitacion })

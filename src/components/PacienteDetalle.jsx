@@ -35,7 +35,7 @@ export default function PacienteDetalle({ idPaciente: idPacienteProp, onBack }) 
         const token = getToken();
 
         const res = await fetch(
-          `http://localhost:5000/api/pacientes/${idPaciente}`,
+          `https://reflejoyalma.com/api/pacientes/${idPaciente}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,

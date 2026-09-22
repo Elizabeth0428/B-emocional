@@ -34,7 +34,7 @@ const HistorialForm = ({ paciente, onBack, onSave }) => {
       }
 
       const token = getToken();
-      const res = await fetch("http://localhost:5000/api/historial-inicial", {
+      const res = await fetch("https://reflejoyalma.com/api/historial-inicial", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

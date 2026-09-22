@@ -5,7 +5,7 @@ import { getCurrentUser } from "../services/AuthService";
 
 const API_URL =
   import.meta.env.VITE_API_URL ||
-  "http://localhost:5000";
+  "https://reflejoyalma.com";
 
 const RegisterUsuarioIndependiente = ({ onBack }) => {
 

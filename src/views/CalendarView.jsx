@@ -95,7 +95,7 @@ export default function CalendarView({ onBack }) {
       const token = getToken();
 
       const res = await axios.get(
-        "http://localhost:5000/api/citas",
+        "https://reflejoyalma.com/api/citas",
         {
           headers: {
             Authorization: `Bearer ${token}`
@@ -168,7 +168,7 @@ export default function CalendarView({ onBack }) {
       const token = getToken();
 
       const res = await axios.get(
-        "http://localhost:5000/api/pacientes",
+        "https://reflejoyalma.com/api/pacientes",
         {
           headers: {
             Authorization: `Bearer ${token}`
@@ -252,7 +252,7 @@ export default function CalendarView({ onBack }) {
       };
 
       await axios.post(
-        "http://localhost:5000/api/citas",
+        "https://reflejoyalma.com/api/citas",
         payload,
         {
           headers: {
@@ -286,7 +286,7 @@ export default function CalendarView({ onBack }) {
       const token = getToken();
 
       await axios.patch(
-        `http://localhost:5000/api/citas/${selectedEvent.id}/estado`,
+        `https://reflejoyalma.com/api/citas/${selectedEvent.id}/estado`,
         { estado },
         {
           headers: {

@@ -75,7 +75,7 @@ export default function ReportViewer({
         const token = getToken();
 
         const res = await fetch(
-          `http://localhost:5000/api/reportes/paciente/${pacienteId}`,
+          `https://reflejoyalma.com/api/reportes/paciente/${pacienteId}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -187,7 +187,7 @@ export default function ReportViewer({
       // LLAMADA AL BACKEND
       // =================================================
       const res = await fetch(
-        "http://localhost:5000/api/ia/analisis-sesion",
+        "https://reflejoyalma.com/api/ia/analisis-sesion",
         {
           method: "POST",
           headers: {
@@ -294,7 +294,7 @@ export default function ReportViewer({
       const token = getToken();
 
       const res = await fetch(
-        `http://localhost:5000/api/reportes/paciente/${pacienteId}`,
+        `https://reflejoyalma.com/api/reportes/paciente/${pacienteId}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -348,7 +348,7 @@ export default function ReportViewer({
       const token = getToken();
 
       const res = await fetch(
-        `http://localhost:5000/api/reportes/${idReporte}/pdf`,
+        `https://reflejoyalma.com/api/reportes/${idReporte}/pdf`,
         {
           headers: {
             Authorization: `Bearer ${token}`,

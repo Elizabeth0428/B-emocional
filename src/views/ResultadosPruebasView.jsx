@@ -27,7 +27,7 @@ export default function ResultadosPruebasView() {
         const token = getToken();
 
       const res = await fetch(
-  `http://localhost:5000/api/evaluation/resultados/${idPaciente}`,
+  `https://reflejoyalma.com/api/evaluation/resultados/${idPaciente}`,
   {
     headers: {
       Authorization: `Bearer ${token}`,

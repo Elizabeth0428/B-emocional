@@ -43,7 +43,7 @@ export default function SeguimientoView() {
       try {
 
         const res = await fetch(
-          `http://localhost:5000/api/seguimiento/${idPaciente}`,
+          `https://reflejoyalma.com/api/seguimiento/${idPaciente}`,
           {
             headers: {
               Authorization: `Bearer ${getToken()}`
@@ -100,7 +100,7 @@ export default function SeguimientoView() {
 
       try {
         const res = await fetch(
-          `http://localhost:5000/api/reportes/paciente/${idPaciente}`,
+          `https://reflejoyalma.com/api/reportes/paciente/${idPaciente}`,
           {
             headers: {
               Authorization: `Bearer ${getToken()}`
@@ -143,9 +143,9 @@ export default function SeguimientoView() {
         const headers = { Authorization: `Bearer ${getToken()}` };
 
         const [resSesiones, resReportes, resResultados] = await Promise.all([
-          fetch(`http://localhost:5000/api/sesiones/paciente/${idPaciente}`, { headers }),
-          fetch(`http://localhost:5000/api/reportes/paciente/${idPaciente}`, { headers }),
-          fetch(`http://localhost:5000/api/evaluation/resultados/${idPaciente}`, { headers })
+          fetch(`https://reflejoyalma.com/api/sesiones/paciente/${idPaciente}`, { headers }),
+          fetch(`https://reflejoyalma.com/api/reportes/paciente/${idPaciente}`, { headers }),
+          fetch(`https://reflejoyalma.com/api/evaluation/resultados/${idPaciente}`, { headers })
         ]);
 
         const dataSesiones = resSesiones.ok ? await resSesiones.json() : [];
@@ -161,7 +161,7 @@ export default function SeguimientoView() {
           listaSesiones.map(async (sesion) => {
             try {
               const res = await fetch(
-                `http://localhost:5000/api/archivos/sesion/${sesion.id_sesion}`,
+                `https://reflejoyalma.com/api/archivos/sesion/${sesion.id_sesion}`,
                 { headers }
               );
               const data = res.ok ? await res.json() : [];
@@ -178,7 +178,7 @@ export default function SeguimientoView() {
           listaSesiones.map(async (sesion) => {
             try {
               const res = await fetch(
-                `http://localhost:5000/api/notas/ia/${sesion.id_sesion}`,
+                `https://reflejoyalma.com/api/notas/ia/${sesion.id_sesion}`,
                 { headers }
               );
               if (!res.ok) {
@@ -236,7 +236,7 @@ export default function SeguimientoView() {
     resultadosPruebas.filter((r) => Number(r.id_sesion) === Number(id));
 
   const abrirPDFReporte = (idReporte) => {
-    window.open(`http://localhost:5000/api/reportes/${idReporte}/pdf`, "_blank");
+    window.open(`https://reflejoyalma.com/api/reportes/${idReporte}/pdf`, "_blank");
   };
 
   const formatearFecha = (fecha) => {
@@ -296,7 +296,7 @@ export default function SeguimientoView() {
       setGuardando(true);
 
       const res = await fetch(
-        "http://localhost:5000/api/seguimiento",
+        "https://reflejoyalma.com/api/seguimiento",
         {
           method: "POST",
           headers: {
@@ -319,7 +319,7 @@ export default function SeguimientoView() {
 
       if (modoCierre) {
         const resFinalizar = await fetch(
-          `http://localhost:5000/api/sesiones/${idSesion}/finalizar`,
+          `https://reflejoyalma.com/api/sesiones/${idSesion}/finalizar`,
           {
             method: "PUT",
             headers: {
@@ -803,7 +803,7 @@ export default function SeguimientoView() {
                                   {archivos.map((archivo) => {
                                     const url = archivo.ruta_video?.startsWith("http")
                                       ? archivo.ruta_video
-                                      : `http://localhost:5000${archivo.ruta_video || ""}`;
+                                      : `https://reflejoyalma.com${archivo.ruta_video || ""}`;
                                     return (
                                       <div key={archivo.id_video} style={mediaCard}>
                                         <div>

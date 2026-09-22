@@ -31,7 +31,7 @@ const RegistrarPaciente = ({ onBack }) => {
       }
 
       const token = getToken();
-      const res = await fetch("http://localhost:5000/api/pacientes", {
+      const res = await fetch("https://reflejoyalma.com/api/pacientes", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

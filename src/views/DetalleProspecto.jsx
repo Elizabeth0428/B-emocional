@@ -2,7 +2,7 @@ import React,{useEffect,useState} from "react";
 import {getToken} from "../services/AuthService";
 import {useNavigate,useParams} from "react-router-dom";
 
-const API_URL=import.meta.env.VITE_API_URL||"http://localhost:5000";
+const API_URL=import.meta.env.VITE_API_URL||"https://reflejoyalma.com";
 
 export default function DetalleProspecto({idProspecto:idProp,prospecto:prop,onBack}){
   const navigate=useNavigate();

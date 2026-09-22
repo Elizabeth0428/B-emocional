@@ -37,7 +37,7 @@ export default function SesionesView() {
 
       const token = getToken();
       const res = await fetch(
-        `http://localhost:5000/api/sesiones/paciente/${idPaciente}`,
+        `https://reflejoyalma.com/api/sesiones/paciente/${idPaciente}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -117,7 +117,7 @@ export default function SesionesView() {
       const token = getToken();
 
       const res = await fetch(
-        "http://localhost:5000/api/sesiones",
+        "https://reflejoyalma.com/api/sesiones",
         {
           method: "POST",
           headers: {
@@ -159,7 +159,7 @@ export default function SesionesView() {
       }
 
       const resVideo = await fetch(
-        `http://localhost:5000/api/sesiones/${data.id_sesion}/videollamada`,
+        `https://reflejoyalma.com/api/sesiones/${data.id_sesion}/videollamada`,
         {
           method: "POST",
           headers: {
@@ -201,7 +201,7 @@ export default function SesionesView() {
       const token = getToken();
 
       const res = await fetch(
-        `http://localhost:5000/api/archivos/sesion/${idSesion}`,
+        `https://reflejoyalma.com/api/archivos/sesion/${idSesion}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -1341,7 +1341,7 @@ const terminarConsulta = (sesion) => {
                                       const ruta = archivo.ruta_video || "";
                                       const mediaUrl = ruta.startsWith("http")
                                         ? ruta
-                                        : `http://localhost:5000${ruta}`;
+                                        : `https://reflejoyalma.com${ruta}`;
                                       const esAudio = archivo.tipo === "audio" ||
                                         String(archivo.formato || "").startsWith("audio/");
                                       const estadoTranscripcion =

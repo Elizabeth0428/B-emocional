@@ -137,7 +137,7 @@ const PsychologistView = ({ onBack }) => {
         // ==================================================
 
         const res = await fetch(
-          "http://localhost:5000/api/psicologos",
+          "https://reflejoyalma.com/api/psicologos",
           {
             method: "GET",
 

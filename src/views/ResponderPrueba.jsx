@@ -61,7 +61,7 @@ export default function ResponderPrueba() {
         // ----------------------------------------------
 
        const res = await fetch(
-  `http://localhost:5000/api/evaluation/pruebas/habilitacion/${idHabilitacion}`
+  `https://reflejoyalma.com/api/evaluation/pruebas/habilitacion/${idHabilitacion}`
 );
 
 
@@ -213,7 +213,7 @@ const handleEnviar = async () => {
 
     const resRespuestas =
       await fetch(
-        "http://localhost:5000/api/evaluation/respuestas/publico",
+        "https://reflejoyalma.com/api/evaluation/respuestas/publico",
         {
 
           method: "POST",
@@ -258,7 +258,7 @@ const handleEnviar = async () => {
     const resFinal =
       await fetch(
 
-        `http://localhost:5000/api/evaluation/pruebas/${prueba.id_prueba}/finalizar/publico`,
+        `https://reflejoyalma.com/api/evaluation/pruebas/${prueba.id_prueba}/finalizar/publico`,
 
         {
 

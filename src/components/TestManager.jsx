@@ -15,7 +15,7 @@ export default function TestManager({ onFinish, onCancel, pacienteId, idSesion }
     const fetchPruebas = async () => {
       try {
         const token = getToken();
-        const res = await axios.get("http://localhost:5000/api/pruebas", {
+        const res = await axios.get("https://reflejoyalma.com/api/pruebas", {
           headers: { Authorization: `Bearer ${token}` },
         });
 

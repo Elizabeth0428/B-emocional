@@ -15,7 +15,7 @@ const PatientView = ({ idPaciente }) => {
         const token = getToken();
 
         const res = await fetch(
-          `http://localhost:5000/api/pacientes/${idPaciente}/reportes-completos`,
+          `https://reflejoyalma.com/api/pacientes/${idPaciente}/reportes-completos`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         if (!res.ok) throw new Error("Error al obtener la información");
@@ -118,7 +118,7 @@ const PatientView = ({ idPaciente }) => {
                   <ul>
                     {s.videos.map((v, j) => (
                       <li key={j}>
-                        <a href={`http://localhost:5000${v}`} target="_blank" rel="noreferrer">
+                        <a href={`https://reflejoyalma.com${v}`} target="_blank" rel="noreferrer">
                           🎬 Ver grabación
                         </a>
                       </li>
@@ -153,7 +153,7 @@ const PatientView = ({ idPaciente }) => {
         const token = getToken();
 
         const res = await fetch(
-          `http://localhost:5000/api/pacientes/${idPaciente}/reportes-completos`,
+          `https://reflejoyalma.com/api/pacientes/${idPaciente}/reportes-completos`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         if (!res.ok) throw new Error("Error al obtener la información");
@@ -259,7 +259,7 @@ const PatientView = ({ idPaciente }) => {
                   <ul>
                     {s.videos.map((v, j) => (
                       <li key={j}>
-                        <a href={`http://localhost:5000${v}`} target="_blank" rel="noreferrer">
+                        <a href={`https://reflejoyalma.com${v}`} target="_blank" rel="noreferrer">
                           🎬 Ver grabación
                         </a>
                       </li>
