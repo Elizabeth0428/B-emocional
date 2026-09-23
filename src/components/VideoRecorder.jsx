@@ -475,7 +475,7 @@ function VideoRecorder({
 
 
               const API_URL =
-                `http://${window.location.hostname}:5000`;
+                `https://reflejoyalma.com`;
 
 
               console.log(

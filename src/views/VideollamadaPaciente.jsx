@@ -115,7 +115,7 @@ function VideollamadaPaciente() {
 
       const peer = new Peer(undefined, {
         host: window.location.hostname,
-        port: 5000,
+        port: 443,
         path: "/peerjs/myapp",
         secure: false
       });

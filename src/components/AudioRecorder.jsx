@@ -46,7 +46,7 @@ const AudioRecorder = ({ idSesion }) => {
 
         try {
           const token = getToken();
-          const API_URL = `http://${window.location.hostname}:5000`; // 👈 dinámico
+          const API_URL = `https://reflejoyalma.com`; // 👈 dinámico
           const res = await fetch(`${API_URL}/api/audios`, {
             method: "POST",
             headers: { Authorization: `Bearer ${token}` },

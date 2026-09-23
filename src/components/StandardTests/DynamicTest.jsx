@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 
 // 🚀 IP dinámica
-const API_URL = `http://${window.location.hostname}:5000`;
+const API_URL = `https://reflejoyalma.com`;
 
 const DynamicTest = ({ idPrueba, idSesion, token, onFinish }) => {
   const [preguntas, setPreguntas] = useState([]);

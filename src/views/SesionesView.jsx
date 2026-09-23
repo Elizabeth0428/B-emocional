@@ -296,7 +296,7 @@ export default function SesionesView() {
       }
 
       const token = getToken();
-      const API_URL = `http://${window.location.hostname}:5000`;
+      const API_URL = `https://reflejoyalma.com`;
 
       setMensajeTranscripcion((prev) => ({
         ...prev,
@@ -383,7 +383,7 @@ export default function SesionesView() {
       }));
 
       const token = getToken();
-      const API_URL = `http://${window.location.hostname}:5000`;
+      const API_URL = `https://reflejoyalma.com`;
 
       console.log(`🔄 Reintentando transcripción del archivo #${idVideo}`);
 
@@ -430,7 +430,7 @@ export default function SesionesView() {
     try {
       setCargandoNotaIA((prev) => ({ ...prev, [idSesion]: true }));
       const token = getToken();
-      const API_URL = `http://${window.location.hostname}:5000`;
+      const API_URL = `https://reflejoyalma.com`;
       const res = await fetch(`${API_URL}/api/notas/ia/${idSesion}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -455,7 +455,7 @@ export default function SesionesView() {
       setGuardandoNotaIA((prev) => ({ ...prev, [idSesion]: true }));
       setMensajeNotaIA((prev) => ({ ...prev, [idSesion]: "" }));
       const token = getToken();
-      const API_URL = `http://${window.location.hostname}:5000`;
+      const API_URL = `https://reflejoyalma.com`;
       const res = await fetch(`${API_URL}/api/notas/ia`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },

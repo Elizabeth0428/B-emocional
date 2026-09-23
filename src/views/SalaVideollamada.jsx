@@ -362,7 +362,7 @@ const codigoUnico =
 
 
           const API_URL =
-            `http://${window.location.hostname}:5000`;
+            `https://reflejoyalma.com`;
 
 
           console.log(
@@ -1904,7 +1904,7 @@ const codigoUnico =
                   getToken();
 
                 const API_URL =
-                  `http://${window.location.hostname}:5000`;
+                  `https://reflejoyalma.com`;
 
 
                 console.log(
