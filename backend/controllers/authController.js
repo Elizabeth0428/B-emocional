@@ -1185,7 +1185,7 @@ export async function login(
 
         {
           expiresIn:
-            "2h"
+            "8h"
         }
 
       );
