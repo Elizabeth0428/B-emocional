@@ -609,37 +609,6 @@ console.log(
   "✅ Rutas de grabaciones RH cargadas"
 );
 
-// ==================================================
-// MANEJO DE RUTA NO ENCONTRADA
-// ==================================================
-
-app.use(
-  (
-    req,
-    res
-  ) => {
-
-    console.log(
-      `⚠️ Ruta no encontrada: ${req.method} ${req.originalUrl}`
-    );
-
-    res
-      .status(
-        404
-      )
-      .json({
-        success: false,
-
-        message:
-          "Ruta no encontrada",
-
-        ruta:
-          req.originalUrl
-      });
-
-  }
-);
-
 // ==========================================
 // SERVIR FRONTEND EN PRODUCCIÓN (ARCHIVOS ESTÁTICOS)
 // ==========================================
