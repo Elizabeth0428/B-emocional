@@ -13,14 +13,22 @@ const RegistrarProspecto = ({ onBack }) => {
 
   const [form, setForm] = useState({
     nombre: "",
+    edad: "",
+    sexo: "",
     correo: "",
     telefono: "",
     puesto: "",
     direccion: "",
   });
 
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
+  const [loading, setLoading] =
+    useState(false);
+
+  const [message, setMessage] =
+    useState("");
+
+  const [prospectoCreado, setProspectoCreado] =
+    useState(null);
 
 
   // =====================================================
@@ -29,12 +37,56 @@ const RegistrarProspecto = ({ onBack }) => {
 
   const handleChange = (e) => {
 
-    const { name, value } = e.target;
+    const {
+      name,
+      value
+    } = e.target;
 
     setForm((prev) => ({
       ...prev,
       [name]: value,
     }));
+
+    if (message) {
+      setMessage("");
+    }
+
+  };
+
+
+  // =====================================================
+  // VALIDACIONES FRONTEND
+  // =====================================================
+
+  const validarFormulario = () => {
+
+    if (!String(form.nombre).trim()) {
+      return "El nombre del prospecto es obligatorio";
+    }
+
+    const edadNumero =
+      Number(form.edad);
+
+    if (
+      !Number.isInteger(edadNumero) ||
+      edadNumero < 1 ||
+      edadNumero > 120
+    ) {
+      return "Ingresa una edad válida";
+    }
+
+    if (
+      form.sexo !== "F" &&
+      form.sexo !== "M"
+    ) {
+      return "Selecciona el sexo del prospecto";
+    }
+
+    if (!String(form.correo).trim()) {
+      return "El correo del prospecto es obligatorio";
+    }
+
+    return null;
 
   };
 
@@ -47,13 +99,32 @@ const RegistrarProspecto = ({ onBack }) => {
 
     e.preventDefault();
 
-    setLoading(true);
-    setMessage("");
+    if (loading) return;
+
+    const errorValidacion =
+      validarFormulario();
+
+    if (errorValidacion) {
+      setMessage(
+        `❌ ${errorValidacion}`
+      );
+      return;
+    }
 
     try {
 
+      setLoading(true);
+      setMessage("");
+      setProspectoCreado(null);
+
       const token =
         localStorage.getItem("token");
+
+      if (!token) {
+        throw new Error(
+          "Tu sesión no es válida. Inicia sesión nuevamente."
+        );
+      }
 
       const response = await fetch(
         `${API_URL}/api/prospectos`,
@@ -61,25 +132,42 @@ const RegistrarProspecto = ({ onBack }) => {
           method: "POST",
 
           headers: {
-            "Content-Type": "application/json",
+            "Content-Type":
+              "application/json",
 
             Authorization:
               `Bearer ${token}`,
           },
 
           body: JSON.stringify({
-            ...form,
+            nombre:
+              form.nombre.trim(),
 
-            id_admin_padre:
-              user?.id_usuario || null,
+            edad:
+              Number(form.edad),
+
+            sexo:
+              form.sexo,
+
+            correo:
+              form.correo.trim(),
+
+            telefono:
+              form.telefono.trim(),
+
+            puesto:
+              form.puesto.trim(),
+
+            direccion:
+              form.direccion.trim(),
           }),
         }
       );
 
-
       const data =
-        await response.json();
-
+        await response
+          .json()
+          .catch(() => ({}));
 
       if (!response.ok) {
 
@@ -90,14 +178,23 @@ const RegistrarProspecto = ({ onBack }) => {
 
       }
 
+      console.log(
+        "✅ Prospecto RH registrado:",
+        data
+      );
+
+      setProspectoCreado(
+        data.prospecto || null
+      );
 
       setMessage(
         "✅ Prospecto registrado correctamente"
       );
 
-
       setForm({
         nombre: "",
+        edad: "",
+        sexo: "",
         correo: "",
         telefono: "",
         puesto: "",
@@ -108,12 +205,15 @@ const RegistrarProspecto = ({ onBack }) => {
     } catch (error) {
 
       console.error(
-        "Error al registrar prospecto:",
+        "❌ Error al registrar prospecto:",
         error
       );
 
       setMessage(
-        `❌ ${error.message}`
+        `❌ ${
+          error.message ||
+          "No se pudo registrar el prospecto"
+        }`
       );
 
 
@@ -148,7 +248,6 @@ const RegistrarProspecto = ({ onBack }) => {
           ← Volver
         </button>
 
-
         <div>
 
           <h2 style={title}>
@@ -175,18 +274,15 @@ const RegistrarProspecto = ({ onBack }) => {
           👔
         </div>
 
-
         <div>
 
           <strong style={adminTitle}>
             Recursos Humanos
           </strong>
 
-
           <div style={adminName}>
             {user?.nombre || "Usuario RH"}
           </div>
-
 
           <small style={adminArea}>
             Nuevo prospecto de selección
@@ -203,7 +299,7 @@ const RegistrarProspecto = ({ onBack }) => {
 
       <form
         onSubmit={handleSubmit}
-        style={form}
+        style={formStyle}
       >
 
         <h3 style={sectionTitle}>
@@ -216,7 +312,7 @@ const RegistrarProspecto = ({ onBack }) => {
         <div style={field}>
 
           <label style={label}>
-            Nombre completo
+            Nombre completo *
           </label>
 
           <input
@@ -232,12 +328,70 @@ const RegistrarProspecto = ({ onBack }) => {
         </div>
 
 
+        {/* EDAD + SEXO */}
+
+        <div style={twoColumns}>
+
+          <div style={field}>
+
+            <label style={label}>
+              Edad *
+            </label>
+
+            <input
+              type="number"
+              name="edad"
+              min="1"
+              max="120"
+              value={form.edad}
+              onChange={handleChange}
+              placeholder="Ej. 28"
+              style={input}
+              required
+            />
+
+          </div>
+
+
+          <div style={field}>
+
+            <label style={label}>
+              Sexo *
+            </label>
+
+            <select
+              name="sexo"
+              value={form.sexo}
+              onChange={handleChange}
+              style={input}
+              required
+            >
+
+              <option value="">
+                Selecciona una opción
+              </option>
+
+              <option value="F">
+                Femenino
+              </option>
+
+              <option value="M">
+                Masculino
+              </option>
+
+            </select>
+
+          </div>
+
+        </div>
+
+
         {/* CORREO */}
 
         <div style={field}>
 
           <label style={label}>
-            Correo electrónico
+            Correo electrónico *
           </label>
 
           <input
@@ -286,7 +440,7 @@ const RegistrarProspecto = ({ onBack }) => {
             name="puesto"
             value={form.puesto}
             onChange={handleChange}
-            placeholder="Ej. Psicólogo clínico"
+            placeholder="Ej. Analista administrativo"
             style={input}
           />
 
@@ -317,9 +471,21 @@ const RegistrarProspecto = ({ onBack }) => {
 
         <div style={infoBox}>
 
-          📋 Después de registrarlo podrás consultar
-          su expediente y continuar con el proceso
-          de selección.
+          <strong>
+            🆔 ID MirrorSoul
+          </strong>
+
+          <div style={infoText}>
+            El sistema generará automáticamente el
+            identificador MirrorSoul del prospecto al
+            registrarlo.
+          </div>
+
+          <div style={infoText}>
+            Después podrás abrir su expediente y
+            continuar con pruebas, entrevistas,
+            observaciones y el proceso de selección.
+          </div>
 
         </div>
 
@@ -350,6 +516,69 @@ const RegistrarProspecto = ({ onBack }) => {
           >
 
             {message}
+
+          </div>
+
+        )}
+
+
+        {/* RESULTADO DEL REGISTRO */}
+
+        {prospectoCreado && (
+
+          <div style={createdCard}>
+
+            <div style={createdIcon}>
+              ✅
+            </div>
+
+            <div style={createdInfo}>
+
+              <div style={createdTitle}>
+                Prospecto creado
+              </div>
+
+              <div style={createdName}>
+                {prospectoCreado.nombre}
+              </div>
+
+              <div style={mirrorBox}>
+
+                <span style={mirrorLabel}>
+                  ID MirrorSoul
+                </span>
+
+                <strong style={mirrorValue}>
+                  {prospectoCreado.id_mirror}
+                </strong>
+
+              </div>
+
+              <div style={createdDetails}>
+
+                {prospectoCreado.edad && (
+                  <span>
+                    🎂 {prospectoCreado.edad} años
+                  </span>
+                )}
+
+                {prospectoCreado.sexo && (
+                  <span>
+                    {prospectoCreado.sexo === "F"
+                      ? "👩 Femenino"
+                      : "👨 Masculino"}
+                  </span>
+                )}
+
+                {prospectoCreado.puesto && (
+                  <span>
+                    💼 {prospectoCreado.puesto}
+                  </span>
+                )}
+
+              </div>
+
+            </div>
 
           </div>
 
@@ -482,7 +711,7 @@ const adminArea = {
 };
 
 
-const form = {
+const formStyle = {
   background: "#FFFFFF",
   borderRadius: "18px",
   padding: "30px",
@@ -500,6 +729,14 @@ const sectionTitle = {
 
 const field = {
   marginBottom: "18px",
+};
+
+
+const twoColumns = {
+  display: "grid",
+  gridTemplateColumns:
+    "repeat(2, minmax(0, 1fr))",
+  gap: "16px",
 };
 
 
@@ -522,6 +759,7 @@ const input = {
   outline: "none",
   background: "#FFFFFF",
   color: "#1A2B4B",
+  fontFamily: "inherit",
 };
 
 
@@ -536,11 +774,101 @@ const infoBox = {
 };
 
 
+const infoText = {
+  marginTop: "5px",
+  color: "#64748B",
+  fontSize: "12px",
+};
+
+
 const messageBox = {
   marginTop: "18px",
   padding: "13px",
   borderRadius: "10px",
   fontWeight: "600",
+};
+
+
+const createdCard = {
+  marginTop: "18px",
+  padding: "16px",
+  borderRadius: "14px",
+  background: "#F0FFF4",
+  border: "1px solid #B7E4C7",
+  display: "flex",
+  alignItems: "flex-start",
+  gap: "12px",
+};
+
+
+const createdIcon = {
+  width: "38px",
+  height: "38px",
+  minWidth: "38px",
+  borderRadius: "50%",
+  background: "#D9F7E5",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  fontSize: "17px",
+};
+
+
+const createdInfo = {
+  flex: 1,
+};
+
+
+const createdTitle = {
+  fontSize: "11px",
+  fontWeight: "800",
+  color: "#27833A",
+  textTransform: "uppercase",
+  letterSpacing: "0.5px",
+};
+
+
+const createdName = {
+  marginTop: "3px",
+  fontSize: "16px",
+  fontWeight: "800",
+  color: "#1A2B4B",
+};
+
+
+const mirrorBox = {
+  marginTop: "9px",
+  display: "flex",
+  alignItems: "center",
+  gap: "8px",
+  flexWrap: "wrap",
+};
+
+
+const mirrorLabel = {
+  fontSize: "10px",
+  color: "#718096",
+  fontWeight: "700",
+};
+
+
+const mirrorValue = {
+  padding: "4px 8px",
+  borderRadius: "7px",
+  background: "#FFFFFF",
+  border: "1px solid #B7E4C7",
+  color: "#237A57",
+  fontSize: "12px",
+};
+
+
+const createdDetails = {
+  marginTop: "9px",
+  display: "flex",
+  flexWrap: "wrap",
+  gap: "12px",
+  color: "#64748B",
+  fontSize: "11px",
 };
 
 

@@ -361,8 +361,7 @@ const codigoUnico =
           }
 
 
-          const API_URL =
-            `https://reflejoyalma.com`;
+          const API_URL = import.meta.env.VITE_API_URL || (window.location.protocol === 'https:' ? 'https://reflejoyalma.com' : `http://${window.location.hostname}:5000`);
 
 
           console.log(
@@ -758,29 +757,18 @@ const codigoUnico =
        CREAR PEER CON ID FIJO
     ================================================ */
 
-    const peer =
-      new Peer(
-        peerIdSala,
-        {
+    const isSecure = window.location.protocol === "https:";
+    const peerPort = isSecure ? 443 : 5000;
 
-          host:
-            window.location.hostname,
+    const peer = new Peer(peerIdSala, {
+      host: window.location.hostname,
+      port: peerPort,
+      path: "/peerjs/myapp",
+      secure: isSecure
+    });
 
-          port:
-            5000,
+    peerRef.current = peer;
 
-          path:
-            "/peerjs/myapp",
-
-          secure:
-            false
-
-        }
-      );
-
-
-    peerRef.current =
-      peer;
 
 
     /* ================================================
@@ -1903,8 +1891,7 @@ const codigoUnico =
                 const token =
                   getToken();
 
-                const API_URL =
-                  `https://reflejoyalma.com`;
+                const API_URL = import.meta.env.VITE_API_URL || (window.location.protocol === 'https:' ? 'https://reflejoyalma.com' : `http://${window.location.hostname}:5000`);
 
 
                 console.log(

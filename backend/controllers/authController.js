@@ -1151,44 +1151,21 @@ export async function login(
        PARA CONTROLAR PROPIEDAD Y PERMISOS.
     ================================================== */
 
-    const token =
-      jwt.sign(
-
-        {
-
-          id_usuario:
-            user.id_usuario,
-
-          role:
-            roleNumber,
-
-          id_psicologo,
-
-          rol:
-            user.rol,
-
-          tipo_admin:
-            user.tipo_admin ||
-            null,
-
-          area:
-            user.area ||
-            null,
-
-          id_admin_padre:
-            user.id_admin_padre ||
-            null
-
-        },
-
-        process.env.JWT_SECRET,
-
-        {
-          expiresIn:
-            "8h"
-        }
-
-      );
+    const token = jwt.sign(
+  {
+    id_usuario: user.id_usuario,
+    role: roleNumber,
+    id_psicologo,
+    rol: user.rol,
+    tipo_admin: user.tipo_admin || null,
+    area: user.area || null,
+    id_admin_padre: user.id_admin_padre || null
+  },
+  process.env.JWT_SECRET,
+  {
+    expiresIn: "8h"
+  }
+);
 
 
     /* ==================================================

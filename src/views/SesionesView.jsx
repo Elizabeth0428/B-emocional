@@ -1,12 +1,13 @@
 // src/views/SesionesView.jsx
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { getToken } from "../services/AuthService";
+import { getToken, getCurrentUser } from "../services/AuthService";
 import VideoRecorder from "../components/VideoRecorder";
 
 export default function SesionesView() {
   const { idPaciente } = useParams();
   const navigate = useNavigate();
+  const user = getCurrentUser();
 
   const [sesiones, setSesiones] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -26,6 +27,27 @@ export default function SesionesView() {
   const [transcribiendoAudio, setTranscribiendoAudio] = useState({});
   const [mensajeTranscripcion, setMensajeTranscripcion] = useState({});
   const [reintentandoTranscripcion, setReintentandoTranscripcion] = useState({});
+  const [mostrarGuia, setMostrarGuia] = useState(false);
+
+  // =====================================================
+  // GUÍA: SOLO 2 VECES AUTOMÁTICAMENTE
+  // =====================================================
+  useEffect(() => {
+    const userKey =
+      user?.id_usuario ||
+      user?.id ||
+      user?.correo ||
+      "usuario";
+
+    const key = `mirrorsoul_sesiones_guia_${userKey}`;
+    const visitas = Number(localStorage.getItem(key) || 0);
+
+    if (visitas < 2) {
+      setMostrarGuia(true);
+    }
+
+    localStorage.setItem(key, String(visitas + 1));
+  }, []);
 
   // =====================================================
   // CARGAR SESIONES
@@ -36,25 +58,39 @@ export default function SesionesView() {
       setError("");
 
       const token = getToken();
+
       const res = await fetch(
         `https://reflejoyalma.com/api/sesiones/paciente/${idPaciente}`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
       );
 
       const data = await res.json();
 
       if (!res.ok) {
         throw new Error(
-          data.message || "No se pudieron obtener las sesiones"
+          data.message ||
+          "No se pudieron obtener las sesiones"
         );
       }
 
-      setSesiones(Array.isArray(data) ? data : data.sesiones || []);
+      setSesiones(
+        Array.isArray(data)
+          ? data
+          : data.sesiones || []
+      );
     } catch (err) {
-      console.error("❌ Error al obtener sesiones:", err);
+      console.error(
+        "❌ Error al obtener sesiones:",
+        err
+      );
+
       setError(
         err.message ||
-          "No fue posible cargar las sesiones del paciente."
+        "No fue posible cargar las sesiones del paciente."
       );
     } finally {
       setLoading(false);
@@ -62,24 +98,37 @@ export default function SesionesView() {
   };
 
   useEffect(() => {
-    if (idPaciente) fetchSesiones();
+    if (idPaciente) {
+      fetchSesiones();
+    }
   }, [idPaciente]);
 
   // =====================================================
   // SESIÓN ACTIVA
   // =====================================================
   const sesionActiva =
-    sesiones.find((s) => s.estado === "activa") || null;
+    sesiones.find(
+      (s) => s.estado === "activa"
+    ) || null;
 
   const abrirSesionActiva = async () => {
     if (!sesionActiva) return;
 
     setMostrarNuevaSesion(false);
     setMensajeSesion("");
-    setSesionAbierta(sesionActiva.id_sesion);
+    setSesionAbierta(
+      sesionActiva.id_sesion
+    );
 
-    if (!Object.prototype.hasOwnProperty.call(notasIA, sesionActiva.id_sesion)) {
-      await cargarNotaIA(sesionActiva.id_sesion);
+    if (
+      !Object.prototype.hasOwnProperty.call(
+        notasIA,
+        sesionActiva.id_sesion
+      )
+    ) {
+      await cargarNotaIA(
+        sesionActiva.id_sesion
+      );
     }
 
     if (
@@ -91,21 +140,28 @@ export default function SesionesView() {
       return;
     }
 
-    await cargarArchivosSesion(sesionActiva.id_sesion);
+    await cargarArchivosSesion(
+      sesionActiva.id_sesion
+    );
   };
 
   // =====================================================
-  // CREAR NUEVA SESIÓN
+  // CREAR SESIÓN
   // =====================================================
   const crearNuevaSesion = async () => {
     if (creandoSesion) return;
 
     if (sesionActiva) {
       setMostrarNuevaSesion(false);
+
       setError(
         `⚠️ Ya existe una sesión activa (#${sesionActiva.id_sesion}). Termina esa consulta antes de crear una nueva.`
       );
-      setSesionAbierta(sesionActiva.id_sesion);
+
+      setSesionAbierta(
+        sesionActiva.id_sesion
+      );
+
       return;
     }
 
@@ -121,27 +177,44 @@ export default function SesionesView() {
         {
           method: "POST",
           headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
+            "Content-Type":
+              "application/json",
+            Authorization:
+              `Bearer ${token}`,
           },
           body: JSON.stringify({
-            id_paciente: Number(idPaciente),
-            modalidad: modalidadNueva,
+            id_paciente:
+              Number(idPaciente),
+            modalidad:
+              modalidadNueva,
           }),
         }
       );
 
-      const data = await res.json().catch(() => ({}));
+      const data =
+        await res.json().catch(
+          () => ({})
+        );
 
       if (!res.ok) {
-        if (res.status === 409 && data.id_sesion_activa) {
+        if (
+          res.status === 409 &&
+          data.id_sesion_activa
+        ) {
           setMostrarNuevaSesion(false);
-          setSesionAbierta(Number(data.id_sesion_activa));
+
+          setSesionAbierta(
+            Number(
+              data.id_sesion_activa
+            )
+          );
+
           await fetchSesiones();
         }
 
         throw new Error(
-          data.message || "No se pudo crear la sesión."
+          data.message ||
+          "No se pudo crear la sesión."
         );
       }
 
@@ -153,8 +226,13 @@ export default function SesionesView() {
 
       await fetchSesiones();
 
-      if (modalidadNueva === "presencial") {
-        setSesionAbierta(data.id_sesion);
+      if (
+        modalidadNueva ===
+        "presencial"
+      ) {
+        setSesionAbierta(
+          data.id_sesion
+        );
         return;
       }
 
@@ -163,28 +241,40 @@ export default function SesionesView() {
         {
           method: "POST",
           headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
+            "Content-Type":
+              "application/json",
+            Authorization:
+              `Bearer ${token}`,
           },
         }
       );
 
-      const dataVideo = await resVideo.json().catch(() => ({}));
+      const dataVideo =
+        await resVideo
+          .json()
+          .catch(() => ({}));
 
       if (!resVideo.ok) {
         throw new Error(
           dataVideo.message ||
-            "La sesión fue creada, pero no se pudo generar la videollamada."
+          "La sesión fue creada, pero no se pudo generar la videollamada."
         );
       }
 
       if (dataVideo.sala) {
-        navigate(`/SalaVideollamada/${dataVideo.sala}`);
+        navigate(
+          `/SalaVideollamada/${dataVideo.sala}`
+        );
       }
     } catch (err) {
-      console.error("❌ Error creando sesión:", err);
+      console.error(
+        "❌ Error creando sesión:",
+        err
+      );
+
       setError(
-        err.message || "No fue posible crear la sesión."
+        err.message ||
+        "No fue posible crear la sesión."
       );
     } finally {
       setCreandoSesion(false);
@@ -192,391 +282,667 @@ export default function SesionesView() {
   };
 
   // =====================================================
-  // CARGAR MULTIMEDIA
+  // MULTIMEDIA
   // =====================================================
-  const cargarArchivosSesion = async (idSesion) => {
-    try {
-      setCargandoArchivos(true);
+  const cargarArchivosSesion =
+    async (idSesion) => {
+      try {
+        setCargandoArchivos(true);
 
-      const token = getToken();
+        const token =
+          getToken();
 
-      const res = await fetch(
-        `https://reflejoyalma.com/api/archivos/sesion/${idSesion}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+        const res =
+          await fetch(
+            `https://reflejoyalma.com/api/archivos/sesion/${idSesion}`,
+            {
+              headers: {
+                Authorization:
+                  `Bearer ${token}`,
+              },
+            }
+          );
+
+        if (!res.ok) {
+          throw new Error(
+            "No se pudieron obtener las grabaciones de la sesión."
+          );
         }
-      );
 
-      if (!res.ok) {
-        throw new Error(
-          "No se pudieron obtener las grabaciones de la sesión."
-        );
-      }
+        const data =
+          await res.json();
 
-      const data = await res.json();
+        const lista =
+          Array.isArray(data)
+            ? data
+            : [];
 
-      console.log(
-        "🎥 Archivos multimedia recibidos:",
-        data
-      );
-
-      const lista = Array.isArray(data) ? data : [];
-
-      setArchivosSesion((previous) => ({
-        ...previous,
-        [idSesion]: lista,
-      }));
-
-      return lista;
-    } catch (err) {
-      console.error(
-        "❌ Error al obtener archivos de la sesión:",
-        err
-      );
-
-      setArchivosSesion((previous) => ({
-        ...previous,
-        [idSesion]: [],
-      }));
-
-      return [];
-    } finally {
-      setCargandoArchivos(false);
-    }
-  };
-
-  // =====================================================
-  // TRANSCRIPCIÓN AUTOMÁTICA DE AUDIO
-  // =====================================================
-  const transcribirAudioAutomaticamente = async (idSesion, archivoGuardado = {}) => {
-    if (!idSesion) return;
-
-    try {
-      setTranscribiendoAudio((prev) => ({ ...prev, [idSesion]: true }));
-      setMensajeTranscripcion((prev) => ({
-        ...prev,
-        [idSesion]: "⏳ Audio guardado. Iniciando transcripción...",
-      }));
-
-      let idVideo = Number(
-        archivoGuardado?.id_video ||
-        archivoGuardado?.id ||
-        0
-      );
-
-      if (!idVideo) {
-        const lista = await cargarArchivosSesion(idSesion);
-
-        const audioPendiente = [...lista]
-          .filter((item) => {
-            const esAudio =
-              item.tipo === "audio" ||
-              String(item.formato || "").startsWith("audio/");
-
-            return (
-              esAudio &&
-              item.transcripcion_estado !== "completada"
-            );
+        setArchivosSesion(
+          (prev) => ({
+            ...prev,
+            [idSesion]: lista,
           })
-          .sort(
-            (a, b) =>
-              Number(b.id_video || 0) -
-              Number(a.id_video || 0)
-          )[0];
-
-        idVideo = Number(audioPendiente?.id_video || 0);
-      }
-
-      if (!idVideo) {
-        throw new Error(
-          "El audio se guardó, pero no se encontró su identificador para transcribirlo."
         );
+
+        return lista;
+      } catch (err) {
+        console.error(
+          "❌ Error al obtener archivos de la sesión:",
+          err
+        );
+
+        setArchivosSesion(
+          (prev) => ({
+            ...prev,
+            [idSesion]: [],
+          })
+        );
+
+        return [];
+      } finally {
+        setCargandoArchivos(false);
       }
+    };
 
-      const token = getToken();
-      const API_URL = `https://reflejoyalma.com`;
+  // =====================================================
+  // TRANSCRIPCIÓN AUTOMÁTICA
+  // =====================================================
+  const transcribirAudioAutomaticamente =
+    async (
+      idSesion,
+      archivoGuardado = {}
+    ) => {
+      if (!idSesion) return;
 
-      setMensajeTranscripcion((prev) => ({
-        ...prev,
-        [idSesion]: "🎙️ Transcribiendo audio con IA...",
-      }));
+      try {
+        setTranscribiendoAudio(
+          (prev) => ({
+            ...prev,
+            [idSesion]: true,
+          })
+        );
 
-      console.log(
-        `🎙️ Iniciando transcripción automática del archivo #${idVideo}`
-      );
+        setMensajeTranscripcion(
+          (prev) => ({
+            ...prev,
+            [idSesion]:
+              "⏳ Audio guardado. Iniciando transcripción...",
+          })
+        );
 
-      const res = await fetch(
-        `${API_URL}/api/archivos/${idVideo}/transcribir`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+        let idVideo = Number(
+          archivoGuardado?.id_video ||
+          archivoGuardado?.id ||
+          0
+        );
+
+        if (!idVideo) {
+          const lista =
+            await cargarArchivosSesion(
+              idSesion
+            );
+
+          const audioPendiente =
+            [...lista]
+              .filter((item) => {
+                const esAudio =
+                  item.tipo === "audio" ||
+                  String(
+                    item.formato || ""
+                  ).startsWith(
+                    "audio/"
+                  );
+
+                return (
+                  esAudio &&
+                  item.transcripcion_estado !==
+                    "completada"
+                );
+              })
+              .sort(
+                (a, b) =>
+                  Number(
+                    b.id_video || 0
+                  ) -
+                  Number(
+                    a.id_video || 0
+                  )
+              )[0];
+
+          idVideo = Number(
+            audioPendiente?.id_video ||
+            0
+          );
         }
-      );
 
-      const data = await res.json().catch(() => ({}));
-
-      if (!res.ok) {
-        throw new Error(
-          data.message ||
-          data.error ||
-          "No se pudo transcribir el audio."
-        );
-      }
-
-      console.log(
-        "✅ Transcripción automática completada:",
-        data
-      );
-
-      setMensajeTranscripcion((prev) => ({
-        ...prev,
-        [idSesion]: "✅ Audio transcrito correctamente",
-      }));
-
-      await cargarArchivosSesion(idSesion);
-    } catch (err) {
-      console.error(
-        "❌ Error en transcripción automática:",
-        err
-      );
-
-      setMensajeTranscripcion((prev) => ({
-        ...prev,
-        [idSesion]:
-          `⚠️ El audio se guardó, pero la transcripción falló: ${
-            err.message || "Error desconocido"
-          }`,
-      }));
-
-      await cargarArchivosSesion(idSesion);
-    } finally {
-      setTranscribiendoAudio((prev) => ({
-        ...prev,
-        [idSesion]: false,
-      }));
-    }
-  };
-
-  // =====================================================
-  // REINTENTAR TRANSCRIPCIÓN DE AUDIO O VIDEO
-  // =====================================================
-  const reintentarTranscripcion = async (idVideo, idSesion) => {
-    if (!idVideo || !idSesion || reintentandoTranscripcion[idVideo]) return;
-
-    try {
-      setReintentandoTranscripcion((prev) => ({
-        ...prev,
-        [idVideo]: true,
-      }));
-
-      setArchivosSesion((prev) => ({
-        ...prev,
-        [idSesion]: (prev[idSesion] || []).map((archivo) =>
-          Number(archivo.id_video) === Number(idVideo)
-            ? { ...archivo, transcripcion_estado: "procesando" }
-            : archivo
-        ),
-      }));
-
-      const token = getToken();
-      const API_URL = `https://reflejoyalma.com`;
-
-      console.log(`🔄 Reintentando transcripción del archivo #${idVideo}`);
-
-      const res = await fetch(
-        `${API_URL}/api/archivos/${idVideo}/transcribir`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+        if (!idVideo) {
+          throw new Error(
+            "El audio se guardó, pero no se encontró su identificador para transcribirlo."
+          );
         }
-      );
 
-      const data = await res.json().catch(() => ({}));
+        const token =
+          getToken();
 
-      if (!res.ok) {
-        throw new Error(
-          data.message ||
-          data.error ||
-          "No se pudo reintentar la transcripción."
+        const API_URL = import.meta.env.VITE_API_URL || (window.location.protocol === 'https:' ? 'https://reflejoyalma.com' : `http://${window.location.hostname}:5000`);
+
+        setMensajeTranscripcion(
+          (prev) => ({
+            ...prev,
+            [idSesion]:
+              "🎙️ Transcribiendo audio con IA...",
+          })
+        );
+
+        const res =
+          await fetch(
+            `${API_URL}/api/archivos/${idVideo}/transcribir`,
+            {
+              method: "POST",
+              headers: {
+                Authorization:
+                  `Bearer ${token}`,
+              },
+            }
+          );
+
+        const data =
+          await res
+            .json()
+            .catch(() => ({}));
+
+        if (!res.ok) {
+          throw new Error(
+            data.message ||
+            data.error ||
+            "No se pudo transcribir el audio."
+          );
+        }
+
+        setMensajeTranscripcion(
+          (prev) => ({
+            ...prev,
+            [idSesion]:
+              "✅ Audio transcrito correctamente",
+          })
+        );
+
+        await cargarArchivosSesion(
+          idSesion
+        );
+      } catch (err) {
+        console.error(
+          "❌ Error en transcripción automática:",
+          err
+        );
+
+        setMensajeTranscripcion(
+          (prev) => ({
+            ...prev,
+            [idSesion]:
+              `⚠️ El audio se guardó, pero la transcripción falló: ${
+                err.message ||
+                "Error desconocido"
+              }`,
+          })
+        );
+
+        await cargarArchivosSesion(
+          idSesion
+        );
+      } finally {
+        setTranscribiendoAudio(
+          (prev) => ({
+            ...prev,
+            [idSesion]: false,
+          })
         );
       }
-
-      console.log("✅ Reintento de transcripción completado:", data);
-      await cargarArchivosSesion(idSesion);
-
-    } catch (err) {
-      console.error("❌ Error reintentando transcripción:", err);
-      await cargarArchivosSesion(idSesion);
-
-    } finally {
-      setReintentandoTranscripcion((prev) => ({
-        ...prev,
-        [idVideo]: false,
-      }));
-    }
-  };
+    };
 
   // =====================================================
-  // NOTAS DE LA SESIÓN PARA IA
+  // REINTENTAR TRANSCRIPCIÓN
   // =====================================================
-  const cargarNotaIA = async (idSesion) => {
-    if (Object.prototype.hasOwnProperty.call(notasIA, idSesion)) return;
-    try {
-      setCargandoNotaIA((prev) => ({ ...prev, [idSesion]: true }));
-      const token = getToken();
-      const API_URL = `https://reflejoyalma.com`;
-      const res = await fetch(`${API_URL}/api/notas/ia/${idSesion}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(data?.message || "No se pudo cargar la nota para IA.");
-      setNotasIA((prev) => ({ ...prev, [idSesion]: data?.nota || "" }));
-    } catch (err) {
-      console.error("❌ Error cargando nota IA:", err);
-      setMensajeNotaIA((prev) => ({ ...prev, [idSesion]: "⚠️ No se pudo cargar la nota guardada." }));
-    } finally {
-      setCargandoNotaIA((prev) => ({ ...prev, [idSesion]: false }));
-    }
-  };
+  const reintentarTranscripcion =
+    async (
+      idVideo,
+      idSesion
+    ) => {
+      if (
+        !idVideo ||
+        !idSesion ||
+        reintentandoTranscripcion[
+          idVideo
+        ]
+      ) {
+        return;
+      }
 
-  const guardarNotaIA = async (idSesion) => {
-    const nota = String(notasIA[idSesion] || "").trim();
-    if (!nota) {
-      setMensajeNotaIA((prev) => ({ ...prev, [idSesion]: "⚠️ Escribe una nota antes de guardarla." }));
-      return;
-    }
-    try {
-      setGuardandoNotaIA((prev) => ({ ...prev, [idSesion]: true }));
-      setMensajeNotaIA((prev) => ({ ...prev, [idSesion]: "" }));
-      const token = getToken();
-      const API_URL = `https://reflejoyalma.com`;
-      const res = await fetch(`${API_URL}/api/notas/ia`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ id_sesion: idSesion, nota }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.message || "No se pudo guardar la nota para IA.");
-      setNotasIA((prev) => ({ ...prev, [idSesion]: nota }));
-      setMensajeNotaIA((prev) => ({ ...prev, [idSesion]: data.message || "✅ Nota para IA guardada" }));
-    } catch (err) {
-      console.error("❌ Error guardando nota IA:", err);
-      setMensajeNotaIA((prev) => ({ ...prev, [idSesion]: `⚠️ ${err.message || "No se pudo guardar la nota."}` }));
-    } finally {
-      setGuardandoNotaIA((prev) => ({ ...prev, [idSesion]: false }));
-    }
-  };
+      try {
+        setReintentandoTranscripcion(
+          (prev) => ({
+            ...prev,
+            [idVideo]: true,
+          })
+        );
+
+        setArchivosSesion(
+          (prev) => ({
+            ...prev,
+
+            [idSesion]: (
+              prev[idSesion] || []
+            ).map((archivo) =>
+              Number(
+                archivo.id_video
+              ) ===
+              Number(idVideo)
+                ? {
+                    ...archivo,
+                    transcripcion_estado:
+                      "procesando",
+                  }
+                : archivo
+            ),
+          })
+        );
+
+        const token =
+          getToken();
+
+        const API_URL = import.meta.env.VITE_API_URL || (window.location.protocol === 'https:' ? 'https://reflejoyalma.com' : `http://${window.location.hostname}:5000`);
+
+        const res =
+          await fetch(
+            `${API_URL}/api/archivos/${idVideo}/transcribir`,
+            {
+              method: "POST",
+              headers: {
+                Authorization:
+                  `Bearer ${token}`,
+              },
+            }
+          );
+
+        const data =
+          await res
+            .json()
+            .catch(() => ({}));
+
+        if (!res.ok) {
+          throw new Error(
+            data.message ||
+            data.error ||
+            "No se pudo reintentar la transcripción."
+          );
+        }
+
+        await cargarArchivosSesion(
+          idSesion
+        );
+      } catch (err) {
+        console.error(
+          "❌ Error reintentando transcripción:",
+          err
+        );
+
+        await cargarArchivosSesion(
+          idSesion
+        );
+      } finally {
+        setReintentandoTranscripcion(
+          (prev) => ({
+            ...prev,
+            [idVideo]: false,
+          })
+        );
+      }
+    };
 
   // =====================================================
-  // ABRIR / CERRAR SESIÓN
+  // NOTAS PARA IA
   // =====================================================
-  const toggleSesion = async (idSesion) => {
-    if (sesionAbierta === idSesion) {
-      setSesionAbierta(null);
-      return;
-    }
+  const cargarNotaIA =
+    async (idSesion) => {
+      if (
+        Object.prototype.hasOwnProperty.call(
+          notasIA,
+          idSesion
+        )
+      ) {
+        return;
+      }
 
-    setSesionAbierta(idSesion);
+      try {
+        setCargandoNotaIA(
+          (prev) => ({
+            ...prev,
+            [idSesion]: true,
+          })
+        );
 
-    const sesion = sesiones.find((item) => item.id_sesion === idSesion);
-    if (sesion?.estado === "activa" && !Object.prototype.hasOwnProperty.call(notasIA, idSesion)) {
-      await cargarNotaIA(idSesion);
-    }
+        const token =
+          getToken();
 
-    if (
-      Object.prototype.hasOwnProperty.call(
-        archivosSesion,
+        const API_URL = import.meta.env.VITE_API_URL || (window.location.protocol === 'https:' ? 'https://reflejoyalma.com' : `http://${window.location.hostname}:5000`);
+
+        const res =
+          await fetch(
+            `${API_URL}/api/notas/ia/${idSesion}`,
+            {
+              headers: {
+                Authorization:
+                  `Bearer ${token}`,
+              },
+            }
+          );
+
+        const data =
+          await res
+            .json()
+            .catch(() => null);
+
+        if (!res.ok) {
+          throw new Error(
+            data?.message ||
+            "No se pudo cargar la nota para IA."
+          );
+        }
+
+        setNotasIA(
+          (prev) => ({
+            ...prev,
+            [idSesion]:
+              data?.nota || "",
+          })
+        );
+      } catch (err) {
+        console.error(
+          "❌ Error cargando nota IA:",
+          err
+        );
+
+        setMensajeNotaIA(
+          (prev) => ({
+            ...prev,
+            [idSesion]:
+              "⚠️ No se pudo cargar la nota guardada.",
+          })
+        );
+      } finally {
+        setCargandoNotaIA(
+          (prev) => ({
+            ...prev,
+            [idSesion]: false,
+          })
+        );
+      }
+    };
+
+  const guardarNotaIA =
+    async (idSesion) => {
+      const nota =
+        String(
+          notasIA[idSesion] || ""
+        ).trim();
+
+      if (!nota) {
+        setMensajeNotaIA(
+          (prev) => ({
+            ...prev,
+            [idSesion]:
+              "⚠️ Escribe una nota antes de guardarla.",
+          })
+        );
+
+        return;
+      }
+
+      try {
+        setGuardandoNotaIA(
+          (prev) => ({
+            ...prev,
+            [idSesion]: true,
+          })
+        );
+
+        setMensajeNotaIA(
+          (prev) => ({
+            ...prev,
+            [idSesion]: "",
+          })
+        );
+
+        const token =
+          getToken();
+
+        const API_URL = import.meta.env.VITE_API_URL || (window.location.protocol === 'https:' ? 'https://reflejoyalma.com' : `http://${window.location.hostname}:5000`);
+
+        const res =
+          await fetch(
+            `${API_URL}/api/notas/ia`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type":
+                  "application/json",
+                Authorization:
+                  `Bearer ${token}`,
+              },
+              body: JSON.stringify({
+                id_sesion:
+                  idSesion,
+                nota,
+              }),
+            }
+          );
+
+        const data =
+          await res
+            .json()
+            .catch(() => ({}));
+
+        if (!res.ok) {
+          throw new Error(
+            data.message ||
+            "No se pudo guardar la nota para IA."
+          );
+        }
+
+        setNotasIA(
+          (prev) => ({
+            ...prev,
+            [idSesion]: nota,
+          })
+        );
+
+        setMensajeNotaIA(
+          (prev) => ({
+            ...prev,
+            [idSesion]:
+              data.message ||
+              "✅ Nota para IA guardada",
+          })
+        );
+      } catch (err) {
+        console.error(
+          "❌ Error guardando nota IA:",
+          err
+        );
+
+        setMensajeNotaIA(
+          (prev) => ({
+            ...prev,
+            [idSesion]:
+              `⚠️ ${
+                err.message ||
+                "No se pudo guardar la nota."
+              }`,
+          })
+        );
+      } finally {
+        setGuardandoNotaIA(
+          (prev) => ({
+            ...prev,
+            [idSesion]: false,
+          })
+        );
+      }
+    };
+
+  // =====================================================
+  // ABRIR / CERRAR TARJETA SESIÓN
+  // =====================================================
+  const toggleSesion =
+    async (idSesion) => {
+      if (
+        sesionAbierta ===
         idSesion
-      )
-    ) {
-      return;
-    }
+      ) {
+        setSesionAbierta(null);
+        return;
+      }
 
-    await cargarArchivosSesion(idSesion);
-  };
+      setSesionAbierta(
+        idSesion
+      );
+
+      const sesion =
+        sesiones.find(
+          (item) =>
+            item.id_sesion ===
+            idSesion
+        );
+
+      if (
+        sesion?.estado ===
+          "activa" &&
+        !Object.prototype.hasOwnProperty.call(
+          notasIA,
+          idSesion
+        )
+      ) {
+        await cargarNotaIA(
+          idSesion
+        );
+      }
+
+      if (
+        Object.prototype.hasOwnProperty.call(
+          archivosSesion,
+          idSesion
+        )
+      ) {
+        return;
+      }
+
+      await cargarArchivosSesion(
+        idSesion
+      );
+    };
 
   // =====================================================
-// TERMINAR CONSULTA
-//
-// IMPORTANTE:
-// NO finaliza todavía la sesión en BD.
-// Primero abre el Preanálisis IA de esta sesión.
-// =====================================================
-const terminarConsulta = (sesion) => {
-  if (!sesion || sesion.estado !== "activa") return;
+  // TERMINAR CONSULTA -> PREANÁLISIS
+  // =====================================================
+  const terminarConsulta =
+    (sesion) => {
+      if (
+        !sesion ||
+        sesion.estado !==
+          "activa"
+      ) {
+        return;
+      }
 
-  setError("");
-  setMensajeSesion("");
+      setError("");
+      setMensajeSesion("");
 
-  console.log("🏁 Iniciando Preanálisis IA:", {
-    id_sesion: sesion.id_sesion,
-    id_paciente: Number(idPaciente),
-  });
+      console.log(
+        "🏁 Iniciando Preanálisis IA:",
+        {
+          id_sesion:
+            sesion.id_sesion,
 
-  navigate(
-    `/paciente/${idPaciente}/sesion/${sesion.id_sesion}/preanalisis`
-  );
-};
+          id_paciente:
+            Number(idPaciente),
+        }
+      );
+
+      navigate(
+        `/paciente/${idPaciente}/sesion/${sesion.id_sesion}/preanalisis`
+      );
+    };
 
   // =====================================================
-  // PRUEBAS PSICOLÓGICAS DE LA SESIÓN
+  // PRUEBAS DE ESTA SESIÓN
   // =====================================================
-  const gestionarPruebasSesion = (sesion) => {
-    if (!sesion || sesion.estado !== "activa") return;
+  const gestionarPruebasSesion =
+    (sesion) => {
+      if (
+        !sesion ||
+        sesion.estado !==
+          "activa"
+      ) {
+        return;
+      }
 
-    setError("");
-    setMensajeSesion("");
+      setError("");
+      setMensajeSesion("");
 
-    navigate(
-      `/paciente/${idPaciente}/sesion/${sesion.id_sesion}/pruebas`
-    );
-  };
+      navigate(
+        `/paciente/${idPaciente}/sesion/${sesion.id_sesion}/pruebas`
+      );
+    };
 
   // =====================================================
   // PAGINACIÓN
   // =====================================================
-  const mostrarMasSesiones = () => {
-    setSesionesVisibles((actual) =>
-      Math.min(actual + 5, sesiones.length)
-    );
-  };
+  const mostrarMasSesiones =
+    () => {
+      setSesionesVisibles(
+        (actual) =>
+          Math.min(
+            actual + 5,
+            sesiones.length
+          )
+      );
+    };
 
-  const mostrarMenosSesiones = () => {
-    setSesionesVisibles(5);
-    setSesionAbierta(null);
+  const mostrarMenosSesiones =
+    () => {
+      setSesionesVisibles(5);
+      setSesionAbierta(null);
 
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
-  };
+      window.scrollTo({
+        top: 0,
+        behavior: "smooth",
+      });
+    };
 
-  const volverAlExpediente = () => {
-    navigate(`/paciente/${idPaciente}`);
-  };
+  const volverAlExpediente =
+    () => {
+      navigate(
+        `/paciente/${idPaciente}`
+      );
+    };
 
   // =====================================================
-  // CARGANDO
+  // LOADING
   // =====================================================
   if (loading) {
     return (
       <div style={loadingPage}>
         <div style={loadingCard}>
-          <div style={loadingIcon}>⏳</div>
+          <div style={loadingIcon}>
+            ⏳
+          </div>
 
           <h3 style={loadingTitle}>
             Cargando sesiones...
           </h3>
 
           <p style={loadingText}>
-            Estamos obteniendo el historial de sesiones
-            del paciente.
+            Estamos obteniendo el historial de sesiones del paciente.
           </p>
         </div>
       </div>
@@ -584,21 +950,28 @@ const terminarConsulta = (sesion) => {
   }
 
   const sesionesMostradas =
-    sesiones.slice(0, sesionesVisibles);
+    sesiones.slice(
+      0,
+      sesionesVisibles
+    );
 
   const hayMasSesiones =
-    sesionesVisibles < sesiones.length;
+    sesionesVisibles <
+    sesiones.length;
 
   const mostrandoTodas =
-    sesionesVisibles >= sesiones.length &&
+    sesionesVisibles >=
+      sesiones.length &&
     sesiones.length > 5;
 
+  // =====================================================
+  // RENDER
+  // =====================================================
   return (
     <div style={page}>
       <div style={container}>
-        {/* =================================================
-            ENCABEZADO
-        ================================================= */}
+
+        {/* ENCABEZADO */}
         <div style={header}>
           <div>
             <div style={smallLabel}>
@@ -606,31 +979,40 @@ const terminarConsulta = (sesion) => {
             </div>
 
             <h1 style={title}>
-              📅 Historial de Sesiones
+              📅 Sesiones clínicas
             </h1>
 
             <p style={subtitle}>
-              Consulta las sesiones clínicas registradas
-              para este paciente.
+              Inicia, continúa y consulta las sesiones clínicas de este paciente.
             </p>
           </div>
 
-          <div style={sessionCounter}>
-            <span style={counterNumber}>
-              {sesiones.length}
-            </span>
+          <div style={headerActions}>
+            <button
+              type="button"
+              style={helpTopButton}
+              onClick={() =>
+                setMostrarGuia(true)
+              }
+            >
+              ❓ ¿Cómo usar esta pantalla?
+            </button>
 
-            <span style={counterLabel}>
-              {sesiones.length === 1
-                ? "sesión"
-                : "sesiones"}
-            </span>
+            <div style={sessionCounter}>
+              <span style={counterNumber}>
+                {sesiones.length}
+              </span>
+
+              <span style={counterLabel}>
+                {sesiones.length === 1
+                  ? "sesión"
+                  : "sesiones"}
+              </span>
+            </div>
           </div>
         </div>
 
-        {/* =================================================
-            SESIÓN ACTIVA
-        ================================================= */}
+        {/* SESIÓN ACTIVA */}
         {sesionActiva && (
           <div style={activeSessionBox}>
             <div style={activeSessionInfo}>
@@ -642,30 +1024,39 @@ const terminarConsulta = (sesion) => {
                 Este paciente tiene la sesión #
                 {sesionActiva.numero_sesion ||
                   sesionActiva.id_sesion}{" "}
-                abierta. Debes terminarla antes de iniciar
-                otra consulta.
+                abierta. Continúa esa consulta antes de iniciar una nueva.
               </div>
             </div>
 
             <button
               type="button"
-              onClick={abrirSesionActiva}
-              style={activeSessionButton}
+              onClick={
+                abrirSesionActiva
+              }
+              style={
+                activeSessionButton
+              }
             >
               Ver sesión activa
             </button>
           </div>
         )}
 
-        {/* =================================================
-            NUEVA SESIÓN
-        ================================================= */}
+        {/* NUEVA SESIÓN */}
         <div style={newSessionSection}>
           <button
             type="button"
-            disabled={Boolean(sesionActiva)}
+            disabled={
+              Boolean(
+                sesionActiva
+              )
+            }
             onClick={() => {
-              if (sesionActiva) return;
+              if (
+                sesionActiva
+              ) {
+                return;
+              }
 
               setMostrarNuevaSesion(
                 !mostrarNuevaSesion
@@ -688,27 +1079,40 @@ const terminarConsulta = (sesion) => {
 
           {sesionActiva && (
             <div style={activeHint}>
-              Finaliza la consulta activa antes de crear
-              una nueva sesión.
+              Finaliza la consulta activa antes de crear una nueva sesión.
             </div>
           )}
 
           {mostrarNuevaSesion &&
             !sesionActiva && (
               <div style={newSessionCard}>
-                <h3 style={newSessionTitle}>
+                <h3
+                  style={
+                    newSessionTitle
+                  }
+                >
                   Nueva sesión clínica
                 </h3>
 
-                <p style={newSessionText}>
+                <p
+                  style={
+                    newSessionText
+                  }
+                >
                   Selecciona cómo se realizará esta sesión.
                 </p>
 
-                <div style={modalityGrid}>
+                <div
+                  style={
+                    modalityGrid
+                  }
+                >
                   <button
                     type="button"
                     onClick={() =>
-                      setModalidadNueva("presencial")
+                      setModalidadNueva(
+                        "presencial"
+                      )
                     }
                     style={{
                       ...modalityCard,
@@ -718,16 +1122,28 @@ const terminarConsulta = (sesion) => {
                         : {}),
                     }}
                   >
-                    <div style={modalityIcon}>
+                    <div
+                      style={
+                        modalityIcon
+                      }
+                    >
                       🏥
                     </div>
 
                     <div>
-                      <div style={modalityTitle}>
+                      <div
+                        style={
+                          modalityTitle
+                        }
+                      >
                         Presencial
                       </div>
 
-                      <div style={modalityText}>
+                      <div
+                        style={
+                          modalityText
+                        }
+                      >
                         Consulta realizada presencialmente.
                       </div>
                     </div>
@@ -748,41 +1164,67 @@ const terminarConsulta = (sesion) => {
                         : {}),
                     }}
                   >
-                    <div style={modalityIcon}>
+                    <div
+                      style={
+                        modalityIcon
+                      }
+                    >
                       🎥
                     </div>
 
                     <div>
-                      <div style={modalityTitle}>
+                      <div
+                        style={
+                          modalityTitle
+                        }
+                      >
                         Videollamada
                       </div>
 
-                      <div style={modalityText}>
-                        Consulta remota con sala de
-                        videollamada.
+                      <div
+                        style={
+                          modalityText
+                        }
+                      >
+                        Consulta remota con sala de videollamada.
                       </div>
                     </div>
                   </button>
                 </div>
 
-                <div style={newSessionActions}>
+                <div
+                  style={
+                    newSessionActions
+                  }
+                >
                   <button
                     type="button"
-                    disabled={creandoSesion}
-                    onClick={() =>
-                      setMostrarNuevaSesion(false)
+                    disabled={
+                      creandoSesion
                     }
-                    style={cancelSessionButton}
+                    onClick={() =>
+                      setMostrarNuevaSesion(
+                        false
+                      )
+                    }
+                    style={
+                      cancelSessionButton
+                    }
                   >
                     Cancelar
                   </button>
 
                   <button
                     type="button"
-                    disabled={creandoSesion}
-                    onClick={crearNuevaSesion}
+                    disabled={
+                      creandoSesion
+                    }
+                    onClick={
+                      crearNuevaSesion
+                    }
                     style={{
                       ...startSessionButton,
+
                       ...(creandoSesion
                         ? disabledButton
                         : {}),
@@ -806,160 +1248,264 @@ const terminarConsulta = (sesion) => {
           )}
         </div>
 
-        {/* =================================================
-            ERROR
-        ================================================= */}
+        {/* ERROR */}
         {error && (
           <div style={errorBox}>
-            <span>⚠️</span>
-            <span>{error}</span>
+            <span>
+              ⚠️
+            </span>
+
+            <span>
+              {error}
+            </span>
           </div>
         )}
 
-        {/* =================================================
-            SIN SESIONES
-        ================================================= */}
-        {!error && sesiones.length === 0 && (
-          <div style={emptyBox}>
-            <div style={emptyIcon}>📅</div>
+        {/* SIN SESIONES */}
+        {!error &&
+          sesiones.length ===
+            0 && (
+            <div style={emptyBox}>
+              <div style={emptyIcon}>
+                📅
+              </div>
 
-            <h3 style={emptyTitle}>
-              No hay sesiones registradas
-            </h3>
+              <h3
+                style={
+                  emptyTitle
+                }
+              >
+                No hay sesiones registradas
+              </h3>
 
-            <p style={emptyText}>
-              Todavía no se han registrado sesiones
-              clínicas para este paciente.
-            </p>
-          </div>
-        )}
+              <p
+                style={
+                  emptyText
+                }
+              >
+                Todavía no se han registrado sesiones clínicas para este paciente.
+              </p>
+            </div>
+          )}
 
-        {/* =================================================
-            LISTA DE SESIONES
-        ================================================= */}
-        {!error && sesiones.length > 0 && (
-          <>
-            <div style={sessionsList}>
-              {sesionesMostradas.map(
-                (s, index) => {
-                  const fecha = s.fecha
-                    ? new Date(s.fecha)
-                    : null;
-
-                  const abierta =
-                    sesionAbierta === s.id_sesion;
-
-                  const archivos =
-                    archivosSesion[s.id_sesion] ||
-                    [];
-
-                  const activa =
-                    s.estado === "activa";
-
-                  return (
-                    <div
-                      key={s.id_sesion}
-                      style={{
-                        ...sessionCard,
-                        ...(abierta
-                          ? sessionCardOpen
-                          : {}),
-                        ...(activa
-                          ? activeSessionCard
-                          : {}),
-                      }}
-                    >
-                      {/* CABECERA */}
-                      <button
-                        type="button"
-                        onClick={() =>
-                          toggleSesion(
-                            s.id_sesion
+        {/* LISTA DE SESIONES */}
+        {!error &&
+          sesiones.length >
+            0 && (
+            <>
+              <div style={sessionsList}>
+                {sesionesMostradas.map(
+                  (s, index) => {
+                    const fecha =
+                      s.fecha
+                        ? new Date(
+                            s.fecha
                           )
+                        : null;
+
+                    const abierta =
+                      sesionAbierta ===
+                      s.id_sesion;
+
+                    const archivos =
+                      archivosSesion[
+                        s.id_sesion
+                      ] || [];
+
+                    const activa =
+                      s.estado ===
+                      "activa";
+
+                    return (
+                      <div
+                        key={
+                          s.id_sesion
                         }
-                        style={sessionHeaderButton}
+                        style={{
+                          ...sessionCard,
+
+                          ...(abierta
+                            ? sessionCardOpen
+                            : {}),
+
+                          ...(activa
+                            ? activeSessionCard
+                            : {}),
+                        }}
                       >
-                        <div style={sessionNumber}>
-                          {s.numero_sesion ||
-                            sesiones.length -
-                              index}
-                        </div>
-
-                        <div style={sessionMainInfo}>
-                          <div style={sessionLabel}>
-                            SESIÓN CLÍNICA
-                          </div>
-
-                          <h3 style={sessionTitle}>
-                            Sesión #
+                        {/* CABECERA SESIÓN */}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            toggleSesion(
+                              s.id_sesion
+                            )
+                          }
+                          style={
+                            sessionHeaderButton
+                          }
+                        >
+                          <div
+                            style={
+                              sessionNumber
+                            }
+                          >
                             {s.numero_sesion ||
                               sesiones.length -
                                 index}
-                          </h3>
+                          </div>
 
                           <div
-                            style={modalityBadge}
+                            style={
+                              sessionMainInfo
+                            }
                           >
-                            {s.modalidad ===
-                            "videollamada"
-                              ? "🎥 Videollamada"
-                              : "🏥 Presencial"}
-                          </div>
-
-                          {activa && (
-                            <span
+                            <div
                               style={
-                                activeBadge
+                                sessionLabel
                               }
                             >
-                              🟢 ACTIVA
-                            </span>
-                          )}
+                              SESIÓN CLÍNICA
+                            </div>
 
-                          <div style={sessionDate}>
-                            📅{" "}
-                            {fecha
-                              ? fecha.toLocaleDateString(
-                                  "es-MX",
-                                  {
-                                    day: "2-digit",
-                                    month: "long",
-                                    year: "numeric",
-                                  }
-                                )
-                              : "Fecha no disponible"}
+                            <h3
+                              style={
+                                sessionTitle
+                              }
+                            >
+                              Sesión #
+                              {s.numero_sesion ||
+                                sesiones.length -
+                                  index}
+                            </h3>
+
+                            <div
+                              style={
+                                modalityBadge
+                              }
+                            >
+                              {s.modalidad ===
+                              "videollamada"
+                                ? "🎥 Videollamada"
+                                : "🏥 Presencial"}
+                            </div>
+
+                            {activa && (
+                              <span
+                                style={
+                                  activeBadge
+                                }
+                              >
+                                🟢 ACTIVA
+                              </span>
+                            )}
+
+                            <div
+                              style={
+                                sessionDate
+                              }
+                            >
+                              📅{" "}
+                              {fecha
+                                ? fecha.toLocaleDateString(
+                                    "es-MX",
+                                    {
+                                      day:
+                                        "2-digit",
+                                      month:
+                                        "long",
+                                      year:
+                                        "numeric",
+                                    }
+                                  )
+                                : "Fecha no disponible"}
+                            </div>
                           </div>
-                        </div>
 
-                        <div
-                          style={{
-                            ...expandButton,
-                            ...(abierta
-                              ? expandButtonOpen
-                              : {}),
-                          }}
-                        >
-                          <span>
-                            {abierta
-                              ? "Ocultar"
-                              : "Ver detalles"}
-                          </span>
+                          <div
+                            style={{
+                              ...expandButton,
 
-                          <span style={arrow}>
-                            {abierta
-                              ? "▲"
-                              : "▼"}
-                          </span>
-                        </div>
-                      </button>
+                              ...(abierta
+                                ? expandButtonOpen
+                                : {}),
+                            }}
+                          >
+                            <span>
+                              {abierta
+                                ? "Ocultar"
+                                : "Ver detalles"}
+                            </span>
 
-                      {/* DETALLES */}
-                      {abierta && (
-                        <div style={details}>
-                          {fecha && (
-                            <div style={detailItem}>
-                              <div style={detailIcon}>
-                                🕐
+                            <span
+                              style={
+                                arrow
+                              }
+                            >
+                              {abierta
+                                ? "▲"
+                                : "▼"}
+                            </span>
+                          </div>
+                        </button>
+
+                        {/* DETALLES */}
+                        {abierta && (
+                          <div style={details}>
+
+                            {fecha && (
+                              <div
+                                style={
+                                  detailItem
+                                }
+                              >
+                                <div
+                                  style={
+                                    detailIcon
+                                  }
+                                >
+                                  🕐
+                                </div>
+
+                                <div>
+                                  <div
+                                    style={
+                                      detailLabel
+                                    }
+                                  >
+                                    Hora de la sesión
+                                  </div>
+
+                                  <div
+                                    style={
+                                      detailValue
+                                    }
+                                  >
+                                    {fecha.toLocaleTimeString(
+                                      "es-MX",
+                                      {
+                                        hour:
+                                          "2-digit",
+                                        minute:
+                                          "2-digit",
+                                      }
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
+                            <div
+                              style={
+                                detailItem
+                              }
+                            >
+                              <div
+                                style={
+                                  detailIcon
+                                }
+                              >
+                                🆔
                               </div>
 
                               <div>
@@ -968,7 +1514,7 @@ const terminarConsulta = (sesion) => {
                                     detailLabel
                                   }
                                 >
-                                  Hora de la sesión
+                                  Identificador de sesión
                                 </div>
 
                                 <div
@@ -976,588 +1522,1098 @@ const terminarConsulta = (sesion) => {
                                     detailValue
                                   }
                                 >
-                                  {fecha.toLocaleTimeString(
-                                    "es-MX",
-                                    {
-                                      hour: "2-digit",
-                                      minute:
-                                        "2-digit",
-                                    }
-                                  )}
+                                  #
+                                  {
+                                    s.id_sesion
+                                  }
                                 </div>
                               </div>
                             </div>
-                          )}
 
-                          <div style={detailItem}>
-                            <div style={detailIcon}>
-                              🆔
-                            </div>
-
-                            <div>
+                            <div
+                              style={
+                                detailItem
+                              }
+                            >
                               <div
                                 style={
-                                  detailLabel
-                                }
-                              >
-                                Identificador de
-                                sesión
-                              </div>
-
-                              <div
-                                style={
-                                  detailValue
-                                }
-                              >
-                                #{s.id_sesion}
-                              </div>
-                            </div>
-                          </div>
-
-                          <div style={detailItem}>
-                            <div style={detailIcon}>
-                              {s.estado ===
-                              "finalizada"
-                                ? "✅"
-                                : "🟢"}
-                            </div>
-
-                            <div>
-                              <div
-                                style={
-                                  detailLabel
-                                }
-                              >
-                                Estado
-                              </div>
-
-                              <div
-                                style={
-                                  detailValue
+                                  detailIcon
                                 }
                               >
                                 {s.estado ===
                                 "finalizada"
-                                  ? "Finalizada"
-                                  : "Activa"}
-                              </div>
-                            </div>
-                          </div>
-
-                          <div style={detailItem}>
-                            <div style={detailIcon}>
-                              {s.modalidad ===
-                              "videollamada"
-                                ? "🎥"
-                                : "🏥"}
-                            </div>
-
-                            <div>
-                              <div
-                                style={
-                                  detailLabel
-                                }
-                              >
-                                Modalidad
+                                  ? "✅"
+                                  : "🟢"}
                               </div>
 
+                              <div>
+                                <div
+                                  style={
+                                    detailLabel
+                                  }
+                                >
+                                  Estado
+                                </div>
+
+                                <div
+                                  style={
+                                    detailValue
+                                  }
+                                >
+                                  {s.estado ===
+                                  "finalizada"
+                                    ? "Finalizada"
+                                    : "Activa"}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div
+                              style={
+                                detailItem
+                              }
+                            >
                               <div
                                 style={
-                                  detailValue
+                                  detailIcon
                                 }
                               >
                                 {s.modalidad ===
                                 "videollamada"
-                                  ? "Videollamada"
-                                  : "Presencial"}
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* NOTAS */}
-                          <div style={notesBox}>
-                            <div style={notesTitle}>
-                              📝 Notas de la sesión
-                            </div>
-
-                            <p style={notesText}>
-                              {s.notas
-                                ? s.notas
-                                : "Sin notas registradas."}
-                            </p>
-                          </div>
-
-                          {/* NOTAS PARA PREANÁLISIS IA - SESIÓN ACTIVA */}
-                          {activa && (
-                            <div style={aiNotesBox}>
-                              <div style={aiNotesHeader}>
-                                <div>
-                                  <div style={aiNotesTitle}>📝 Notas de la sesión para IA</div>
-                                  <div style={aiNotesText}>
-                                    Agrega observaciones o información relevante de esta consulta. Es opcional y se tomará en cuenta al generar el Preanálisis IA.
-                                  </div>
-                                </div>
-                                <span style={aiNotesOptional}>Opcional</span>
+                                  ? "🎥"
+                                  : "🏥"}
                               </div>
 
-                              {cargandoNotaIA[s.id_sesion] ? (
-                                <div style={aiNotesLoading}>⏳ Cargando nota...</div>
-                              ) : (
-                                <>
-                                  <textarea
-                                    value={notasIA[s.id_sesion] || ""}
-                                    onChange={(e) => {
-                                      const value = e.target.value;
-                                      setNotasIA((prev) => ({ ...prev, [s.id_sesion]: value }));
-                                      setMensajeNotaIA((prev) => ({ ...prev, [s.id_sesion]: "" }));
-                                    }}
-                                    placeholder="Ejemplo: La paciente se mostró inquieta al hablar de su trabajo, aunque verbalmente dijo sentirse tranquila..."
-                                    rows={6}
-                                    style={aiNotesTextarea}
-                                  />
-                                  <div style={aiNotesActions}>
-                                    <span style={aiNotesStatus}>
-                                      {mensajeNotaIA[s.id_sesion] || "Puedes guardar y volver a editar mientras la sesión siga activa."}
-                                    </span>
-                                    <button
-                                      type="button"
-                                      onClick={() => guardarNotaIA(s.id_sesion)}
-                                      disabled={Boolean(guardandoNotaIA[s.id_sesion])}
-                                      style={{ ...aiNotesButton, ...(guardandoNotaIA[s.id_sesion] ? disabledButton : {}) }}
-                                    >
-                                      {guardandoNotaIA[s.id_sesion] ? "Guardando..." : "💾 Guardar notas"}
-                                    </button>
-                                  </div>
-                                </>
-                              )}
-                            </div>
-                          )}
-
-                          {/* GRABACIÓN DE AUDIO - SOLO PRESENCIAL ACTIVA */}
-                          {activa && s.modalidad === "presencial" && (
-                            <div style={audioRecorderBox}>
-                              <div style={audioRecorderInfo}>
-                                <div style={audioRecorderTitle}>
-                                  🎙️ Grabar audio de la sesión
-                                </div>
-                                <div style={audioRecorderText}>
-                                  Grabación opcional de la consulta presencial. Se guardará ligada a esta sesión.
-                                </div>
-                              </div>
-                              <VideoRecorder
-                                idSesion={s.id_sesion}
-                                tipo="audio"
-                                onSaved={async (data) => {
-                                  await transcribirAudioAutomaticamente(
-                                    s.id_sesion,
-                                    data
-                                  );
-                                }}
-                              />
-
-                              {mensajeTranscripcion[s.id_sesion] && (
+                              <div>
                                 <div
-                                  style={{
-                                    marginTop: "10px",
-                                    fontSize: "11px",
-                                    lineHeight: "1.5",
-                                    color: transcribiendoAudio[s.id_sesion]
-                                      ? "#3155A4"
-                                      : mensajeTranscripcion[s.id_sesion].startsWith("✅")
-                                      ? "#2F855A"
-                                      : "#B7791F",
-                                  }}
+                                  style={
+                                    detailLabel
+                                  }
                                 >
-                                  {mensajeTranscripcion[s.id_sesion]}
+                                  Modalidad
                                 </div>
-                              )}
-                            </div>
-                          )}
 
-                          {/* PRUEBAS PSICOLÓGICAS DE LA SESIÓN */}
-                          {activa && (
-                            <div style={sessionTestsBox}>
-                              <div style={sessionTestsInfo}>
-                                <div style={sessionTestsTitle}>
-                                  🧪 Pruebas psicológicas
-                                </div>
-                                <div style={sessionTestsText}>
-                                  Habilita y administra pruebas vinculadas específicamente a esta sesión clínica.
+                                <div
+                                  style={
+                                    detailValue
+                                  }
+                                >
+                                  {s.modalidad ===
+                                  "videollamada"
+                                    ? "Videollamada"
+                                    : "Presencial"}
                                 </div>
                               </div>
-
-                              <button
-                                type="button"
-                                onClick={() => gestionarPruebasSesion(s)}
-                                style={sessionTestsButton}
-                              >
-                                🧪 Gestionar pruebas
-                              </button>
                             </div>
-                          )}
 
-                          {/* TERMINAR CONSULTA */}
-                          {activa && (
+                            {/* NOTAS EXISTENTES */}
                             <div
                               style={
-                                finishConsultationBox
+                                notesBox
                               }
                             >
                               <div
                                 style={
-                                  finishConsultationInfo
+                                  notesTitle
                                 }
                               >
-                                <div
-                                  style={
-                                    finishConsultationTitle
-                                  }
-                                >
-                                  🏁 Cierre de
-                                  consulta
-                                </div>
-
-                                <div
-                                  style={
-                                    finishConsultationText
-                                  }
-                                >
-                                  Cuando termine la
-                                  consulta,
-                                  continuaremos con
-                                  el Preanálisis IA
-                                  antes de realizar
-                                  el cierre clínico.
-                                </div>
+                                📝 Notas de la sesión
                               </div>
 
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  terminarConsulta(
-                                    s
-                                  )
-                                }
+                              <p
                                 style={
-                                  finishConsultationButton
+                                  notesText
                                 }
                               >
-                                🏁 Terminar
-                                consulta
-                              </button>
-                            </div>
-                          )}
-
-                          {/* MULTIMEDIA */}
-                          <div
-                            style={multimediaBox}
-                          >
-                            <div
-                              style={
-                                multimediaHeader
-                              }
-                            >
-                              <div>
-                                <div
-                                  style={
-                                    multimediaTitle
-                                  }
-                                >
-                                  🎙️🎥 Grabaciones
-                                </div>
-
-                                <div
-                                  style={
-                                    multimediaSubtitle
-                                  }
-                                >
-                                  Audio o video asociado
-                                  a la sesión
-                                </div>
-                              </div>
-
-                              {archivos.length >
-                                0 && (
-                                <span
-                                  style={
-                                    multimediaCount
-                                  }
-                                >
-                                  {archivos.length}
-                                  {archivos.length === 1
-                                    ? " archivo"
-                                    : " archivos"}
-                                </span>
-                              )}
+                                {s.notas
+                                  ? s.notas
+                                  : "Sin notas registradas."}
+                              </p>
                             </div>
 
-                            {cargandoArchivos &&
-                              sesionAbierta ===
-                                s.id_sesion && (
+                            {/* NOTAS IA */}
+                            {activa && (
+                              <div
+                                style={
+                                  aiNotesBox
+                                }
+                              >
                                 <div
                                   style={
-                                    multimediaLoadingBox
+                                    aiNotesHeader
                                   }
                                 >
-                                  ⏳ Cargando
-                                  grabaciones...
-                                </div>
-                              )}
+                                  <div>
+                                    <div
+                                      style={
+                                        aiNotesTitle
+                                      }
+                                    >
+                                      📝 Notas de la sesión para IA
+                                    </div>
 
-                            {!cargandoArchivos &&
-                              archivos.length ===
-                                0 && (
-                                <div
-                                  style={
-                                    multimediaEmptyBox
-                                  }
-                                >
+                                    <div
+                                      style={
+                                        aiNotesText
+                                      }
+                                    >
+                                      Agrega observaciones o información relevante de esta consulta. Es opcional y se tomará en cuenta al generar el Preanálisis IA.
+                                    </div>
+                                  </div>
+
                                   <span
                                     style={
-                                      multimediaEmptyIcon
+                                      aiNotesOptional
                                     }
                                   >
-                                    🎥
-                                  </span>
-
-                                  <span>
-                                    No hay grabaciones
-                                    asociadas a esta
-                                    sesión.
+                                    Opcional
                                   </span>
                                 </div>
-                              )}
 
-                            {!cargandoArchivos &&
-                              archivos.length >
-                                0 && (
+                                {cargandoNotaIA[
+                                  s
+                                    .id_sesion
+                                ] ? (
+                                  <div
+                                    style={
+                                      aiNotesLoading
+                                    }
+                                  >
+                                    ⏳ Cargando nota...
+                                  </div>
+                                ) : (
+                                  <>
+                                    <textarea
+                                      value={
+                                        notasIA[
+                                          s
+                                            .id_sesion
+                                        ] ||
+                                        ""
+                                      }
+                                      onChange={(
+                                        e
+                                      ) => {
+                                        const value =
+                                          e
+                                            .target
+                                            .value;
+
+                                        setNotasIA(
+                                          (
+                                            prev
+                                          ) => ({
+                                            ...prev,
+
+                                            [s.id_sesion]:
+                                              value,
+                                          })
+                                        );
+
+                                        setMensajeNotaIA(
+                                          (
+                                            prev
+                                          ) => ({
+                                            ...prev,
+
+                                            [s.id_sesion]:
+                                              "",
+                                          })
+                                        );
+                                      }}
+                                      placeholder="Ejemplo: La paciente se mostró inquieta al hablar de su trabajo, aunque verbalmente dijo sentirse tranquila..."
+                                      rows={6}
+                                      style={
+                                        aiNotesTextarea
+                                      }
+                                    />
+
+                                    <div
+                                      style={
+                                        aiNotesActions
+                                      }
+                                    >
+                                      <span
+                                        style={
+                                          aiNotesStatus
+                                        }
+                                      >
+                                        {mensajeNotaIA[
+                                          s
+                                            .id_sesion
+                                        ] ||
+                                          "Puedes guardar y volver a editar mientras la sesión siga activa."}
+                                      </span>
+
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          guardarNotaIA(
+                                            s.id_sesion
+                                          )
+                                        }
+                                        disabled={Boolean(
+                                          guardandoNotaIA[
+                                            s
+                                              .id_sesion
+                                          ]
+                                        )}
+                                        style={{
+                                          ...aiNotesButton,
+
+                                          ...(guardandoNotaIA[
+                                            s
+                                              .id_sesion
+                                          ]
+                                            ? disabledButton
+                                            : {}),
+                                        }}
+                                      >
+                                        {guardandoNotaIA[
+                                          s
+                                            .id_sesion
+                                        ]
+                                          ? "Guardando..."
+                                          : "💾 Guardar notas"}
+                                      </button>
+                                    </div>
+                                  </>
+                                )}
+                              </div>
+                            )}
+
+                            {/* AUDIO PRESENCIAL */}
+                            {activa &&
+                              s.modalidad ===
+                                "presencial" && (
                                 <div
                                   style={
-                                    videosList
+                                    audioRecorderBox
                                   }
                                 >
-                                  {archivos.map(
-                                    (archivo) => {
-                                      const ruta = archivo.ruta_video || "";
-                                      const mediaUrl = ruta.startsWith("http")
-                                        ? ruta
-                                        : `https://reflejoyalma.com${ruta}`;
-                                      const esAudio = archivo.tipo === "audio" ||
-                                        String(archivo.formato || "").startsWith("audio/");
-                                      const estadoTranscripcion =
-                                        String(archivo.transcripcion_estado || "pendiente").toLowerCase();
-                                      const estaReintentando =
-                                        Boolean(reintentandoTranscripcion[archivo.id_video]);
-
-                                      return (
-                                        <div key={archivo.id_video} style={videoWrapper}>
-                                          <div style={videoHeader}>
-                                            <div style={videoHeaderInfo}>
-                                              <div style={videoName}>
-                                                {esAudio ? "🎙️ Audio de sesión" : "🎬 Grabación de video"}
-                                              </div>
-                                              <div style={videoDate}>
-                                                {archivo.fecha_subida
-                                                  ? new Date(archivo.fecha_subida).toLocaleString("es-MX", {
-                                                      day: "2-digit", month: "short", year: "numeric",
-                                                      hour: "2-digit", minute: "2-digit",
-                                                    })
-                                                  : "Fecha no disponible"}
-                                              </div>
-                                            </div>
-                                            <span style={videoType}>{esAudio ? "audio" : (archivo.tipo || "video")}</span>
-                                          </div>
-
-                                          {esAudio ? (
-                                            <audio
-                                              key={mediaUrl}
-                                              controls
-                                              preload="metadata"
-                                              src={mediaUrl}
-                                              style={audioPlayer}
-                                            >
-                                              Tu navegador no puede reproducir este audio.
-                                            </audio>
-                                          ) : (
-                                            <div style={videoPlayerContainer}>
-                                              <video
-                                                key={mediaUrl}
-                                                controls
-                                                crossOrigin="anonymous"
-                                                playsInline
-                                                preload="metadata"
-                                                src={mediaUrl}
-                                                style={videoPlayer}
-                                                onError={(e) => {
-                                                  console.error("❌ Error reproduciendo video:", e.currentTarget.src);
-                                                }}
-                                              >
-                                                <source src={mediaUrl} type={archivo.formato || "video/webm"} />
-                                                Tu navegador no puede reproducir este video.
-                                              </video>
-                                            </div>
-                                          )}
-
-                                          <div style={transcriptionStatusBox}>
-                                            <div style={transcriptionStatusRow}>
-                                              <span
-                                                style={{
-                                                  ...transcriptionStatusBadge,
-                                                  ...(estadoTranscripcion === "completada"
-                                                    ? transcriptionStatusCompleted
-                                                    : estadoTranscripcion === "procesando"
-                                                    ? transcriptionStatusProcessing
-                                                    : estadoTranscripcion === "error"
-                                                    ? transcriptionStatusError
-                                                    : transcriptionStatusPending),
-                                                }}
-                                              >
-                                                {estadoTranscripcion === "completada"
-                                                  ? "🟢 Transcripción completada"
-                                                  : estadoTranscripcion === "procesando"
-                                                  ? "🔵 Transcribiendo..."
-                                                  : estadoTranscripcion === "error"
-                                                  ? "🔴 Error al transcribir"
-                                                  : "🟡 Transcripción pendiente"}
-                                              </span>
-
-                                              {estadoTranscripcion === "error" && (
-                                                <button
-                                                  type="button"
-                                                  disabled={estaReintentando}
-                                                  onClick={() =>
-                                                    reintentarTranscripcion(
-                                                      archivo.id_video,
-                                                      s.id_sesion
-                                                    )
-                                                  }
-                                                  style={{
-                                                    ...retryTranscriptionButton,
-                                                    ...(estaReintentando ? disabledButton : {}),
-                                                  }}
-                                                >
-                                                  {estaReintentando
-                                                    ? "⏳ Reintentando..."
-                                                    : "🔄 Reintentar transcripción"}
-                                                </button>
-                                              )}
-                                            </div>
-
-                                            {estadoTranscripcion === "completada" &&
-                                              archivo.transcripcion && (
-                                                <div style={transcriptionReadyText}>
-                                                  ✅ La transcripción está lista para el Preanálisis IA.
-                                                </div>
-                                              )}
-
-                                            {estadoTranscripcion === "procesando" && (
-                                              <div style={transcriptionProcessingText}>
-                                                Gemini está procesando esta grabación. Puede tardar unos segundos.
-                                              </div>
-                                            )}
-
-                                            {estadoTranscripcion === "error" && (
-                                              <div style={transcriptionErrorText}>
-                                                La grabación está guardada. Puedes volver a intentar sin grabarla de nuevo.
-                                              </div>
-                                            )}
-                                          </div>
-                                        </div>
-                                      );
+                                  <div
+                                    style={
+                                      audioRecorderInfo
                                     }
+                                  >
+                                    <div
+                                      style={
+                                        audioRecorderTitle
+                                      }
+                                    >
+                                      🎙️ Grabar audio de la sesión
+                                    </div>
+
+                                    <div
+                                      style={
+                                        audioRecorderText
+                                      }
+                                    >
+                                      Grabación opcional de la consulta presencial. Se guardará ligada a esta sesión.
+                                    </div>
+                                  </div>
+
+                                  <VideoRecorder
+                                    idSesion={
+                                      s.id_sesion
+                                    }
+                                    tipo="audio"
+                                    onSaved={async (
+                                      data
+                                    ) => {
+                                      await transcribirAudioAutomaticamente(
+                                        s.id_sesion,
+                                        data
+                                      );
+                                    }}
+                                  />
+
+                                  {mensajeTranscripcion[
+                                    s
+                                      .id_sesion
+                                  ] && (
+                                    <div
+                                      style={{
+                                        width:
+                                          "100%",
+
+                                        marginTop:
+                                          "10px",
+
+                                        fontSize:
+                                          "11px",
+
+                                        lineHeight:
+                                          "1.5",
+
+                                        color:
+                                          transcribiendoAudio[
+                                            s
+                                              .id_sesion
+                                          ]
+                                            ? "#3155A4"
+                                            : mensajeTranscripcion[
+                                                s
+                                                  .id_sesion
+                                              ].startsWith(
+                                                "✅"
+                                              )
+                                            ? "#2F855A"
+                                            : "#B7791F",
+                                      }}
+                                    >
+                                      {
+                                        mensajeTranscripcion[
+                                          s
+                                            .id_sesion
+                                        ]
+                                      }
+                                    </div>
                                   )}
                                 </div>
                               )}
+
+                            {/* PRUEBAS DE SESIÓN */}
+                            {activa && (
+                              <div
+                                style={
+                                  sessionTestsBox
+                                }
+                              >
+                                <div
+                                  style={
+                                    sessionTestsInfo
+                                  }
+                                >
+                                  <div
+                                    style={
+                                      sessionTestsTitle
+                                    }
+                                  >
+                                    🧪 Pruebas psicológicas
+                                  </div>
+
+                                  <div
+                                    style={
+                                      sessionTestsText
+                                    }
+                                  >
+                                    Habilita y administra pruebas vinculadas específicamente a esta sesión clínica.
+                                  </div>
+                                </div>
+
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    gestionarPruebasSesion(
+                                      s
+                                    )
+                                  }
+                                  style={
+                                    sessionTestsButton
+                                  }
+                                >
+                                  🧪 Gestionar pruebas
+                                </button>
+                              </div>
+                            )}
+
+                            {/* TERMINAR CONSULTA */}
+                            {activa && (
+                              <div
+                                style={
+                                  finishConsultationBox
+                                }
+                              >
+                                <div
+                                  style={
+                                    finishConsultationInfo
+                                  }
+                                >
+                                  <div
+                                    style={
+                                      finishConsultationTitle
+                                    }
+                                  >
+                                    🏁 Terminar consulta
+                                  </div>
+
+                                  <div
+                                    style={
+                                      finishConsultationText
+                                    }
+                                  >
+                                    Cuando hayas terminado de registrar la información de esta consulta, continúa al Preanálisis IA. La sesión todavía no se cerrará hasta revisar ese preanálisis.
+                                  </div>
+                                </div>
+
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    terminarConsulta(
+                                      s
+                                    )
+                                  }
+                                  style={
+                                    finishConsultationButton
+                                  }
+                                >
+                                  🧠 Ir a Preanálisis IA
+                                </button>
+                              </div>
+                            )}
+
+                            {/* MULTIMEDIA */}
+                            <div
+                              style={
+                                multimediaBox
+                              }
+                            >
+                              <div
+                                style={
+                                  multimediaHeader
+                                }
+                              >
+                                <div>
+                                  <div
+                                    style={
+                                      multimediaTitle
+                                    }
+                                  >
+                                    🎙️🎥 Grabaciones
+                                  </div>
+
+                                  <div
+                                    style={
+                                      multimediaSubtitle
+                                    }
+                                  >
+                                    Audio o video asociado a la sesión
+                                  </div>
+                                </div>
+
+                                {archivos.length >
+                                  0 && (
+                                  <span
+                                    style={
+                                      multimediaCount
+                                    }
+                                  >
+                                    {
+                                      archivos.length
+                                    }
+
+                                    {archivos.length ===
+                                    1
+                                      ? " archivo"
+                                      : " archivos"}
+                                  </span>
+                                )}
+                              </div>
+
+                              {cargandoArchivos &&
+                                sesionAbierta ===
+                                  s.id_sesion && (
+                                  <div
+                                    style={
+                                      multimediaLoadingBox
+                                    }
+                                  >
+                                    ⏳ Cargando grabaciones...
+                                  </div>
+                                )}
+
+                              {!cargandoArchivos &&
+                                archivos.length ===
+                                  0 && (
+                                  <div
+                                    style={
+                                      multimediaEmptyBox
+                                    }
+                                  >
+                                    <span
+                                      style={
+                                        multimediaEmptyIcon
+                                      }
+                                    >
+                                      🎥
+                                    </span>
+
+                                    <span>
+                                      No hay grabaciones asociadas a esta sesión.
+                                    </span>
+                                  </div>
+                                )}
+
+                              {!cargandoArchivos &&
+                                archivos.length >
+                                  0 && (
+                                  <div
+                                    style={
+                                      videosList
+                                    }
+                                  >
+                                    {archivos.map(
+                                      (
+                                        archivo
+                                      ) => {
+                                        const ruta =
+                                          archivo.ruta_video ||
+                                          "";
+
+                                        const mediaUrl =
+                                          ruta.startsWith(
+                                            "http"
+                                          )
+                                            ? ruta
+                                            : `https://reflejoyalma.com${ruta}`;
+
+                                        const esAudio =
+                                          archivo.tipo ===
+                                            "audio" ||
+                                          String(
+                                            archivo.formato ||
+                                              ""
+                                          ).startsWith(
+                                            "audio/"
+                                          );
+
+                                        const estadoTranscripcion =
+                                          String(
+                                            archivo.transcripcion_estado ||
+                                              "pendiente"
+                                          ).toLowerCase();
+
+                                        const estaReintentando =
+                                          Boolean(
+                                            reintentandoTranscripcion[
+                                              archivo
+                                                .id_video
+                                            ]
+                                          );
+
+                                        return (
+                                          <div
+                                            key={
+                                              archivo.id_video
+                                            }
+                                            style={
+                                              videoWrapper
+                                            }
+                                          >
+                                            <div
+                                              style={
+                                                videoHeader
+                                              }
+                                            >
+                                              <div
+                                                style={
+                                                  videoHeaderInfo
+                                                }
+                                              >
+                                                <div
+                                                  style={
+                                                    videoName
+                                                  }
+                                                >
+                                                  {esAudio
+                                                    ? "🎙️ Audio de sesión"
+                                                    : "🎬 Grabación de video"}
+                                                </div>
+
+                                                <div
+                                                  style={
+                                                    videoDate
+                                                  }
+                                                >
+                                                  {archivo.fecha_subida
+                                                    ? new Date(
+                                                        archivo.fecha_subida
+                                                      ).toLocaleString(
+                                                        "es-MX",
+                                                        {
+                                                          day:
+                                                            "2-digit",
+                                                          month:
+                                                            "short",
+                                                          year:
+                                                            "numeric",
+                                                          hour:
+                                                            "2-digit",
+                                                          minute:
+                                                            "2-digit",
+                                                        }
+                                                      )
+                                                    : "Fecha no disponible"}
+                                                </div>
+                                              </div>
+
+                                              <span
+                                                style={
+                                                  videoType
+                                                }
+                                              >
+                                                {esAudio
+                                                  ? "audio"
+                                                  : archivo.tipo ||
+                                                    "video"}
+                                              </span>
+                                            </div>
+
+                                            {esAudio ? (
+                                              <audio
+                                                key={
+                                                  mediaUrl
+                                                }
+                                                controls
+                                                preload="metadata"
+                                                src={
+                                                  mediaUrl
+                                                }
+                                                style={
+                                                  audioPlayer
+                                                }
+                                              >
+                                                Tu navegador no puede reproducir este audio.
+                                              </audio>
+                                            ) : (
+                                              <div
+                                                style={
+                                                  videoPlayerContainer
+                                                }
+                                              >
+                                                <video
+                                                  key={
+                                                    mediaUrl
+                                                  }
+                                                  controls
+                                                  crossOrigin="anonymous"
+                                                  playsInline
+                                                  preload="metadata"
+                                                  src={
+                                                    mediaUrl
+                                                  }
+                                                  style={
+                                                    videoPlayer
+                                                  }
+                                                  onError={(
+                                                    e
+                                                  ) => {
+                                                    console.error(
+                                                      "❌ Error reproduciendo video:",
+                                                      e
+                                                        .currentTarget
+                                                        .src
+                                                    );
+                                                  }}
+                                                >
+                                                  <source
+                                                    src={
+                                                      mediaUrl
+                                                    }
+                                                    type={
+                                                      archivo.formato ||
+                                                      "video/webm"
+                                                    }
+                                                  />
+
+                                                  Tu navegador no puede reproducir este video.
+                                                </video>
+                                              </div>
+                                            )}
+
+                                            <div
+                                              style={
+                                                transcriptionStatusBox
+                                              }
+                                            >
+                                              <div
+                                                style={
+                                                  transcriptionStatusRow
+                                                }
+                                              >
+                                                <span
+                                                  style={{
+                                                    ...transcriptionStatusBadge,
+
+                                                    ...(estadoTranscripcion ===
+                                                    "completada"
+                                                      ? transcriptionStatusCompleted
+                                                      : estadoTranscripcion ===
+                                                        "procesando"
+                                                      ? transcriptionStatusProcessing
+                                                      : estadoTranscripcion ===
+                                                        "error"
+                                                      ? transcriptionStatusError
+                                                      : transcriptionStatusPending),
+                                                  }}
+                                                >
+                                                  {estadoTranscripcion ===
+                                                  "completada"
+                                                    ? "🟢 Transcripción completada"
+                                                    : estadoTranscripcion ===
+                                                      "procesando"
+                                                    ? "🔵 Transcribiendo..."
+                                                    : estadoTranscripcion ===
+                                                      "error"
+                                                    ? "🔴 Error al transcribir"
+                                                    : "🟡 Transcripción pendiente"}
+                                                </span>
+
+                                                {estadoTranscripcion ===
+                                                  "error" && (
+                                                  <button
+                                                    type="button"
+                                                    disabled={
+                                                      estaReintentando
+                                                    }
+                                                    onClick={() =>
+                                                      reintentarTranscripcion(
+                                                        archivo.id_video,
+                                                        s.id_sesion
+                                                      )
+                                                    }
+                                                    style={{
+                                                      ...retryTranscriptionButton,
+
+                                                      ...(estaReintentando
+                                                        ? disabledButton
+                                                        : {}),
+                                                    }}
+                                                  >
+                                                    {estaReintentando
+                                                      ? "⏳ Reintentando..."
+                                                      : "🔄 Reintentar transcripción"}
+                                                  </button>
+                                                )}
+                                              </div>
+
+                                              {estadoTranscripcion ===
+                                                "completada" &&
+                                                archivo.transcripcion && (
+                                                  <div
+                                                    style={
+                                                      transcriptionReadyText
+                                                    }
+                                                  >
+                                                    ✅ La transcripción está lista para el Preanálisis IA.
+                                                  </div>
+                                                )}
+
+                                              {estadoTranscripcion ===
+                                                "procesando" && (
+                                                <div
+                                                  style={
+                                                    transcriptionProcessingText
+                                                  }
+                                                >
+                                                  Gemini está procesando esta grabación. Puede tardar unos segundos.
+                                                </div>
+                                              )}
+
+                                              {estadoTranscripcion ===
+                                                "error" && (
+                                                <div
+                                                  style={
+                                                    transcriptionErrorText
+                                                  }
+                                                >
+                                                  La grabación está guardada. Puedes volver a intentar sin grabarla de nuevo.
+                                                </div>
+                                              )}
+                                            </div>
+                                          </div>
+                                        );
+                                      }
+                                    )}
+                                  </div>
+                                )}
+                            </div>
                           </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                }
-              )}
-            </div>
-
-            {/* PAGINACIÓN */}
-            {sesiones.length > 5 && (
-              <div
-                style={paginationContainer}
-              >
-                {hayMasSesiones && (
-                  <button
-                    type="button"
-                    onClick={
-                      mostrarMasSesiones
-                    }
-                    style={moreButton}
-                  >
-                    <span
-                      style={moreButtonIcon}
-                    >
-                      ↓
-                    </span>
-
-                    <span>
-                      Ver 5 sesiones más
-                    </span>
-
-                    <span
-                      style={remainingText}
-                    >
-                      (
-                      {sesiones.length -
-                        sesionesVisibles}{" "}
-                      restantes)
-                    </span>
-                  </button>
-                )}
-
-                {mostrandoTodas && (
-                  <button
-                    type="button"
-                    onClick={
-                      mostrarMenosSesiones
-                    }
-                    style={lessButton}
-                  >
-                    <span>↑</span>
-                    <span>Ver menos</span>
-                  </button>
+                        )}
+                      </div>
+                    );
+                  }
                 )}
               </div>
-            )}
-          </>
-        )}
+
+              {/* PAGINACIÓN */}
+              {sesiones.length >
+                5 && (
+                <div
+                  style={
+                    paginationContainer
+                  }
+                >
+                  {hayMasSesiones && (
+                    <button
+                      type="button"
+                      onClick={
+                        mostrarMasSesiones
+                      }
+                      style={
+                        moreButton
+                      }
+                    >
+                      <span
+                        style={
+                          moreButtonIcon
+                        }
+                      >
+                        ↓
+                      </span>
+
+                      <span>
+                        Ver 5 sesiones más
+                      </span>
+
+                      <span
+                        style={
+                          remainingText
+                        }
+                      >
+                        (
+                        {sesiones.length -
+                          sesionesVisibles}{" "}
+                        restantes)
+                      </span>
+                    </button>
+                  )}
+
+                  {mostrandoTodas && (
+                    <button
+                      type="button"
+                      onClick={
+                        mostrarMenosSesiones
+                      }
+                      style={
+                        lessButton
+                      }
+                    >
+                      <span>
+                        ↑
+                      </span>
+
+                      <span>
+                        Ver menos
+                      </span>
+                    </button>
+                  )}
+                </div>
+              )}
+            </>
+          )}
 
         {/* VOLVER */}
         <div style={backContainer}>
           <button
             type="button"
-            onClick={volverAlExpediente}
+            onClick={
+              volverAlExpediente
+            }
             style={backButton}
           >
             ← Volver al expediente
           </button>
         </div>
 
-        {/* PIE */}
+        {/* FOOTER */}
         <div style={footer}>
-          <span>🧠 MirrorSoul</span>
+          <span>
+            🧠 MirrorSoul
+          </span>
+
           <span>
             Expediente #{idPaciente}
           </span>
+        </div>
+      </div>
+
+      {/* =====================================================
+          GUÍA DE NAVEGACIÓN
+      ===================================================== */}
+
+      {mostrarGuia && (
+        <div
+          style={guideOverlay}
+          onClick={() =>
+            setMostrarGuia(false)
+          }
+        >
+          <div
+            style={guideModal}
+            onClick={(e) =>
+              e.stopPropagation()
+            }
+          >
+            <button
+              type="button"
+              style={guideClose}
+              onClick={() =>
+                setMostrarGuia(false)
+              }
+            >
+              ×
+            </button>
+
+            <div style={guideIcon}>
+              🧭
+            </div>
+
+            <h2 style={guideTitle}>
+              ¿Cómo trabajar una sesión clínica?
+            </h2>
+
+            <p
+              style={
+                guideDescription
+              }
+            >
+              La sesión es el centro del trabajo clínico. Aquí concentras la información de la consulta y, al terminar, continúas al Preanálisis IA antes del cierre definitivo.
+            </p>
+
+            <div style={guideSteps}>
+              <GuideStep
+                number="1"
+                icon="🩺"
+                title="Iniciar o continuar sesión"
+                text="Crea una nueva sesión o continúa la que está activa. Solo puede existir una sesión activa por paciente."
+              />
+
+              <GuideArrow />
+
+              <GuideStep
+                number="2"
+                icon="📝"
+                title="Trabajo de la sesión"
+                text="Durante la consulta puedes registrar notas y observaciones relevantes para el proceso clínico."
+              />
+
+              <GuideArrow />
+
+              <GuideStep
+                number="3"
+                icon="🧪"
+                title="Pruebas y multimedia"
+                text="Si lo necesitas, aplica pruebas psicológicas y agrega audio o video relacionado con esta sesión."
+              />
+
+              <GuideArrow />
+
+              <GuideStep
+                number="4"
+                icon="🏁"
+                title="Terminar consulta"
+                text="Cuando termine la consulta, continúa al Preanálisis IA. En este punto la sesión todavía sigue activa."
+              />
+
+              <GuideArrow />
+
+              <GuideStep
+                number="5"
+                icon="🧠"
+                title="Preanálisis IA"
+                text="MirrorSoul integra notas, pruebas, seguimiento y multimedia disponibles para generar apoyo al análisis clínico."
+              />
+
+              <GuideArrow />
+
+              <GuideStep
+                number="6"
+                icon="✅"
+                title="Finalizar sesión"
+                text="Después de revisar el Preanálisis IA, realiza el cierre definitivo de la sesión."
+              />
+
+              <GuideArrow />
+
+              <GuideStep
+                number="7"
+                icon="📅"
+                title="Próxima cita"
+                text="Después de finalizar la sesión, puedes programar la siguiente cita si el proceso lo requiere."
+              />
+            </div>
+
+            <div style={guideNotice}>
+              💡 Las pruebas, notas adicionales y grabaciones son opcionales según la consulta. El Preanálisis IA es una herramienta de apoyo y debe ser revisado por el profesional.
+            </div>
+
+            <button
+              type="button"
+              style={
+                guideUnderstood
+              }
+              onClick={() =>
+                setMostrarGuia(false)
+              }
+            >
+              Entendido ✓
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// =====================================================
+// COMPONENTES DE GUÍA
+// =====================================================
+
+function GuideStep({
+  number,
+  icon,
+  title,
+  text,
+}) {
+  return (
+    <div style={guideStep}>
+      <div style={guideNumber}>
+        {number}
+      </div>
+
+      <div style={guideStepIcon}>
+        {icon}
+      </div>
+
+      <div>
+        <div
+          style={
+            guideStepTitle
+          }
+        >
+          {title}
+        </div>
+
+        <div
+          style={
+            guideStepText
+          }
+        >
+          {text}
         </div>
       </div>
     </div>
   );
 }
 
+function GuideArrow() {
+  return (
+    <div style={guideArrow}>
+      ↓
+    </div>
+  );
+}
+
 // =====================================================
-// 🎨 ESTILOS
+// ESTILOS
 // =====================================================
+
 const page = {
   minHeight: "100vh",
   background:
-    "linear-gradient(135deg, #eef6ff 0%, #f8fbff 50%, #e8f3ff 100%)",
+    "linear-gradient(135deg,#eef6ff 0%,#f8fbff 50%,#e8f3ff 100%)",
   padding: "28px 18px",
   boxSizing: "border-box",
 };
@@ -1570,10 +2626,19 @@ const container = {
 
 const header = {
   display: "flex",
-  justifyContent: "space-between",
+  justifyContent:
+    "space-between",
   alignItems: "center",
   gap: "18px",
   marginBottom: "22px",
+};
+
+const headerActions = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "flex-end",
+  gap: "10px",
+  flexWrap: "wrap",
 };
 
 const smallLabel = {
@@ -1597,14 +2662,29 @@ const subtitle = {
   fontSize: "13px",
 };
 
+const helpTopButton = {
+  border:
+    "1px solid #C9DAF4",
+  background: "#FFFFFF",
+  color: "#2167D5",
+  borderRadius: "999px",
+  padding: "9px 14px",
+  cursor: "pointer",
+  fontSize: "11px",
+  fontWeight: "800",
+  boxShadow:
+    "0 4px 12px rgba(40,80,140,.07)",
+};
+
 const sessionCounter = {
   minWidth: "82px",
   padding: "11px 14px",
   background: "#ffffff",
   borderRadius: "15px",
   boxShadow:
-    "0 7px 20px rgba(30,70,120,0.09)",
-  border: "1px solid #E2E8F0",
+    "0 7px 20px rgba(30,70,120,.09)",
+  border:
+    "1px solid #E2E8F0",
   display: "flex",
   flexDirection: "column",
   alignItems: "center",
@@ -1621,18 +2701,18 @@ const counterLabel = {
   color: "#718096",
 };
 
-// =====================================================
 // SESIÓN ACTIVA
-// =====================================================
 const activeSessionBox = {
   marginBottom: "18px",
   background: "#F0FFF4",
-  border: "1px solid #9AE6B4",
+  border:
+    "1px solid #9AE6B4",
   borderRadius: "15px",
   padding: "14px 16px",
   display: "flex",
   alignItems: "center",
-  justifyContent: "space-between",
+  justifyContent:
+    "space-between",
   gap: "14px",
   flexWrap: "wrap",
 };
@@ -1667,7 +2747,8 @@ const activeSessionButton = {
 };
 
 const activeSessionCard = {
-  border: "1px solid #9AE6B4",
+  border:
+    "1px solid #9AE6B4",
 };
 
 const activeBadge = {
@@ -1688,9 +2769,7 @@ const activeHint = {
   fontSize: "11px",
 };
 
-// =====================================================
 // NUEVA SESIÓN
-// =====================================================
 const newSessionSection = {
   marginBottom: "22px",
 };
@@ -1698,7 +2777,7 @@ const newSessionSection = {
 const newSessionButton = {
   border: "none",
   background:
-    "linear-gradient(135deg, #3949AB, #42A5F5)",
+    "linear-gradient(135deg,#3949AB,#42A5F5)",
   color: "#ffffff",
   padding: "12px 20px",
   borderRadius: "12px",
@@ -1706,7 +2785,7 @@ const newSessionButton = {
   fontWeight: "800",
   fontSize: "13px",
   boxShadow:
-    "0 6px 18px rgba(57,73,171,0.20)",
+    "0 6px 18px rgba(57,73,171,.20)",
 };
 
 const disabledNewSessionButton = {
@@ -1719,11 +2798,12 @@ const disabledNewSessionButton = {
 const newSessionCard = {
   marginTop: "12px",
   background: "#ffffff",
-  border: "1px solid #DDE7F5",
+  border:
+    "1px solid #DDE7F5",
   borderRadius: "16px",
   padding: "18px",
   boxShadow:
-    "0 7px 22px rgba(30,70,120,0.08)",
+    "0 7px 22px rgba(30,70,120,.08)",
 };
 
 const newSessionTitle = {
@@ -1742,12 +2822,13 @@ const newSessionText = {
 const modalityGrid = {
   display: "grid",
   gridTemplateColumns:
-    "repeat(2, minmax(0, 1fr))",
+    "repeat(2,minmax(0,1fr))",
   gap: "12px",
 };
 
 const modalityCard = {
-  border: "1px solid #E2E8F0",
+  border:
+    "1px solid #E2E8F0",
   background: "#F8FAFC",
   borderRadius: "13px",
   padding: "15px",
@@ -1759,7 +2840,8 @@ const modalityCard = {
 };
 
 const modalityCardSelected = {
-  border: "2px solid #42A5F5",
+  border:
+    "2px solid #42A5F5",
   background: "#EEF6FF",
 };
 
@@ -1796,7 +2878,8 @@ const newSessionActions = {
 };
 
 const cancelSessionButton = {
-  border: "1px solid #CBD5E1",
+  border:
+    "1px solid #CBD5E1",
   background: "#ffffff",
   color: "#64748B",
   padding: "10px 15px",
@@ -1823,7 +2906,8 @@ const disabledButton = {
 const successBox = {
   marginTop: "10px",
   background: "#F0FFF4",
-  border: "1px solid #C6F6D5",
+  border:
+    "1px solid #C6F6D5",
   color: "#276749",
   padding: "11px 14px",
   borderRadius: "11px",
@@ -1842,9 +2926,7 @@ const modalityBadge = {
   fontWeight: "800",
 };
 
-// =====================================================
 // SESIONES
-// =====================================================
 const sessionsList = {
   display: "flex",
   flexDirection: "column",
@@ -1854,16 +2936,18 @@ const sessionsList = {
 const sessionCard = {
   background: "#ffffff",
   borderRadius: "16px",
-  border: "1px solid #E2E8F0",
+  border:
+    "1px solid #E2E8F0",
   boxShadow:
-    "0 5px 16px rgba(30,70,120,0.06)",
+    "0 5px 16px rgba(30,70,120,.06)",
   overflow: "hidden",
 };
 
 const sessionCardOpen = {
   boxShadow:
-    "0 8px 24px rgba(30,70,120,0.10)",
-  border: "1px solid #C7D7F5",
+    "0 8px 24px rgba(30,70,120,.10)",
+  border:
+    "1px solid #C7D7F5",
 };
 
 const sessionHeaderButton = {
@@ -1884,7 +2968,7 @@ const sessionNumber = {
   minWidth: "42px",
   borderRadius: "12px",
   background:
-    "linear-gradient(135deg, #5C6BC0, #42A5F5)",
+    "linear-gradient(135deg,#5C6BC0,#42A5F5)",
   color: "#ffffff",
   display: "flex",
   alignItems: "center",
@@ -1940,12 +3024,13 @@ const arrow = {
 };
 
 const details = {
-  borderTop: "1px solid #EDF2F7",
+  borderTop:
+    "1px solid #EDF2F7",
   background: "#FAFCFF",
   padding: "14px",
   display: "grid",
   gridTemplateColumns:
-    "repeat(3, minmax(0, 1fr))",
+    "repeat(3,minmax(0,1fr))",
   gap: "10px",
 };
 
@@ -1954,7 +3039,8 @@ const detailItem = {
   alignItems: "center",
   gap: "9px",
   background: "#ffffff",
-  border: "1px solid #E8EEF5",
+  border:
+    "1px solid #E8EEF5",
   borderRadius: "11px",
   padding: "10px 11px",
   minHeight: "54px",
@@ -1989,7 +3075,8 @@ const detailValue = {
 const notesBox = {
   gridColumn: "1 / -1",
   background: "#ffffff",
-  border: "1px solid #E8EEF5",
+  border:
+    "1px solid #E8EEF5",
   borderRadius: "11px",
   padding: "12px 13px",
 };
@@ -2009,54 +3096,153 @@ const notesText = {
   whiteSpace: "pre-wrap",
 };
 
-// =====================================================
-// NOTAS PARA PREANÁLISIS IA
-// =====================================================
-const aiNotesBox = { gridColumn: "1 / -1", background: "#FFFDF7", border: "1px solid #F4D99B", borderRadius: "12px", padding: "14px" };
-const aiNotesHeader = { display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px", marginBottom: "10px", flexWrap: "wrap" };
-const aiNotesTitle = { color: "#7A5A16", fontSize: "12px", fontWeight: "800" };
-const aiNotesText = { marginTop: "4px", color: "#718096", fontSize: "10px", lineHeight: "1.5" };
-const aiNotesOptional = { background: "#FFF7D6", color: "#8A6A18", padding: "4px 8px", borderRadius: "7px", fontSize: "9px", fontWeight: "800" };
-const aiNotesTextarea = { width: "100%", minHeight: "130px", resize: "vertical", boxSizing: "border-box", border: "1px solid #D9C68C", borderRadius: "10px", padding: "11px 12px", fontSize: "12px", lineHeight: "1.55", color: "#334155", background: "#FFFFFF", outline: "none", fontFamily: "inherit" };
-const aiNotesActions = { marginTop: "10px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", flexWrap: "wrap" };
-const aiNotesStatus = { color: "#718096", fontSize: "10px", lineHeight: "1.4", flex: 1 };
-const aiNotesButton = { border: "none", background: "#B7791F", color: "#FFFFFF", padding: "9px 14px", borderRadius: "9px", cursor: "pointer", fontSize: "10px", fontWeight: "800" };
-const aiNotesLoading = { padding: "12px", borderRadius: "9px", background: "#FFF9E8", color: "#8A6A18", fontSize: "11px" };
+// NOTAS IA
+const aiNotesBox = {
+  gridColumn: "1 / -1",
+  background: "#FFFDF7",
+  border:
+    "1px solid #F4D99B",
+  borderRadius: "12px",
+  padding: "14px",
+};
 
-// =====================================================
-// AUDIO PRESENCIAL
-// =====================================================
+const aiNotesHeader = {
+  display: "flex",
+  justifyContent:
+    "space-between",
+  alignItems: "flex-start",
+  gap: "12px",
+  marginBottom: "10px",
+  flexWrap: "wrap",
+};
+
+const aiNotesTitle = {
+  color: "#7A5A16",
+  fontSize: "12px",
+  fontWeight: "800",
+};
+
+const aiNotesText = {
+  marginTop: "4px",
+  color: "#718096",
+  fontSize: "10px",
+  lineHeight: "1.5",
+};
+
+const aiNotesOptional = {
+  background: "#FFF7D6",
+  color: "#8A6A18",
+  padding: "4px 8px",
+  borderRadius: "7px",
+  fontSize: "9px",
+  fontWeight: "800",
+};
+
+const aiNotesTextarea = {
+  width: "100%",
+  minHeight: "130px",
+  resize: "vertical",
+  boxSizing: "border-box",
+  border:
+    "1px solid #D9C68C",
+  borderRadius: "10px",
+  padding: "11px 12px",
+  fontSize: "12px",
+  lineHeight: "1.55",
+  color: "#334155",
+  background: "#FFFFFF",
+  outline: "none",
+  fontFamily: "inherit",
+};
+
+const aiNotesActions = {
+  marginTop: "10px",
+  display: "flex",
+  justifyContent:
+    "space-between",
+  alignItems: "center",
+  gap: "12px",
+  flexWrap: "wrap",
+};
+
+const aiNotesStatus = {
+  color: "#718096",
+  fontSize: "10px",
+  lineHeight: "1.4",
+  flex: 1,
+};
+
+const aiNotesButton = {
+  border: "none",
+  background: "#B7791F",
+  color: "#FFFFFF",
+  padding: "9px 14px",
+  borderRadius: "9px",
+  cursor: "pointer",
+  fontSize: "10px",
+  fontWeight: "800",
+};
+
+const aiNotesLoading = {
+  padding: "12px",
+  borderRadius: "9px",
+  background: "#FFF9E8",
+  color: "#8A6A18",
+  fontSize: "11px",
+};
+
+// AUDIO
 const audioRecorderBox = {
   gridColumn: "1 / -1",
   background: "#F7FFFB",
-  border: "1px solid #B7E4C7",
+  border:
+    "1px solid #B7E4C7",
   borderRadius: "12px",
   padding: "14px",
   display: "flex",
   alignItems: "center",
-  justifyContent: "space-between",
+  justifyContent:
+    "space-between",
   gap: "14px",
   flexWrap: "wrap",
 };
 
-const audioRecorderInfo = { flex: 1, minWidth: "220px" };
-const audioRecorderTitle = { color: "#237A57", fontSize: "12px", fontWeight: "800" };
-const audioRecorderText = { marginTop: "4px", color: "#718096", fontSize: "10px", lineHeight: "1.5" };
-const audioPlayer = { width: "100%", display: "block" };
+const audioRecorderInfo = {
+  flex: 1,
+  minWidth: "220px",
+};
 
-// =====================================================
-// ESTADO DE TRANSCRIPCIÓN
-// =====================================================
+const audioRecorderTitle = {
+  color: "#237A57",
+  fontSize: "12px",
+  fontWeight: "800",
+};
+
+const audioRecorderText = {
+  marginTop: "4px",
+  color: "#718096",
+  fontSize: "10px",
+  lineHeight: "1.5",
+};
+
+const audioPlayer = {
+  width: "100%",
+  display: "block",
+};
+
+// TRANSCRIPCIÓN
 const transcriptionStatusBox = {
   marginTop: "10px",
   paddingTop: "10px",
-  borderTop: "1px solid #E8EEF5",
+  borderTop:
+    "1px solid #E8EEF5",
 };
 
 const transcriptionStatusRow = {
   display: "flex",
   alignItems: "center",
-  justifyContent: "space-between",
+  justifyContent:
+    "space-between",
   gap: "10px",
   flexWrap: "wrap",
 };
@@ -2122,18 +3308,18 @@ const transcriptionErrorText = {
   lineHeight: "1.45",
 };
 
-// =====================================================
-// PRUEBAS PSICOLÓGICAS DE LA SESIÓN
-// =====================================================
+// PRUEBAS
 const sessionTestsBox = {
   gridColumn: "1 / -1",
   background: "#F7FAFF",
-  border: "1px solid #C7D7F5",
+  border:
+    "1px solid #C7D7F5",
   borderRadius: "12px",
   padding: "14px",
   display: "flex",
   alignItems: "center",
-  justifyContent: "space-between",
+  justifyContent:
+    "space-between",
   gap: "14px",
   flexWrap: "wrap",
 };
@@ -2167,18 +3353,18 @@ const sessionTestsButton = {
   fontWeight: "800",
 };
 
-// =====================================================
 // TERMINAR CONSULTA
-// =====================================================
 const finishConsultationBox = {
   gridColumn: "1 / -1",
   background: "#FFFDF5",
-  border: "1px solid #F6E05E",
+  border:
+    "1px solid #F6E05E",
   borderRadius: "12px",
   padding: "14px",
   display: "flex",
   alignItems: "center",
-  justifyContent: "space-between",
+  justifyContent:
+    "space-between",
   gap: "14px",
   flexWrap: "wrap",
 };
@@ -2212,13 +3398,12 @@ const finishConsultationButton = {
   fontWeight: "800",
 };
 
-// =====================================================
 // MULTIMEDIA
-// =====================================================
 const multimediaBox = {
   gridColumn: "1 / -1",
   background: "#ffffff",
-  border: "1px solid #E1E8F0",
+  border:
+    "1px solid #E1E8F0",
   borderRadius: "12px",
   padding: "12px",
 };
@@ -2226,7 +3411,8 @@ const multimediaBox = {
 const multimediaHeader = {
   display: "flex",
   alignItems: "center",
-  justifyContent: "space-between",
+  justifyContent:
+    "space-between",
   gap: "10px",
   marginBottom: "8px",
 };
@@ -2284,14 +3470,16 @@ const videosList = {
 
 const videoWrapper = {
   background: "#F8FAFC",
-  border: "1px solid #E2E8F0",
+  border:
+    "1px solid #E2E8F0",
   borderRadius: "10px",
   padding: "9px",
 };
 
 const videoHeader = {
   display: "flex",
-  justifyContent: "space-between",
+  justifyContent:
+    "space-between",
   alignItems: "center",
   gap: "8px",
   marginBottom: "7px",
@@ -2338,9 +3526,7 @@ const videoPlayer = {
   background: "#000",
 };
 
-// =====================================================
 // PAGINACIÓN
-// =====================================================
 const paginationContainer = {
   display: "flex",
   justifyContent: "center",
@@ -2354,7 +3540,8 @@ const moreButton = {
   display: "flex",
   alignItems: "center",
   gap: "7px",
-  border: "1px solid #C7D7F5",
+  border:
+    "1px solid #C7D7F5",
   background: "#ffffff",
   color: "#1565C0",
   padding: "10px 16px",
@@ -2363,7 +3550,7 @@ const moreButton = {
   fontWeight: "700",
   fontSize: "11px",
   boxShadow:
-    "0 4px 12px rgba(21,101,192,0.07)",
+    "0 4px 12px rgba(21,101,192,.07)",
 };
 
 const moreButtonIcon = {
@@ -2391,17 +3578,16 @@ const lessButton = {
   fontSize: "11px",
 };
 
-// =====================================================
-// SIN SESIONES
-// =====================================================
+// EMPTY
 const emptyBox = {
   background: "#ffffff",
   borderRadius: "17px",
   padding: "40px 22px",
   textAlign: "center",
-  border: "1px solid #E2E8F0",
+  border:
+    "1px solid #E2E8F0",
   boxShadow:
-    "0 7px 20px rgba(30,70,120,0.06)",
+    "0 7px 20px rgba(30,70,120,.06)",
 };
 
 const emptyIcon = {
@@ -2421,9 +3607,7 @@ const emptyText = {
   fontSize: "13px",
 };
 
-// =====================================================
 // ERROR
-// =====================================================
 const errorBox = {
   display: "flex",
   alignItems: "center",
@@ -2431,15 +3615,14 @@ const errorBox = {
   gap: "8px",
   background: "#FFF5F5",
   color: "#C53030",
-  border: "1px solid #FED7D7",
+  border:
+    "1px solid #FED7D7",
   borderRadius: "13px",
   padding: "14px",
   fontSize: "12px",
 };
 
-// =====================================================
 // VOLVER
-// =====================================================
 const backContainer = {
   marginTop: "22px",
   display: "flex",
@@ -2456,19 +3639,17 @@ const backButton = {
   fontWeight: "700",
   fontSize: "12px",
   boxShadow:
-    "0 4px 12px rgba(21,101,192,0.08)",
+    "0 4px 12px rgba(21,101,192,.08)",
 };
 
-// =====================================================
 // LOADING
-// =====================================================
 const loadingPage = {
   minHeight: "100vh",
   display: "flex",
   justifyContent: "center",
   alignItems: "center",
   background:
-    "linear-gradient(135deg, #eef6ff, #f8fbff)",
+    "linear-gradient(135deg,#eef6ff,#f8fbff)",
   padding: "20px",
   boxSizing: "border-box",
 };
@@ -2479,7 +3660,7 @@ const loadingCard = {
   borderRadius: "18px",
   textAlign: "center",
   boxShadow:
-    "0 10px 28px rgba(30,70,120,0.09)",
+    "0 10px 28px rgba(30,70,120,.09)",
 };
 
 const loadingIcon = {
@@ -2498,15 +3679,172 @@ const loadingText = {
   fontSize: "13px",
 };
 
-// =====================================================
 // FOOTER
-// =====================================================
 const footer = {
-  borderTop: "1px solid #E2E8F0",
+  borderTop:
+    "1px solid #E2E8F0",
   marginTop: "28px",
   paddingTop: "15px",
   display: "flex",
-  justifyContent: "space-between",
+  justifyContent:
+    "space-between",
   color: "#94A3B8",
   fontSize: "11px",
+};
+
+// GUÍA
+const guideOverlay = {
+  position: "fixed",
+  inset: 0,
+  background:
+    "rgba(18,35,61,.48)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: "20px",
+  zIndex: 9999,
+  backdropFilter:
+    "blur(3px)",
+};
+
+const guideModal = {
+  width: "100%",
+  maxWidth: "720px",
+  maxHeight: "90vh",
+  overflowY: "auto",
+  background: "#FFFFFF",
+  borderRadius: "24px",
+  padding: "30px",
+  position: "relative",
+  boxShadow:
+    "0 24px 80px rgba(20,50,90,.25)",
+  boxSizing: "border-box",
+};
+
+const guideClose = {
+  position: "absolute",
+  top: "14px",
+  right: "16px",
+  width: "34px",
+  height: "34px",
+  border: "none",
+  borderRadius: "50%",
+  background: "#F1F5F9",
+  color: "#64748B",
+  fontSize: "23px",
+  cursor: "pointer",
+};
+
+const guideIcon = {
+  width: "58px",
+  height: "58px",
+  borderRadius: "16px",
+  background: "#EAF1FF",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  fontSize: "27px",
+  marginBottom: "14px",
+};
+
+const guideTitle = {
+  margin: "0 0 8px",
+  color: "#172B4D",
+  fontSize: "24px",
+};
+
+const guideDescription = {
+  color: "#667085",
+  fontSize: "13px",
+  lineHeight: "1.6",
+  margin: "0 0 22px",
+};
+
+const guideSteps = {
+  display: "flex",
+  flexDirection: "column",
+  gap: "4px",
+};
+
+const guideStep = {
+  display: "grid",
+  gridTemplateColumns:
+    "34px 48px 1fr",
+  gap: "12px",
+  alignItems: "center",
+  background: "#FBFCFE",
+  border:
+    "1px solid #E5EBF3",
+  borderRadius: "14px",
+  padding: "12px 14px",
+};
+
+const guideNumber = {
+  width: "30px",
+  height: "30px",
+  borderRadius: "50%",
+  background: "#2167D5",
+  color: "#FFFFFF",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  fontWeight: "900",
+  fontSize: "12px",
+};
+
+const guideStepIcon = {
+  width: "44px",
+  height: "44px",
+  borderRadius: "12px",
+  background: "#EEF4FF",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  fontSize: "22px",
+};
+
+const guideStepTitle = {
+  color: "#344054",
+  fontSize: "13px",
+  fontWeight: "900",
+  marginBottom: "3px",
+};
+
+const guideStepText = {
+  color: "#667085",
+  fontSize: "11px",
+  lineHeight: "1.45",
+};
+
+const guideArrow = {
+  color: "#90A4AE",
+  textAlign: "center",
+  fontSize: "17px",
+  height: "20px",
+};
+
+const guideNotice = {
+  marginTop: "18px",
+  padding: "12px 14px",
+  background: "#FFF9E8",
+  border:
+    "1px solid #F6D98B",
+  borderRadius: "12px",
+  color: "#7A5A10",
+  fontSize: "11px",
+  lineHeight: "1.5",
+};
+
+const guideUnderstood = {
+  width: "100%",
+  marginTop: "18px",
+  padding: "12px 18px",
+  border: "none",
+  borderRadius: "12px",
+  background:
+    "linear-gradient(135deg,#2167D5,#5795F2)",
+  color: "#FFFFFF",
+  cursor: "pointer",
+  fontSize: "13px",
+  fontWeight: "900",
 };

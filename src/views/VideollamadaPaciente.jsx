@@ -113,11 +113,14 @@ function VideollamadaPaciente() {
       // PEERJS
       // =================================================
 
+      const isSecure = window.location.protocol === "https:";
+      const peerPort = isSecure ? 443 : 5000;
+
       const peer = new Peer(undefined, {
         host: window.location.hostname,
-        port: 443,
+        port: peerPort,
         path: "/peerjs/myapp",
-        secure: false
+        secure: isSecure
       });
 
       peerRef.current = peer;

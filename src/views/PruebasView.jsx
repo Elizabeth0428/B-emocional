@@ -381,30 +381,38 @@ export default function PruebasView({
   ================================================== */
 
   const copiarEnlace = async () => {
-    if (!enlaceGenerado) {
-      return;
+  if (!enlaceGenerado) return;
+
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(enlaceGenerado);
+    } else {
+      const textarea = document.createElement("textarea");
+      textarea.value = enlaceGenerado;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+
+      const copiado = document.execCommand("copy");
+      document.body.removeChild(textarea);
+
+      if (!copiado) {
+        throw new Error("No se pudo copiar con el método alternativo");
+      }
     }
 
-    try {
-      await navigator.clipboard.writeText(
-        enlaceGenerado
-      );
+    alert("✅ Enlace copiado al portapapeles.");
+  } catch (error) {
+    console.error("Error copiando enlace:", error);
 
-      alert(
-        "✅ Enlace copiado al portapapeles."
-      );
-    } catch (error) {
-      console.error(
-        "Error copiando enlace:",
-        error
-      );
-
-      alert(
-        "No se pudo copiar automáticamente. Copia el enlace manualmente."
-      );
-    }
-  };
-
+    alert(
+      "No se pudo copiar automáticamente. Selecciona y copia el enlace manualmente."
+    );
+  }
+};
   /* ==================================================
      CERRAR ENLACE
   ================================================== */

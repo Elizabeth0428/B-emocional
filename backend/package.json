@@ -1,20 +1,17 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "description": "Backend para el proyecto B-emocional",
-  "main": "server.js",
   "type": "module",
-  "engines": {
-    "node": ">=18.0.0"
-  },
+  "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "build": "echo Build complete",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "Oozma Kappa",
+  "keywords": [],
+  "author": "",
   "license": "ISC",
+  "description": "Backend para el proyecto B-emocional",
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "bcrypt": "^6.0.0",
@@ -22,7 +19,7 @@
     "body-parser": "^2.2.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.2",
-    "express": "^5.2.0",
+    "express": "^5.1.0",
     "express-rate-limit": "^8.1.0",
     "firebase": "^12.3.0",
     "firebase-admin": "^13.5.0",
@@ -37,9 +34,5 @@
   },
   "devDependencies": {
     "nodemon": "^3.1.0"
-  },
-  "overrides": {
-    "uuid": "^11.1.1",
-    "@grpc/grpc-js": "^1.13.6"
   }
 }

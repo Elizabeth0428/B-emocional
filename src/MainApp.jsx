@@ -1,5 +1,4 @@
 // src/MainApp.jsx
-
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -24,7 +23,7 @@ import PacienteDetalle from "./components/PacienteDetalle";
 import { usePatient } from "./components/PatientContext.jsx";
 
 // ==================================================
-// VISTAS
+// VISTAS CLÍNICAS / GENERALES
 // ==================================================
 import LoginView from "./views/LoginView";
 import RegisterPsychologist from "./views/RegisterPsychologist";
@@ -42,13 +41,42 @@ import ResultadosPruebasView from "./views/ResultadosPruebasView";
 import SesionesView from "./views/SesionesView";
 
 // ==================================================
-// RH
+// RH - USUARIOS
 // ==================================================
 import RegisterUsuarioRH from "./views/RegisterUsuarioRH";
 import UsuariosRH from "./views/UsuariosRH";
-import DetalleProspecto from "./views/DetalleProspecto";
+
+// ==================================================
+// RH - PROSPECTOS
+// ==================================================
 import RegistrarProspecto from "./views/RegistrarProspecto";
 import ProspectosRH from "./views/ProspectosRH";
+import DetalleProspecto from "./views/DetalleProspecto";
+import DocumentosProspecto from "./views/DocumentosProspecto";
+import SeguimientoProspecto from "./views/SeguimientoProspecto";
+import EntrevistasProspecto from "./views/EntrevistasProspecto";
+import PruebasProspecto from "./views/PruebasProspecto";
+import ResponderPruebaRH from "./views/Pruebas/ResponderPruebaRH";
+import ObservacionesProspecto from "./views/ObservacionesProspecto";
+import ReporteIAProspecto from "./views/ReporteIAProspecto";
+import ExpedienteSeleccionProspecto from "./views/ExpedienteSeleccionProspecto";
+import DecisionProspecto from "./views/DecisionProspecto";
+
+// ==================================================
+// RH - EMPLEADOS
+// ==================================================
+import EmpleadosRH from "./views/EmpleadosRH";
+import EmpleadoDetalle from "./views/EmpleadoDetalle";
+import SeguimientoEmpleado from "./views/SeguimientoEmpleado";
+import EvaluacionesEmpleado from "./views/EvaluacionesEmpleado";
+import ResponderEvaluacionEmpleado from "./views/ResponderEvaluacionEmpleado";
+import BienestarEmpleado from "./views/BienestarEmpleado";
+
+// ==================================================
+// RH - NOM-035
+// ==================================================
+import Nom035Empleado from "./views/Nom035Empleado";
+import ResponderNom035 from "./views/ResponderNom035";
 
 // ==================================================
 // EDUCATIVO
@@ -67,70 +95,147 @@ import UsuariosIndependiente from "./views/UsuariosIndependiente";
 // ==================================================
 import SalaVideollamada from "./views/SalaVideollamada.jsx";
 import VideollamadaPaciente from "./views/VideollamadaPaciente.jsx";
+import SalaVideollamadaRH from "./views/SalaVideollamadaRH.jsx";
+import VideollamadaProspectoRH from "./views/VideollamadaProspectoRH.jsx";
 
 // ==================================================
 // SERVICIOS
 // ==================================================
-import { getToken, getCurrentUser } from "./services/AuthService";
+import {
+  getToken,
+  getCurrentUser
+} from "./services/AuthService";
 
 // ==================================================
 // RUTA PRUEBAS DEL PACIENTE
 // ==================================================
+
 function PruebasPacienteRoute() {
-  const { idPaciente } = useParams();
-  const navigate = useNavigate();
-  const user = getCurrentUser();
+  const {
+    idPaciente
+  } = useParams();
+
+  const navigate =
+    useNavigate();
+
+  const user =
+    getCurrentUser();
 
   return (
-    <MainLayout onNavigate={() => navigate("/")}>
+    <MainLayout
+      onNavigate={() =>
+        navigate("/")
+      }
+    >
       <PruebasView
-        idPaciente={Number(idPaciente)}
-        token={user?.token || getToken()}
-        onBack={() => navigate(`/paciente/${idPaciente}`)}
+        idPaciente={
+          Number(
+            idPaciente
+          )
+        }
+        token={
+          user?.token ||
+          getToken()
+        }
+        onBack={() =>
+          navigate(
+            `/paciente/${idPaciente}`
+          )
+        }
       />
     </MainLayout>
   );
 }
 
 // ==================================================
-// PRUEBAS DE UNA SESIÓN ESPECÍFICA
+// PRUEBAS DE UNA SESIÓN
 // ==================================================
+
 function PruebasSesionRoute() {
-  const { idPaciente, idSesion } = useParams();
-  const navigate = useNavigate();
-  const user = getCurrentUser();
+  const {
+    idPaciente,
+    idSesion
+  } = useParams();
+
+  const navigate =
+    useNavigate();
+
+  const user =
+    getCurrentUser();
 
   return (
-    <MainLayout onNavigate={() => navigate("/")}>
+    <MainLayout
+      onNavigate={() =>
+        navigate("/")
+      }
+    >
       <PruebasView
-        idPaciente={Number(idPaciente)}
-        idSesion={Number(idSesion)}
-        token={user?.token || getToken()}
-        onBack={() => navigate(`/paciente/${idPaciente}/sesiones`)}
+        idPaciente={
+          Number(
+            idPaciente
+          )
+        }
+        idSesion={
+          Number(
+            idSesion
+          )
+        }
+        token={
+          user?.token ||
+          getToken()
+        }
+        onBack={() =>
+          navigate(
+            `/paciente/${idPaciente}/sesiones`
+          )
+        }
       />
     </MainLayout>
   );
 }
 
 // ==================================================
-// REPORTES IA GENERALES DEL PACIENTE
+// REPORTES IA PACIENTE
 // ==================================================
+
 function ReportesPacienteRoute() {
-  const { idPaciente } = useParams();
-  const navigate = useNavigate();
+  const {
+    idPaciente
+  } = useParams();
+
+  const navigate =
+    useNavigate();
 
   return (
-    <MainLayout onNavigate={() => navigate("/")}>
+    <MainLayout
+      onNavigate={() =>
+        navigate("/")
+      }
+    >
       <div style={reportesPage}>
         <ReportViewer
-          pacienteId={Number(idPaciente)}
-          reporte={null}
-          iaInsights={null}
+          pacienteId={
+            Number(
+              idPaciente
+            )
+          }
+          reporte={
+            null
+          }
+          iaInsights={
+            null
+          }
         />
 
         <button
-          style={backFromToolButton}
-          onClick={() => navigate(`/paciente/${idPaciente}`)}
+          style={
+            backFromToolButton
+          }
+          onClick={() =>
+            navigate(
+              `/paciente/${idPaciente}`
+            )
+          }
         >
           ⬅️ Volver al expediente
         </button>
@@ -140,28 +245,52 @@ function ReportesPacienteRoute() {
 }
 
 // ==================================================
-// PREANÁLISIS IA DE UNA SESIÓN ESPECÍFICA
-// NUEVO FLUJO:
-// SESIÓN -> TERMINAR CONSULTA -> PREANÁLISIS IA
+// PREANÁLISIS DE SESIÓN
 // ==================================================
+
 function PreanalisisSesionRoute() {
-  const { idPaciente, idSesion } = useParams();
-  const navigate = useNavigate();
+  const {
+    idPaciente,
+    idSesion
+  } = useParams();
+
+  const navigate =
+    useNavigate();
 
   return (
-    <MainLayout onNavigate={() => navigate("/")}>
+    <MainLayout
+      onNavigate={() =>
+        navigate("/")
+      }
+    >
       <div style={reportesPage}>
         <ReportViewer
-          pacienteId={Number(idPaciente)}
-          idSesion={Number(idSesion)}
-          reporte={null}
-          iaInsights={null}
+          pacienteId={
+            Number(
+              idPaciente
+            )
+          }
+          idSesion={
+            Number(
+              idSesion
+            )
+          }
+          reporte={
+            null
+          }
+          iaInsights={
+            null
+          }
         />
 
         <button
-          style={backFromToolButton}
+          style={
+            backFromToolButton
+          }
           onClick={() =>
-            navigate(`/paciente/${idPaciente}/sesiones`)
+            navigate(
+              `/paciente/${idPaciente}/sesiones`
+            )
           }
         >
           ⬅️ Volver a sesiones
@@ -172,14 +301,24 @@ function PreanalisisSesionRoute() {
 }
 
 // ==================================================
-// CITAS / AGENDA GENERAL POR RUTA
+// CITAS GENERALES
 // ==================================================
+
 function CitasRoute() {
-  const navigate = useNavigate();
+  const navigate =
+    useNavigate();
 
   return (
-    <MainLayout onNavigate={() => navigate("/")}>
-      <CalendarView onBack={() => navigate("/")} />
+    <MainLayout
+      onNavigate={() =>
+        navigate("/")
+      }
+    >
+      <CalendarView
+        onBack={() =>
+          navigate("/")
+        }
+      />
     </MainLayout>
   );
 }
@@ -187,20 +326,39 @@ function CitasRoute() {
 // ==================================================
 // VIDEOLLAMADA DEL PACIENTE
 // ==================================================
+
 function VideollamadaPacienteRoute() {
-  const { idPaciente } = useParams();
-  const navigate = useNavigate();
+  const {
+    idPaciente
+  } = useParams();
+
+  const navigate =
+    useNavigate();
 
   return (
-    <MainLayout onNavigate={() => navigate("/")}>
+    <MainLayout
+      onNavigate={() =>
+        navigate("/")
+      }
+    >
       <div style={videollamadaPage}>
         <VideollamadaPaciente
-          pacienteId={Number(idPaciente)}
+          pacienteId={
+            Number(
+              idPaciente
+            )
+          }
         />
 
         <button
-          style={backFromToolButton}
-          onClick={() => navigate(`/paciente/${idPaciente}`)}
+          style={
+            backFromToolButton
+          }
+          onClick={() =>
+            navigate(
+              `/paciente/${idPaciente}`
+            )
+          }
         >
           ⬅️ Volver al expediente
         </button>
@@ -210,610 +368,972 @@ function VideollamadaPacienteRoute() {
 }
 
 // ==================================================
-// REGISTRAR PROSPECTO RH PROVISIONAL
-// ==================================================
-function RegistrarProspectoRH({ onBack }) {
-  return (
-    <div style={placeholderPage}>
-      <h2>👤 Registrar prospecto</h2>
-
-      <p>
-        Registro de prospectos del área de Recursos Humanos.
-      </p>
-
-      <button
-        style={backFromToolButton}
-        onClick={onBack}
-      >
-        ← Volver
-      </button>
-    </div>
-  );
-}
-
-// ==================================================
-// EMPLEADOS RH PROVISIONAL
-// ==================================================
-function EmpleadosRH({ onBack }) {
-  return (
-    <div style={placeholderPage}>
-      <h2>👔 Empleados</h2>
-
-      <p>
-        Consulta y gestiona los empleados de Recursos Humanos.
-      </p>
-
-      <button
-        style={backFromToolButton}
-        onClick={onBack}
-      >
-        ← Volver
-      </button>
-    </div>
-  );
-}
-
-// ==================================================
 // CITAS RH PROVISIONAL
 // ==================================================
-function CitasRH({ onBack }) {
+
+function CitasRH({
+  onBack
+}) {
   return (
     <div style={placeholderPage}>
-      <h2>📅 Calendario RH</h2>
+      <h2>
+        📅 Calendario RH
+      </h2>
 
       <p>
-        Gestiona entrevistas, citas y actividades de Recursos Humanos.
+        Gestiona entrevistas, citas y
+        actividades de Recursos Humanos.
       </p>
 
       <button
-        style={backFromToolButton}
-        onClick={onBack}
+        style={
+          backFromToolButton
+        }
+        onClick={
+          onBack
+        }
       >
         ← Volver
       </button>
     </div>
+  );
+}
+
+// ==================================================
+// RUTA EMPLEADOS RH
+// UNA SOLA RUTA: /empleados
+// ==================================================
+
+function EmpleadosRHRoute() {
+  const volverAlDashboard =
+    () => {
+      window.location.href =
+        "/";
+    };
+
+  return (
+    <MainLayout
+      onNavigate={
+        volverAlDashboard
+      }
+    >
+      <EmpleadosRH
+        onBack={
+          volverAlDashboard
+        }
+      />
+    </MainLayout>
   );
 }
 
 // ==================================================
 // APP
 // ==================================================
+
 const MainApp = () => {
-  const [view, setView] = useState("landing");
-  const [user, setUser] = useState(null);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [
+    view,
+    setView
+  ] =
+    useState(
+      "landing"
+    );
 
-  const { paciente } = usePatient();
+  const [
+    user,
+    setUser
+  ] =
+    useState(
+      null
+    );
 
-  const [reporteFinal, setReporteFinal] = useState(null);
+  const [
+    isAdmin,
+    setIsAdmin
+  ] =
+    useState(
+      false
+    );
+
+  const {
+    paciente
+  } =
+    usePatient();
+
+  const [
+    reporteFinal,
+    setReporteFinal
+  ] =
+    useState(
+      null
+    );
 
   // ==================================================
   // USUARIO ACTUAL
   // ==================================================
-  useEffect(() => {
-    const u = getCurrentUser();
 
-    if (u) {
-      setUser(u);
-      setIsAdmin(u.role === 1);
-      setView("dashboard");
-    } else {
-      setUser(null);
-      setIsAdmin(false);
-      setView("landing");
-    }
-  }, []);
+  useEffect(
+    () => {
+      const u =
+        getCurrentUser();
 
-  const resetEvaluacion = () => setReporteFinal(null);
+      if (u) {
+        setUser(
+          u
+        );
+
+        setIsAdmin(
+          u.role === 1
+        );
+
+        setView(
+          "dashboard"
+        );
+
+      } else {
+        setUser(
+          null
+        );
+
+        setIsAdmin(
+          false
+        );
+
+        setView(
+          "landing"
+        );
+      }
+    },
+    []
+  );
+
+  const resetEvaluacion =
+    () =>
+      setReporteFinal(
+        null
+      );
 
   // ==================================================
   // CONTENIDO LEGACY
+  //
+  // Prospectos, registro de prospectos y empleados
+  // ya NO se cargan por view.
+  // Se manejan por rutas reales.
   // ==================================================
-  const LegacyContent = () => (
-    <div className="app-container">
-      <AnimatePresence mode="wait">
 
-        {/* =================================================
-            LANDING
-        ================================================= */}
-        {view === "landing" && (
-          <motion.div
-            key="landing"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            style={landingContainer}
-          >
-            <div style={glowOne} />
-            <div style={glowTwo} />
+  const LegacyContent =
+    () => (
+      <div className="app-container">
+        <AnimatePresence mode="wait">
+
+          {/* =================================================
+              LANDING
+          ================================================= */}
+          {view ===
+            "landing" && (
 
             <motion.div
-              style={{
-                ...emotion,
-                top: "15%",
-                left: "18%"
-              }}
-              animate={{
-                y: [0, -18, 0],
-                rotate: [-5, 5, -5]
-              }}
-              transition={{
-                duration: 4,
-                repeat: Infinity,
-                ease: "easeInOut"
-              }}
-            >
-              😊
-            </motion.div>
-
-            <motion.div
-              style={{
-                ...emotion,
-                top: "20%",
-                right: "18%"
-              }}
-              animate={{
-                y: [0, 16, 0],
-                rotate: [5, -5, 5]
-              }}
-              transition={{
-                duration: 4.5,
-                repeat: Infinity,
-                ease: "easeInOut"
-              }}
-            >
-              😌
-            </motion.div>
-
-            <motion.div
-              style={{
-                ...emotion,
-                bottom: "20%",
-                left: "15%"
-              }}
-              animate={{
-                y: [0, -14, 0],
-                rotate: [4, -4, 4]
-              }}
-              transition={{
-                duration: 5,
-                repeat: Infinity,
-                ease: "easeInOut"
-              }}
-            >
-              😢
-            </motion.div>
-
-            <motion.div
-              style={{
-                ...emotion,
-                bottom: "18%",
-                right: "16%"
-              }}
-              animate={{
-                y: [0, 18, 0],
-                rotate: [-4, 4, -4]
-              }}
-              transition={{
-                duration: 4.8,
-                repeat: Infinity,
-                ease: "easeInOut"
-              }}
-            >
-              ❤️
-            </motion.div>
-
-            <motion.div
-              style={{
-                ...emotionSmall,
-                top: "35%",
-                left: "8%"
-              }}
-              animate={{
-                y: [0, -12, 0],
-                opacity: [.5, 1, .5]
-              }}
-              transition={{
-                duration: 3.5,
-                repeat: Infinity
-              }}
-            >
-              😴
-            </motion.div>
-
-            <motion.div
-              style={{
-                ...emotionSmall,
-                top: "40%",
-                right: "8%"
-              }}
-              animate={{
-                y: [0, 12, 0],
-                opacity: [.5, 1, .5]
-              }}
-              transition={{
-                duration: 4,
-                repeat: Infinity
-              }}
-            >
-              🤯
-            </motion.div>
-
-            <motion.div
+              key="landing"
               initial={{
-                opacity: 0,
-                scale: .92,
-                y: 20
+                opacity: 0
               }}
               animate={{
-                opacity: 1,
-                scale: 1,
-                y: 0
+                opacity: 1
               }}
-              transition={{
-                duration: .8,
-                ease: "easeOut"
+              exit={{
+                opacity: 0
               }}
-              style={landingCard}
+              style={
+                landingContainer
+              }
             >
+              <div
+                style={
+                  glowOne
+                }
+              />
+
+              <div
+                style={
+                  glowTwo
+                }
+              />
+
               <motion.div
+                style={{
+                  ...emotion,
+                  top:
+                    "15%",
+                  left:
+                    "18%"
+                }}
                 animate={{
-                  y: [0, -10, 0],
-                  scale: [1, 1.06, 1]
+                  y: [
+                    0,
+                    -18,
+                    0
+                  ],
+                  rotate: [
+                    -5,
+                    5,
+                    -5
+                  ]
                 }}
                 transition={{
-                  duration: 4,
-                  repeat: Infinity,
-                  ease: "easeInOut"
+                  duration:
+                    4,
+                  repeat:
+                    Infinity,
+                  ease:
+                    "easeInOut"
                 }}
-                style={landingLogoContainer}
               >
-                <img
-                  src="/logo.png"
-                  alt="MirrorSoul"
-                  style={landingLogo}
-                />
+                😊
               </motion.div>
 
-              <h1 style={landingTitle}>
-                Mirror
-                <span style={landingTitleAccent}>
-                  Soul
-                </span>
-              </h1>
-
-              <motion.h2
-                initial={{
-                  opacity: 0,
-                  y: 10
+              <motion.div
+                style={{
+                  ...emotion,
+                  top:
+                    "20%",
+                  right:
+                    "18%"
                 }}
                 animate={{
-                  opacity: 1,
-                  y: 0
+                  y: [
+                    0,
+                    16,
+                    0
+                  ],
+                  rotate: [
+                    5,
+                    -5,
+                    5
+                  ]
                 }}
                 transition={{
-                  delay: .4
-                }}
-                style={landingSlogan}
-              >
-                Conoce lo que sientes.
-                <br />
-                <span>
-                  Comprende lo que eres.
-                </span>
-              </motion.h2>
-
-              <p style={landingDescription}>
-                Una herramienta inteligente para acompañar al profesional
-                en la exploración emocional, evaluación y seguimiento
-                de sus pacientes.
-              </p>
-
-              <motion.button
-                onClick={() => setView("login")}
-                style={landingButton}
-                whileHover={{
-                  scale: 1.05,
-                  boxShadow:
-                    "0 12px 30px rgba(30,136,229,.40)"
-                }}
-                whileTap={{
-                  scale: .97
+                  duration:
+                    4.5,
+                  repeat:
+                    Infinity,
+                  ease:
+                    "easeInOut"
                 }}
               >
-                <span>
-                  Entrar a MirrorSoul
-                </span>
+                😌
+              </motion.div>
 
-                <span style={{ fontSize: 20 }}>
-                  →
-                </span>
-              </motion.button>
+              <motion.div
+                style={{
+                  ...emotion,
+                  bottom:
+                    "20%",
+                  left:
+                    "15%"
+                }}
+                animate={{
+                  y: [
+                    0,
+                    -14,
+                    0
+                  ],
+                  rotate: [
+                    4,
+                    -4,
+                    4
+                  ]
+                }}
+                transition={{
+                  duration:
+                    5,
+                  repeat:
+                    Infinity,
+                  ease:
+                    "easeInOut"
+                }}
+              >
+                😢
+              </motion.div>
 
-              <div style={landingFooter}>
-                <span>✦</span>
-                Tecnología que acompaña la salud emocional
-                <span>✦</span>
-              </div>
+              <motion.div
+                style={{
+                  ...emotion,
+                  bottom:
+                    "18%",
+                  right:
+                    "16%"
+                }}
+                animate={{
+                  y: [
+                    0,
+                    18,
+                    0
+                  ],
+                  rotate: [
+                    -4,
+                    4,
+                    -4
+                  ]
+                }}
+                transition={{
+                  duration:
+                    4.8,
+                  repeat:
+                    Infinity,
+                  ease:
+                    "easeInOut"
+                }}
+              >
+                ❤️
+              </motion.div>
+
+              <motion.div
+                style={{
+                  ...emotionSmall,
+                  top:
+                    "35%",
+                  left:
+                    "8%"
+                }}
+                animate={{
+                  y: [
+                    0,
+                    -12,
+                    0
+                  ],
+                  opacity: [
+                    .5,
+                    1,
+                    .5
+                  ]
+                }}
+                transition={{
+                  duration:
+                    3.5,
+                  repeat:
+                    Infinity
+                }}
+              >
+                😴
+              </motion.div>
+
+              <motion.div
+                style={{
+                  ...emotionSmall,
+                  top:
+                    "40%",
+                  right:
+                    "8%"
+                }}
+                animate={{
+                  y: [
+                    0,
+                    12,
+                    0
+                  ],
+                  opacity: [
+                    .5,
+                    1,
+                    .5
+                  ]
+                }}
+                transition={{
+                  duration:
+                    4,
+                  repeat:
+                    Infinity
+                }}
+              >
+                🤯
+              </motion.div>
+
+              <motion.div
+                initial={{
+                  opacity:
+                    0,
+                  scale:
+                    .92,
+                  y:
+                    20
+                }}
+                animate={{
+                  opacity:
+                    1,
+                  scale:
+                    1,
+                  y:
+                    0
+                }}
+                transition={{
+                  duration:
+                    .8,
+                  ease:
+                    "easeOut"
+                }}
+                style={
+                  landingCard
+                }
+              >
+                <motion.div
+                  animate={{
+                    y: [
+                      0,
+                      -10,
+                      0
+                    ],
+                    scale: [
+                      1,
+                      1.06,
+                      1
+                    ]
+                  }}
+                  transition={{
+                    duration:
+                      4,
+                    repeat:
+                      Infinity,
+                    ease:
+                      "easeInOut"
+                  }}
+                  style={
+                    landingLogoContainer
+                  }
+                >
+                  <img
+                    src="/logo.png"
+                    alt="MirrorSoul"
+                    style={
+                      landingLogo
+                    }
+                  />
+                </motion.div>
+
+                <h1
+                  style={
+                    landingTitle
+                  }
+                >
+                  Mirror
+                  <span
+                    style={
+                      landingTitleAccent
+                    }
+                  >
+                    Soul
+                  </span>
+                </h1>
+
+                <motion.h2
+                  initial={{
+                    opacity:
+                      0,
+                    y:
+                      10
+                  }}
+                  animate={{
+                    opacity:
+                      1,
+                    y:
+                      0
+                  }}
+                  transition={{
+                    delay:
+                      .4
+                  }}
+                  style={
+                    landingSlogan
+                  }
+                >
+                  Conoce lo que sientes.
+                  <br />
+                  <span>
+                    Comprende lo que eres.
+                  </span>
+                </motion.h2>
+
+                <p
+                  style={
+                    landingDescription
+                  }
+                >
+                  Una herramienta inteligente
+                  para acompañar al profesional
+                  en la exploración emocional,
+                  evaluación y seguimiento de
+                  sus pacientes.
+                </p>
+
+                <motion.button
+                  onClick={() =>
+                    setView(
+                      "login"
+                    )
+                  }
+                  style={
+                    landingButton
+                  }
+                  whileHover={{
+                    scale:
+                      1.05,
+                    boxShadow:
+                      "0 12px 30px rgba(30,136,229,.40)"
+                  }}
+                  whileTap={{
+                    scale:
+                      .97
+                  }}
+                >
+                  <span>
+                    Entrar a MirrorSoul
+                  </span>
+
+                  <span
+                    style={{
+                      fontSize:
+                        20
+                    }}
+                  >
+                    →
+                  </span>
+                </motion.button>
+
+                <div
+                  style={
+                    landingFooter
+                  }
+                >
+                  <span>
+                    ✦
+                  </span>
+
+                  Tecnología que acompaña
+                  la salud emocional
+
+                  <span>
+                    ✦
+                  </span>
+                </div>
+              </motion.div>
             </motion.div>
-          </motion.div>
-        )}
+          )}
 
-        {/* =================================================
-            LOGIN
-        ================================================= */}
-        {view === "login" && (
-          <LoginView
-            key="login"
-            onLoginSuccess={(u) => {
-              setUser(u);
-              setIsAdmin(u?.role === 1);
-              setView("dashboard");
-            }}
-            onBack={() => setView("landing")}
-          />
-        )}
+          {/* =================================================
+              LOGIN
+          ================================================= */}
+          {view ===
+            "login" && (
 
-        {/* =================================================
-            DASHBOARD
-        ================================================= */}
-        {view === "dashboard" && (
-          <Dashboard
-            key="dashboard"
-            onNavigate={setView}
-          />
-        )}
+            <LoginView
+              key="login"
+              onLoginSuccess={
+                u => {
+                  setUser(
+                    u
+                  );
 
-        {/* =================================================
-            PRUEBAS
-        ================================================= */}
-        {view === "pruebas" && (
-          <PruebasView
-            key="pruebas"
-            idPaciente={paciente?.id_paciente}
-            token={user?.token || getToken()}
-            onBack={() => setView("dashboard")}
-          />
-        )}
+                  setIsAdmin(
+                    u?.role ===
+                    1
+                  );
 
-        {/* =================================================
-            FACE SCANNER
-        ================================================= */}
-        {view === "facescanner" && (
-          <FaceScanner
-            key="facescanner"
-            pacienteId={paciente?.id_paciente}
-            pruebaId={1}
-            onFinish={() => setView("reporte")}
-          />
-        )}
-
-        {/* =================================================
-            PSICÓLOGOS
-        ================================================= */}
-        {view === "psychologistView" && isAdmin && (
-          <PsychologistView
-            key="psychologistView"
-            onBack={() => setView("dashboard")}
-          />
-        )}
-
-        {/* =================================================
-            REPORTE
-        ================================================= */}
-        {view === "reporte" && (
-          <div
-            key="reporte"
-            style={{
-              textAlign: "center"
-            }}
-          >
-            <ReportViewer
-              reporte={reporteFinal}
-              pacienteId={paciente?.id_paciente}
-              iaInsights={
-                "Aquí se mostraría el análisis de la IA"
+                  setView(
+                    "dashboard"
+                  );
+                }
+              }
+              onBack={() =>
+                setView(
+                  "landing"
+                )
               }
             />
+          )}
+
+          {/* =================================================
+              DASHBOARD
+          ================================================= */}
+          {view ===
+            "dashboard" && (
+
+            <Dashboard
+              key="dashboard"
+              onNavigate={
+                setView
+              }
+            />
+          )}
+
+          {/* =================================================
+              PRUEBAS
+          ================================================= */}
+          {view ===
+            "pruebas" && (
+
+            <PruebasView
+              key="pruebas"
+              idPaciente={
+                paciente?.id_paciente
+              }
+              token={
+                user?.token ||
+                getToken()
+              }
+              onBack={() =>
+                setView(
+                  "dashboard"
+                )
+              }
+            />
+          )}
+
+          {/* =================================================
+              FACE SCANNER
+          ================================================= */}
+          {view ===
+            "facescanner" && (
+
+            <FaceScanner
+              key="facescanner"
+              pacienteId={
+                paciente?.id_paciente
+              }
+              pruebaId={
+                1
+              }
+              onFinish={() =>
+                setView(
+                  "reporte"
+                )
+              }
+            />
+          )}
+
+          {/* =================================================
+              PSICÓLOGOS
+          ================================================= */}
+          {view ===
+            "psychologistView" &&
+            isAdmin && (
+
+            <PsychologistView
+              key="psychologistView"
+              onBack={() =>
+                setView(
+                  "dashboard"
+                )
+              }
+            />
+          )}
+
+          {/* =================================================
+              REPORTE
+          ================================================= */}
+          {view ===
+            "reporte" && (
 
             <div
+              key="reporte"
               style={{
-                marginTop: 20,
-                display: "flex",
-                gap: 15,
-                justifyContent: "center"
+                textAlign:
+                  "center"
               }}
             >
-              <button
-                onClick={() => {
-                  resetEvaluacion();
-                  setView("facescanner");
-                }}
-                style={{
-                  ...buttonPrimary,
-                  backgroundColor: "#4FC3F7"
-                }}
-              >
-                🔁 Reiniciar evaluación
-              </button>
+              <ReportViewer
+                reporte={
+                  reporteFinal
+                }
+                pacienteId={
+                  paciente?.id_paciente
+                }
+                iaInsights={
+                  "Aquí se mostraría el análisis de la IA"
+                }
+              />
 
-              <button
-                onClick={() => {
-                  resetEvaluacion();
-                  setView("dashboard");
-                }}
+              <div
                 style={{
-                  ...buttonPrimary,
-                  backgroundColor: "#81C784"
+                  marginTop:
+                    20,
+                  display:
+                    "flex",
+                  gap:
+                    15,
+                  justifyContent:
+                    "center"
                 }}
               >
-                ⬅️ Volver al Dashboard
-              </button>
+                <button
+                  onClick={() => {
+                    resetEvaluacion();
+
+                    setView(
+                      "facescanner"
+                    );
+                  }}
+                  style={{
+                    ...buttonPrimary,
+                    backgroundColor:
+                      "#4FC3F7"
+                  }}
+                >
+                  🔁 Reiniciar evaluación
+                </button>
+
+                <button
+                  onClick={() => {
+                    resetEvaluacion();
+
+                    setView(
+                      "dashboard"
+                    );
+                  }}
+                  style={{
+                    ...buttonPrimary,
+                    backgroundColor:
+                      "#81C784"
+                  }}
+                >
+                  ⬅️ Volver al Dashboard
+                </button>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* =================================================
-            PACIENTES
-        ================================================= */}
-        {view === "pacientes" && (
-          <Pacientes
-            key="pacientes"
-            onBack={() => setView("dashboard")}
-          />
-        )}
+          {/* =================================================
+              PACIENTES
+          ================================================= */}
+          {view ===
+            "pacientes" && (
 
-        {view === "registrarPaciente" && (
-          <RegistrarPaciente
-            key="registrarPaciente"
-            onBack={() => setView("dashboard")}
-          />
-        )}
+            <Pacientes
+              key="pacientes"
+              onBack={() =>
+                setView(
+                  "dashboard"
+                )
+              }
+            />
+          )}
 
-        {/* =================================================
-            CAMBIAR PASSWORD
-        ================================================= */}
-        {view === "cambiarPassword" && (
-          <ChangePasswordView
-            key="cambiarPassword"
-            onBack={() => setView("dashboard")}
-          />
-        )}
+          {view ===
+            "registrarPaciente" && (
 
-        {/* =================================================
-            CITAS
-        ================================================= */}
-        {view === "citas" && (
-          <CalendarView
-            key="citas"
-            onBack={() => setView("dashboard")}
-          />
-        )}
+            <RegistrarPaciente
+              key="registrarPaciente"
+              onBack={() =>
+                setView(
+                  "dashboard"
+                )
+              }
+            />
+          )}
 
-        {/* =================================================
-            RESULTADOS
-        ================================================= */}
-        {view === "resultadosPaciente" && (
-          <ResultadosPaciente
-            key="resultadosPaciente"
-            onBack={() => setView("dashboard")}
-          />
-        )}
+          {/* =================================================
+              CAMBIAR PASSWORD
+          ================================================= */}
+          {view ===
+            "cambiarPassword" && (
 
-        {/* =================================================
-            ADMIN
-        ================================================= */}
-        {view === "registerPsychologist" && isAdmin && (
-          <RegisterPsychologist
-            key="registerPsychologist"
-            onBack={() => setView("dashboard")}
-          />
-        )}
+            <ChangePasswordView
+              key="cambiarPassword"
+              onBack={() =>
+                setView(
+                  "dashboard"
+                )
+              }
+            />
+          )}
 
-        {view === "registerAdmin" &&
-          user?.role === 1 &&
-          user?.tipo_admin === "master" && (
+          {/* =================================================
+              CITAS
+          ================================================= */}
+          {view ===
+            "citas" && (
+
+            <CalendarView
+              key="citas"
+              onBack={() =>
+                setView(
+                  "dashboard"
+                )
+              }
+            />
+          )}
+
+          {/* =================================================
+              RESULTADOS
+          ================================================= */}
+          {view ===
+            "resultadosPaciente" && (
+
+            <ResultadosPaciente
+              key="resultadosPaciente"
+              onBack={() =>
+                setView(
+                  "dashboard"
+                )
+              }
+            />
+          )}
+
+          {/* =================================================
+              ADMIN
+          ================================================= */}
+          {view ===
+            "registerPsychologist" &&
+            isAdmin && (
+
+            <RegisterPsychologist
+              key="registerPsychologist"
+              onBack={() =>
+                setView(
+                  "dashboard"
+                )
+              }
+            />
+          )}
+
+          {view ===
+            "registerAdmin" &&
+            user?.role ===
+              1 &&
+            user?.tipo_admin ===
+              "master" && (
+
             <RegisterAdmin
               key="registerAdmin"
-              onBack={() => setView("dashboard")}
+              onBack={() =>
+                setView(
+                  "dashboard"
+                )
+              }
             />
-        )}
+          )}
 
-        {/* =================================================
-            RH
-        ================================================= */}
-        {view === "registerUsuarioRH" && (
-          <RegisterUsuarioRH
-            key="registerUsuarioRH"
-            onBack={() => setView("dashboard")}
-          />
-        )}
+          {/* =================================================
+              RH
+          ================================================= */}
+          {view ===
+            "registerUsuarioRH" && (
 
-        {view === "usuariosRH" && (
-          <UsuariosRH
-            key="usuariosRH"
-            onBack={() => setView("dashboard")}
-          />
-        )}
+            <RegisterUsuarioRH
+              key="registerUsuarioRH"
+              onBack={() =>
+                setView(
+                  "dashboard"
+                )
+              }
+            />
+          )}
 
-        {view === "registrarProspecto" && (
-          <RegistrarProspecto
-            key="registrarProspecto"
-            onBack={() => setView("dashboard")}
-          />
-        )}
+          {view ===
+            "usuariosRH" && (
 
-        {view === "prospectosRH" && (
-          <ProspectosRH
-            key="prospectosRH"
-            onBack={() => setView("dashboard")}
-          />
-        )}
+            <UsuariosRH
+              key="usuariosRH"
+              onBack={() =>
+                setView(
+                  "dashboard"
+                )
+              }
+            />
+          )}
 
-        {view === "empleadosRH" && (
-          <EmpleadosRH
-            key="empleadosRH"
-            onBack={() => setView("dashboard")}
-          />
-        )}
+          {view ===
+            "citasRH" && (
 
-        {view === "citasRH" && (
-          <CitasRH
-            key="citasRH"
-            onBack={() => setView("dashboard")}
-          />
-        )}
+            <CitasRH
+              onBack={() =>
+                setView(
+                  "dashboard"
+                )
+              }
+            />
+          )}
 
-        {/* =================================================
-            EDUCATIVO
-        ================================================= */}
-        {view === "registerUsuarioEducativo" && (
-          <RegisterUsuarioEducativo
-            key="registerUsuarioEducativo"
-            onBack={() => setView("dashboard")}
-          />
-        )}
+          {/* =================================================
+              EDUCATIVO
+          ================================================= */}
+          {view ===
+            "registerUsuarioEducativo" && (
 
-        {view === "usuariosEducativo" && (
-          <UsuariosEducativo
-            key="usuariosEducativo"
-            onBack={() => setView("dashboard")}
-          />
-        )}
+            <RegisterUsuarioEducativo
+              key="registerUsuarioEducativo"
+              onBack={() =>
+                setView(
+                  "dashboard"
+                )
+              }
+            />
+          )}
 
-        {/* =================================================
-            INDEPENDIENTES
-        ================================================= */}
-        {view === "registerUsuarioIndependiente" && (
-          <RegisterUsuarioIndependiente
-            key="registerUsuarioIndependiente"
-            onBack={() => setView("dashboard")}
-          />
-        )}
+          {view ===
+            "usuariosEducativo" && (
 
-        {view === "usuariosIndependiente" && (
-          <UsuariosIndependiente
-            key="usuariosIndependiente"
-            onBack={() => setView("dashboard")}
-          />
-        )}
+            <UsuariosEducativo
+              key="usuariosEducativo"
+              onBack={() =>
+                setView(
+                  "dashboard"
+                )
+              }
+            />
+          )}
 
-      </AnimatePresence>
-    </div>
-  );
+          {/* =================================================
+              INDEPENDIENTES
+          ================================================= */}
+          {view ===
+            "registerUsuarioIndependiente" && (
+
+            <RegisterUsuarioIndependiente
+              key="registerUsuarioIndependiente"
+              onBack={() =>
+                setView(
+                  "dashboard"
+                )
+              }
+            />
+          )}
+
+          {view ===
+            "usuariosIndependiente" && (
+
+            <UsuariosIndependiente
+              key="usuariosIndependiente"
+              onBack={() =>
+                setView(
+                  "dashboard"
+                )
+              }
+            />
+          )}
+
+        </AnimatePresence>
+      </div>
+    );
 
   // ==================================================
   // LEGACY SHELL
   // ==================================================
+
   function LegacyShell() {
     const publicView =
-      view === "landing" ||
-      view === "login";
+      view ===
+        "landing" ||
+      view ===
+        "login";
 
     return publicView
-      ? <LegacyContent />
+      ? (
+        <LegacyContent />
+      )
       : (
-        <MainLayout onNavigate={setView}>
+        <MainLayout
+          onNavigate={
+            setView
+          }
+        >
           <LegacyContent />
         </MainLayout>
       );
@@ -822,39 +1342,97 @@ const MainApp = () => {
   // ==================================================
   // ROUTER
   // ==================================================
+
   return (
     <Router>
       <Routes>
 
         {/* =================================================
-            PRUEBAS
+            PRUEBAS CLÍNICAS PÚBLICAS
         ================================================= */}
         <Route
           path="/prueba/:idHabilitacion"
-          element={<ResponderPrueba />}
+          element={
+            <ResponderPrueba />
+          }
         />
 
         <Route
           path="/responder-prueba/:id_habilitacion"
-          element={<ResponderPrueba />}
+          element={
+            <ResponderPrueba />
+          }
         />
 
         {/* =================================================
-            VIDEOLLAMADAS
+            PRUEBAS RH PÚBLICAS
+        ================================================= */}
+        <Route
+          path="/prueba-rh/:token"
+          element={
+            <ResponderPruebaRH />
+          }
+        />
+
+        {/* =================================================
+            EVALUACIÓN EMPLEADO PÚBLICA
+        ================================================= */}
+        <Route
+          path="/evaluacion-empleado/:token"
+          element={
+            <ResponderEvaluacionEmpleado />
+          }
+        />
+
+        {/* =================================================
+            NOM-035 PÚBLICA
+        ================================================= */}
+        <Route
+          path="/nom035/:token"
+          element={
+            <ResponderNom035 />
+          }
+        />
+
+        {/* =================================================
+            VIDEOLLAMADAS CLÍNICAS
         ================================================= */}
         <Route
           path="/videollamada-paciente/:sala"
-          element={<VideollamadaPaciente />}
+          element={
+            <VideollamadaPaciente />
+          }
         />
 
         <Route
           path="/SalaVideollamada/nueva/:idPaciente"
-          element={<SalaVideollamada />}
+          element={
+            <SalaVideollamada />
+          }
         />
 
         <Route
           path="/SalaVideollamada/:sala"
-          element={<SalaVideollamada />}
+          element={
+            <SalaVideollamada />
+          }
+        />
+
+        {/* =================================================
+            VIDEOLLAMADAS RH
+        ================================================= */}
+        <Route
+          path="/videollamada-rh/:sala"
+          element={
+            <VideollamadaProspectoRH />
+          }
+        />
+
+        <Route
+          path="/SalaVideollamadaRH/:sala"
+          element={
+            <SalaVideollamadaRH />
+          }
         />
 
         {/* =================================================
@@ -873,70 +1451,86 @@ const MainApp = () => {
 
         <Route
           path="/paciente/:idPaciente/pruebas"
-          element={<PruebasPacienteRoute />}
+          element={
+            <PruebasPacienteRoute />
+          }
         />
 
         <Route
           path="/paciente/:idPaciente/sesion/:idSesion/pruebas"
-          element={<PruebasSesionRoute />}
+          element={
+            <PruebasSesionRoute />
+          }
         />
 
         <Route
           path="/paciente/:idPaciente/reportes-ia"
-          element={<ReportesPacienteRoute />}
+          element={
+            <ReportesPacienteRoute />
+          }
         />
 
-        {/* =================================================
-            NUEVO: PREANÁLISIS IA DE SESIÓN
-        ================================================= */}
         <Route
           path="/paciente/:idPaciente/sesion/:idSesion/preanalisis"
-          element={<PreanalisisSesionRoute />}
+          element={
+            <PreanalisisSesionRoute />
+          }
         />
 
-        {/* =================================================
-            CIERRE CLÍNICO DE UNA SESIÓN ESPECÍFICA
-        ================================================= */}
         <Route
           path="/paciente/:idPaciente/sesion/:idSesion/cierre"
-          element={<SeguimientoView />}
+          element={
+            <SeguimientoView />
+          }
         />
 
         <Route
           path="/paciente/:idPaciente/videollamada"
-          element={<VideollamadaPacienteRoute />}
+          element={
+            <VideollamadaPacienteRoute />
+          }
         />
 
         <Route
           path="/paciente/:idPaciente/historial"
-          element={<HistorialInicialView />}
+          element={
+            <HistorialInicialView />
+          }
         />
 
         <Route
           path="/paciente/:idPaciente/seguimiento"
-          element={<SeguimientoView />}
+          element={
+            <SeguimientoView />
+          }
         />
 
         <Route
           path="/paciente/:idPaciente/resultados"
-          element={<ResultadosPruebasView />}
+          element={
+            <ResultadosPruebasView />
+          }
         />
 
         <Route
           path="/paciente/:idPaciente/sesiones"
-          element={<SesionesView />}
+          element={
+            <SesionesView />
+          }
         />
 
         {/* =================================================
-            CITAS / AGENDA GENERAL
+            CITAS
         ================================================= */}
         <Route
           path="/citas"
-          element={<CitasRoute />}
+          element={
+            <CitasRoute />
+          }
         />
 
         {/* =================================================
-            RH
+            RH - USUARIOS
         ================================================= */}
         <Route
           path="/rh/usuarios"
@@ -964,6 +1558,9 @@ const MainApp = () => {
           }
         />
 
+        {/* =================================================
+            RH - PROSPECTOS
+        ================================================= */}
         <Route
           path="/prospectos"
           element={
@@ -992,7 +1589,185 @@ const MainApp = () => {
 
         <Route
           path="/prospecto/:idProspecto"
-          element={<DetalleProspecto />}
+          element={
+            <DetalleProspecto />
+          }
+        />
+
+        <Route
+          path="/prospecto/:idProspecto/seguimiento"
+          element={
+            <MainLayout
+              onNavigate={() =>
+                window.history.back()
+              }
+            >
+              <SeguimientoProspecto />
+            </MainLayout>
+          }
+        />
+
+        <Route
+          path="/prospecto/:idProspecto/entrevistas"
+          element={
+            <MainLayout
+              onNavigate={() =>
+                window.history.back()
+              }
+            >
+              <EntrevistasProspecto />
+            </MainLayout>
+          }
+        />
+
+        <Route
+          path="/prospecto/:idProspecto/pruebas"
+          element={
+            <MainLayout
+              onNavigate={() =>
+                window.history.back()
+              }
+            >
+              <PruebasProspecto />
+            </MainLayout>
+          }
+        />
+
+        <Route
+          path="/prospecto/:idProspecto/documentos"
+          element={
+            <MainLayout
+              onNavigate={() =>
+                window.history.back()
+              }
+            >
+              <DocumentosProspecto />
+            </MainLayout>
+          }
+        />
+
+        <Route
+          path="/prospecto/:idProspecto/observaciones"
+          element={
+            <MainLayout
+              onNavigate={() =>
+                window.history.back()
+              }
+            >
+              <ObservacionesProspecto />
+            </MainLayout>
+          }
+        />
+
+        <Route
+          path="/prospecto/:idProspecto/reporte-ia"
+          element={
+            <MainLayout
+              onNavigate={() =>
+                window.history.back()
+              }
+            >
+              <ReporteIAProspecto />
+            </MainLayout>
+          }
+        />
+
+        <Route
+          path="/prospecto/:idProspecto/expediente-seleccion"
+          element={
+            <MainLayout
+              onNavigate={() =>
+                window.history.back()
+              }
+            >
+              <ExpedienteSeleccionProspecto />
+            </MainLayout>
+          }
+        />
+
+        <Route
+          path="/prospecto/:idProspecto/decision"
+          element={
+            <MainLayout
+              onNavigate={() =>
+                window.history.back()
+              }
+            >
+              <DecisionProspecto />
+            </MainLayout>
+          }
+        />
+
+        {/* =================================================
+            RH - EMPLEADOS
+        ================================================= */}
+        <Route
+          path="/empleados"
+          element={
+            <EmpleadosRHRoute />
+          }
+        />
+
+        <Route
+          path="/empleado/:idEmpleado"
+          element={
+            <EmpleadoDetalle />
+          }
+        />
+
+        <Route
+          path="/empleado/:idEmpleado/seguimiento"
+          element={
+            <MainLayout
+              onNavigate={() =>
+                window.history.back()
+              }
+            >
+              <SeguimientoEmpleado />
+            </MainLayout>
+          }
+        />
+
+        <Route
+          path="/empleado/:idEmpleado/evaluaciones"
+          element={
+            <MainLayout
+              onNavigate={() =>
+                window.history.back()
+              }
+            >
+              <EvaluacionesEmpleado />
+            </MainLayout>
+          }
+        />
+
+        <Route
+          path="/empleado/:idEmpleado/bienestar"
+          element={
+            <MainLayout
+              onNavigate={() =>
+                window.history.back()
+              }
+            >
+              <BienestarEmpleado />
+            </MainLayout>
+          }
+        />
+
+        {/* =================================================
+            NOM-035
+        ================================================= */}
+        <Route
+          path="/empleado/:idEmpleado/nom035"
+          element={
+            <MainLayout
+              onNavigate={() =>
+                window.history.back()
+              }
+            >
+              <Nom035Empleado />
+            </MainLayout>
+          }
         />
 
         {/* =================================================
@@ -1054,11 +1829,13 @@ const MainApp = () => {
         />
 
         {/* =================================================
-            RESTO
+            RESTO / SISTEMA LEGACY
         ================================================= */}
         <Route
           path="*"
-          element={<LegacyShell />}
+          element={
+            <LegacyShell />
+          }
         />
 
       </Routes>
@@ -1069,55 +1846,84 @@ const MainApp = () => {
 // ==================================================
 // ESTILOS
 // ==================================================
+
 const reportesPage = {
-  maxWidth: "1100px",
-  margin: "0 auto",
-  padding: "30px 20px"
+  maxWidth:
+    "1100px",
+  margin:
+    "0 auto",
+  padding:
+    "30px 20px"
 };
 
 const videollamadaPage = {
-  maxWidth: "1100px",
-  margin: "0 auto",
-  padding: "30px 20px"
+  maxWidth:
+    "1100px",
+  margin:
+    "0 auto",
+  padding:
+    "30px 20px"
 };
 
 const placeholderPage = {
-  maxWidth: "850px",
-  margin: "40px auto",
-  padding: "40px",
-  background: "#fff",
-  borderRadius: "18px",
+  maxWidth:
+    "850px",
+  margin:
+    "40px auto",
+  padding:
+    "40px",
+  background:
+    "#fff",
+  borderRadius:
+    "18px",
   boxShadow:
     "0 8px 24px rgba(40,80,140,.08)",
-  textAlign: "center",
+  textAlign:
+    "center",
   fontFamily:
     "'Segoe UI',Arial,sans-serif",
-  color: "#1A2B4B"
+  color:
+    "#1A2B4B"
 };
 
 const backFromToolButton = {
-  marginTop: 20,
-  padding: "12px 22px",
-  border: "none",
-  borderRadius: 10,
+  marginTop:
+    20,
+  padding:
+    "12px 22px",
+  border:
+    "none",
+  borderRadius:
+    10,
   background:
     "linear-gradient(135deg,#64B5F6,#1976D2)",
-  color: "#fff",
-  fontWeight: 700,
-  cursor: "pointer",
-  fontSize: 15
+  color:
+    "#fff",
+  fontWeight:
+    700,
+  cursor:
+    "pointer",
+  fontSize:
+    15
 };
 
 const buttonPrimary = {
-  padding: "14px 32px",
-  borderRadius: 30,
+  padding:
+    "14px 32px",
+  borderRadius:
+    30,
   background:
     "linear-gradient(90deg,#64B5F6,#1E88E5)",
-  color: "#fff",
-  border: "none",
-  cursor: "pointer",
-  fontWeight: 600,
-  fontSize: 18,
+  color:
+    "#fff",
+  border:
+    "none",
+  cursor:
+    "pointer",
+  fontWeight:
+    600,
+  fontSize:
+    18,
   boxShadow:
     "0 6px 14px rgba(30,136,229,.4)",
   transition:
@@ -1125,13 +1931,20 @@ const buttonPrimary = {
 };
 
 const landingContainer = {
-  position: "relative",
-  minHeight: "100vh",
-  width: "100%",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  overflow: "hidden",
+  position:
+    "relative",
+  minHeight:
+    "100vh",
+  width:
+    "100%",
+  display:
+    "flex",
+  alignItems:
+    "center",
+  justifyContent:
+    "center",
+  overflow:
+    "hidden",
   background:
     "radial-gradient(circle at center,#F8FCFF 0%,#EAF4FF 45%,#DCEEFF 100%)",
   fontFamily:
@@ -1139,89 +1952,137 @@ const landingContainer = {
 };
 
 const landingCard = {
-  position: "relative",
-  zIndex: 5,
-  width: "min(680px,90%)",
-  textAlign: "center",
-  padding: "40px 35px",
-  borderRadius: 30,
+  position:
+    "relative",
+  zIndex:
+    5,
+  width:
+    "min(680px,90%)",
+  textAlign:
+    "center",
+  padding:
+    "40px 35px",
+  borderRadius:
+    30,
   background:
     "rgba(255,255,255,.62)",
   border:
     "1px solid rgba(255,255,255,.8)",
   boxShadow:
     "0 25px 70px rgba(40,100,170,.14)",
-  backdropFilter: "blur(12px)"
+  backdropFilter:
+    "blur(12px)"
 };
 
 const landingLogoContainer = {
-  width: 300,
-  height: 150,
-  margin: "0 auto 18px",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  borderRadius: 22,
+  width:
+    300,
+  height:
+    150,
+  margin:
+    "0 auto 18px",
+  display:
+    "flex",
+  alignItems:
+    "center",
+  justifyContent:
+    "center",
+  borderRadius:
+    22,
   background:
     "linear-gradient(145deg,rgba(255,255,255,.98),rgba(225,240,255,.90))",
   boxShadow:
     "0 15px 40px rgba(55,125,190,.18)",
-  backdropFilter: "blur(8px)",
-  overflow: "hidden"
+  backdropFilter:
+    "blur(8px)",
+  overflow:
+    "hidden"
 };
 
 const landingLogo = {
-  width: 280,
-  height: 135,
-  objectFit: "contain",
-  display: "block",
+  width:
+    280,
+  height:
+    135,
+  objectFit:
+    "contain",
+  display:
+    "block",
   filter:
     "drop-shadow(0 8px 15px rgba(40,100,160,.20))"
 };
 
 const landingTitle = {
-  margin: "8px 0 0",
-  fontSize: 48,
-  fontWeight: 800,
-  letterSpacing: "-1.5px",
-  color: "#173B68"
+  margin:
+    "8px 0 0",
+  fontSize:
+    48,
+  fontWeight:
+    800,
+  letterSpacing:
+    "-1.5px",
+  color:
+    "#173B68"
 };
 
 const landingTitleAccent = {
-  color: "#4A90E2"
+  color:
+    "#4A90E2"
 };
 
 const landingSlogan = {
-  margin: "18px 0 0",
-  fontSize: 28,
-  lineHeight: 1.3,
-  fontWeight: 700,
-  color: "#263B5A"
+  margin:
+    "18px 0 0",
+  fontSize:
+    28,
+  lineHeight:
+    1.3,
+  fontWeight:
+    700,
+  color:
+    "#263B5A"
 };
 
 const landingDescription = {
-  maxWidth: 560,
-  margin: "18px auto 0",
-  fontSize: 16,
-  lineHeight: 1.7,
-  color: "#526579"
+  maxWidth:
+    560,
+  margin:
+    "18px auto 0",
+  fontSize:
+    16,
+  lineHeight:
+    1.7,
+  color:
+    "#526579"
 };
 
 const landingButton = {
-  marginTop: 30,
-  padding: "14px 26px",
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  gap: 12,
-  border: "none",
-  borderRadius: 30,
+  marginTop:
+    30,
+  padding:
+    "14px 26px",
+  display:
+    "inline-flex",
+  alignItems:
+    "center",
+  justifyContent:
+    "center",
+  gap:
+    12,
+  border:
+    "none",
+  borderRadius:
+    30,
   background:
     "linear-gradient(135deg,#64B5F6,#1976D2)",
-  color: "#fff",
-  fontSize: 16,
-  fontWeight: 700,
-  cursor: "pointer",
+  color:
+    "#fff",
+  fontSize:
+    16,
+  fontWeight:
+    700,
+  cursor:
+    "pointer",
   boxShadow:
     "0 8px 22px rgba(30,136,229,.30)",
   transition:
@@ -1229,73 +2090,114 @@ const landingButton = {
 };
 
 const landingFooter = {
-  marginTop: 28,
-  display: "flex",
-  justifyContent: "center",
-  alignItems: "center",
-  gap: 10,
-  fontSize: 12,
-  color: "#78909C",
-  letterSpacing: ".3px"
+  marginTop:
+    28,
+  display:
+    "flex",
+  justifyContent:
+    "center",
+  alignItems:
+    "center",
+  gap:
+    10,
+  fontSize:
+    12,
+  color:
+    "#78909C",
+  letterSpacing:
+    ".3px"
 };
 
 const emotion = {
-  position: "absolute",
-  zIndex: 2,
-  width: 65,
-  height: 65,
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  borderRadius: "50%",
+  position:
+    "absolute",
+  zIndex:
+    2,
+  width:
+    65,
+  height:
+    65,
+  display:
+    "flex",
+  alignItems:
+    "center",
+  justifyContent:
+    "center",
+  borderRadius:
+    "50%",
   background:
     "rgba(255,255,255,.65)",
   border:
     "1px solid rgba(255,255,255,.9)",
   boxShadow:
     "0 12px 30px rgba(60,120,180,.12)",
-  backdropFilter: "blur(8px)",
-  fontSize: 32
+  backdropFilter:
+    "blur(8px)",
+  fontSize:
+    32
 };
 
 const emotionSmall = {
-  position: "absolute",
-  zIndex: 1,
-  width: 48,
-  height: 48,
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  borderRadius: "50%",
+  position:
+    "absolute",
+  zIndex:
+    1,
+  width:
+    48,
+  height:
+    48,
+  display:
+    "flex",
+  alignItems:
+    "center",
+  justifyContent:
+    "center",
+  borderRadius:
+    "50%",
   background:
     "rgba(255,255,255,.45)",
   boxShadow:
     "0 8px 20px rgba(60,120,180,.10)",
-  fontSize: 24
+  fontSize:
+    24
 };
 
 const glowOne = {
-  position: "absolute",
-  width: 400,
-  height: 400,
-  borderRadius: "50%",
+  position:
+    "absolute",
+  width:
+    400,
+  height:
+    400,
+  borderRadius:
+    "50%",
   background:
     "rgba(100,181,246,.16)",
-  filter: "blur(70px)",
-  top: -180,
-  left: -120
+  filter:
+    "blur(70px)",
+  top:
+    -180,
+  left:
+    -120
 };
 
 const glowTwo = {
-  position: "absolute",
-  width: 350,
-  height: 350,
-  borderRadius: "50%",
+  position:
+    "absolute",
+  width:
+    350,
+  height:
+    350,
+  borderRadius:
+    "50%",
   background:
     "rgba(129,199,132,.12)",
-  filter: "blur(70px)",
-  bottom: -150,
-  right: -100
+  filter:
+    "blur(70px)",
+  bottom:
+    -150,
+  right:
+    -100
 };
 
 export default MainApp;

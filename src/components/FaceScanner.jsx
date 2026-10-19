@@ -54,7 +54,7 @@ const FaceScanner = ({ pacienteId, pruebaId }) => {
 
     try {
       const token = getToken();
-      const API_URL = `https://reflejoyalma.com`; // 👈 dinámico
+      const API_URL = import.meta.env.VITE_API_URL || (window.location.protocol === 'https:' ? 'https://reflejoyalma.com' : `http://${window.location.hostname}:5000`); // 👈 dinámico
       const res = await fetch(`${API_URL}/api/videos`, {
         method: "POST",
         headers: {
