@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { getToken } from "../services/AuthService";
 
-const API_URL = "https://reflejoyalma.com";
+const API_URL = "https://www.reflejoyalma.com";
 
 export default function PruebasView({
   onBack,

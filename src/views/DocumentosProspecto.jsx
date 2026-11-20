@@ -18,7 +18,9 @@ import {
 } from "../services/AuthService";
 
 
-const API_URL = import.meta.env.VITE_API_URL || (window.location.protocol === 'https:' ? 'https://reflejoyalma.com' : `http://${window.location.hostname}:5000`);
+const API_URL =
+  import.meta.env.VITE_API_URL ||
+  `http://${window.location.hostname}:5000`;
 
 
 // ==================================================
@@ -857,17 +859,21 @@ export default function DocumentosProspecto() {
 
       <div style={header}>
 
-        <button
-          type="button"
-          style={backButton}
-          onClick={() =>
-            navigate(
-              `/prospecto/${idProspecto}`
-            )
-          }
-        >
-          ⬅ Volver
-        </button>
+        <div style={backButtonRow}>
+          <button
+            type="button"
+            style={backButton}
+            onClick={() =>
+              navigate(
+                `/prospecto/${idProspecto}`
+              )
+            }
+          >
+            <span style={backButtonText}>
+              ← Volver al expediente
+            </span>
+          </button>
+        </div>
 
 
         <div style={{ flex: 1 }}>
@@ -1435,14 +1441,51 @@ const header = {
   marginBottom: 24
 };
 
+const backButtonRow = {
+  position: "relative",
+  zIndex: 9999,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "flex-start",
+  width: "100%",
+  pointerEvents: "auto"
+};
+
 const backButton = {
+  appearance: "none",
+  WebkitAppearance: "none",
+  position: "relative",
+  zIndex: 10000,
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  minWidth: "240px",
+  minHeight: "46px",
+  padding: "12px 24px",
+  margin: 0,
   border: "none",
-  borderRadius: 10,
-  background: "#EEF3F8",
-  color: "#37474F",
-  padding: "11px 15px",
+  borderRadius: "999px",
+  background:
+    "linear-gradient(135deg,#64B5F6,#1976D2)",
+  color: "#FFFFFF",
   cursor: "pointer",
-  fontWeight: 700
+  fontWeight: "700",
+  fontSize: "16px",
+  lineHeight: 1.2,
+  boxShadow:
+    "0 5px 14px rgba(25,118,210,.25)",
+  pointerEvents: "auto",
+  userSelect: "none",
+  WebkitUserSelect: "none",
+  touchAction: "manipulation",
+  whiteSpace: "nowrap"
+};
+
+const backButtonText = {
+  display: "block",
+  width: "100%",
+  textAlign: "center",
+  pointerEvents: "none"
 };
 
 const eyebrow = {

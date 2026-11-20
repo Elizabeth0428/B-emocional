@@ -33,6 +33,8 @@ export default function ReportViewer({
   );
   const [reporteAbierto, setReporteAbierto] = useState(null);
   const [reporteSesionEncontrado, setReporteSesionEncontrado] = useState(null);
+  const [numeroSesionVisible, setNumeroSesionVisible] = useState(null);
+  const [sesionesPaciente, setSesionesPaciente] = useState([]);
 
   // =====================================================
   // ACTUALIZAR REPORTE SI VIENE COMO PROP
@@ -62,6 +64,91 @@ export default function ReportViewer({
   }, [idSesion]);
 
   // =====================================================
+  // CARGAR SESIONES DEL PACIENTE
+  //
+  // IMPORTANTE:
+  // - id_sesion = identificador interno real de BD
+  // - numero_sesion = número clínico visible
+  // =====================================================
+  useEffect(() => {
+    if (!pacienteId) {
+      setSesionesPaciente([]);
+      setNumeroSesionVisible(null);
+      return;
+    }
+
+    const cargarSesionesPaciente = async () => {
+      try {
+        const token = getToken();
+
+        const res = await fetch(
+          `https://www.reflejoyalma.com/api/sesiones/paciente/${pacienteId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        if (!res.ok) {
+          console.warn(
+            "⚠️ No fue posible cargar las sesiones del paciente."
+          );
+          return;
+        }
+
+        const data = await res.json();
+
+        const lista = Array.isArray(data)
+          ? data
+          : Array.isArray(data?.sesiones)
+          ? data.sesiones
+          : [];
+
+        const ordenadas = [...lista].sort((a, b) => {
+          const numeroA =
+            Number(a.numero_sesion) ||
+            Number(a.id_sesion) ||
+            0;
+
+          const numeroB =
+            Number(b.numero_sesion) ||
+            Number(b.id_sesion) ||
+            0;
+
+          return numeroB - numeroA;
+        });
+
+        setSesionesPaciente(ordenadas);
+
+        // En modo Preanálisis resolvemos el número visible
+        // a partir del id_sesion real que viene de la ruta.
+        if (idSesion) {
+          const sesion = ordenadas.find(
+            (s) =>
+              Number(s.id_sesion) ===
+              Number(idSesion)
+          );
+
+          if (sesion) {
+            setNumeroSesionVisible(
+              Number(sesion.numero_sesion) ||
+              Number(sesion.id_sesion)
+            );
+          }
+        }
+      } catch (error) {
+        console.error(
+          "❌ Error obteniendo sesiones del paciente:",
+          error
+        );
+      }
+    };
+
+    cargarSesionesPaciente();
+  }, [pacienteId, idSesion]);
+
+  // =====================================================
   // CARGAR REPORTES PREVIOS
   // =====================================================
   useEffect(() => {
@@ -75,7 +162,7 @@ export default function ReportViewer({
         const token = getToken();
 
         const res = await fetch(
-          `https://reflejoyalma.com/api/reportes/paciente/${pacienteId}`,
+          `https://www.reflejoyalma.com/api/reportes/paciente/${pacienteId}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -116,6 +203,11 @@ export default function ReportViewer({
             if (encontrado) {
               setReporteSesionEncontrado(encontrado);
               setReporteActual(encontrado.contenido || null);
+
+              setNumeroSesionVisible(
+                Number(encontrado.numero_sesion) ||
+                Number(encontrado.id_sesion)
+              );
             } else {
               setReporteSesionEncontrado(null);
               setReporteActual(reporte || null);
@@ -163,7 +255,7 @@ export default function ReportViewer({
       setErrorMsg(
         modoPreanalisis
           ? "No se encontró la sesión clínica que se desea analizar."
-          : "Selecciona o indica el ID de la sesión que deseas analizar."
+          : "Selecciona la sesión clínica que deseas analizar."
       );
       return;
     }
@@ -173,13 +265,58 @@ export default function ReportViewer({
     try {
       const token = getToken();
 
+      // =================================================
+      // ID REAL DE SESIÓN
+      //
+      // IMPORTANTE:
+      // - En modo Preanálisis usamos SIEMPRE idSesion,
+      //   que viene de la ruta y corresponde al ID real
+      //   de la tabla sesiones.
+      //
+      // - numeroSesionVisible es únicamente para mostrar
+      //   "Sesión #4", "Sesión #5", etc.
+      //
+      // Ejemplo:
+      // idSesion = 24
+      // numeroSesionVisible = 4
+      // =================================================
+      const idSesionReal = modoPreanalisis
+        ? Number(idSesion)
+        : Number(sesionSeleccionada);
+
+      const sesionSeleccionadaObjeto =
+        sesionesPaciente.find(
+          (s) =>
+            Number(s.id_sesion) ===
+            Number(idSesionReal)
+        );
+
+      const numeroSesionSeleccionada =
+        Number(
+          sesionSeleccionadaObjeto?.numero_sesion
+        ) ||
+        numeroSesionVisible ||
+        null;
+
+      if (
+        !Number.isInteger(idSesionReal) ||
+        idSesionReal <= 0
+      ) {
+        throw new Error(
+          "No se encontró el identificador interno de la sesión."
+        );
+      }
+
       console.log(
         modoPreanalisis
           ? "🤖 Generando Preanálisis IA..."
           : "🧠 Generando reporte IA...",
         {
           pacienteId,
-          id_sesion: Number(sesionSeleccionada),
+          id_sesion_real: idSesionReal,
+          numero_sesion_visible:
+            numeroSesionSeleccionada ||
+            numeroSesionVisible,
         }
       );
 
@@ -187,7 +324,7 @@ export default function ReportViewer({
       // LLAMADA AL BACKEND
       // =================================================
       const res = await fetch(
-        "https://reflejoyalma.com/api/ia/analisis-sesion",
+        "https://www.reflejoyalma.com/api/ia/analisis-sesion",
         {
           method: "POST",
           headers: {
@@ -195,7 +332,7 @@ export default function ReportViewer({
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
-            id_sesion: Number(sesionSeleccionada),
+            id_sesion: idSesionReal,
           }),
         }
       );
@@ -238,9 +375,19 @@ export default function ReportViewer({
       // MOSTRAR REPORTE ACTUAL
       // =================================================
       setReporteActual(contenido);
+
+      const numeroClinico =
+        Number(data?.numero_sesion) ||
+        numeroSesionSeleccionada ||
+        numeroSesionVisible ||
+        idSesionReal;
+
       if (modoPreanalisis) {
+        setNumeroSesionVisible(numeroClinico);
+
         setReporteSesionEncontrado({
-          id_sesion: Number(sesionSeleccionada),
+          id_sesion: idSesionReal,
+          numero_sesion: numeroClinico,
           contenido
         });
       }
@@ -257,7 +404,11 @@ export default function ReportViewer({
       // =================================================
       setSuccessMsg(
         modoPreanalisis
-          ? `✅ Preanálisis IA de la sesión #${sesionSeleccionada} generado correctamente.`
+          ? `✅ Preanálisis IA de la sesión #${
+              Number(data?.numero_sesion) ||
+              numeroSesionVisible ||
+              sesionSeleccionada
+            } generado correctamente.`
           : "✅ El reporte clínico fue generado correctamente."
       );
 
@@ -294,7 +445,7 @@ export default function ReportViewer({
       const token = getToken();
 
       const res = await fetch(
-        `https://reflejoyalma.com/api/reportes/paciente/${pacienteId}`,
+        `https://www.reflejoyalma.com/api/reportes/paciente/${pacienteId}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -329,6 +480,11 @@ export default function ReportViewer({
           if (encontrado) {
             setReporteSesionEncontrado(encontrado);
             setReporteActual(encontrado.contenido || null);
+
+            setNumeroSesionVisible(
+              Number(encontrado.numero_sesion) ||
+              Number(encontrado.id_sesion)
+            );
           }
         }
       }
@@ -348,7 +504,7 @@ export default function ReportViewer({
       const token = getToken();
 
       const res = await fetch(
-        `https://reflejoyalma.com/api/reportes/${idReporte}/pdf`,
+        `https://www.reflejoyalma.com/api/reportes/${idReporte}/pdf`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -411,7 +567,7 @@ export default function ReportViewer({
 
           <h2 style={title}>
             {modoPreanalisis
-              ? `🤖 Preanálisis IA — Sesión #${sesionSeleccionada}`
+              ? `🤖 Preanálisis IA — Sesión #${numeroSesionVisible || sesionSeleccionada}`
               : "🧠 Reportes automáticos con IA"}
           </h2>
 
@@ -463,7 +619,7 @@ export default function ReportViewer({
               </div>
 
               <div style={selectedSessionValue}>
-                🧠 Sesión #{sesionSeleccionada}
+                🧠 Sesión #{numeroSesionVisible || sesionSeleccionada}
               </div>
 
               <div style={selectedSessionText}>
@@ -474,26 +630,42 @@ export default function ReportViewer({
           ) : (
             /* =============================================
                 MODO GENERAL
-                CONSERVA ID MANUAL
+                SELECTOR DE SESIONES CLÍNICAS
             ============================================= */
             <div style={inputContainer}>
               <label style={inputLabel}>
-                ID de sesión
+                Sesión clínica
               </label>
 
-              <input
-                type="number"
-                min="1"
+              <select
                 value={sesionSeleccionada}
                 onChange={(e) =>
                   setSesionSeleccionada(
                     e.target.value
                   )
                 }
-                placeholder="Ej. 12"
                 style={sessionInput}
                 disabled={generando}
-              />
+              >
+                <option value="">
+                  -- Selecciona una sesión --
+                </option>
+
+                {sesionesPaciente.map((s) => (
+                  <option
+                    key={s.id_sesion}
+                    value={s.id_sesion}
+                  >
+                    Sesión #{s.numero_sesion || s.id_sesion}
+                    {s.modalidad
+                      ? ` · ${s.modalidad}`
+                      : ""}
+                    {s.estado
+                      ? ` · ${s.estado}`
+                      : ""}
+                  </option>
+                ))}
+              </select>
             </div>
           )}
 
@@ -543,9 +715,9 @@ export default function ReportViewer({
         <p style={sessionHelp}>
           {modoPreanalisis
             ? reporteSesionEncontrado
-              ? `✅ Ya existe un Preanálisis IA para la sesión #${sesionSeleccionada}. No necesitas generarlo nuevamente.`
-              : `💡 No necesitas ingresar un ID. MirrorSoul utilizará automáticamente la sesión #${sesionSeleccionada}.`
-            : "💡 El ID de sesión corresponde a la sesión clínica que deseas utilizar para el análisis."}
+              ? `✅ Ya existe un Preanálisis IA para la sesión #${numeroSesionVisible || sesionSeleccionada}. No necesitas generarlo nuevamente.`
+              : `💡 No necesitas ingresar un ID. MirrorSoul utilizará automáticamente la sesión #${numeroSesionVisible || sesionSeleccionada}.`
+            : "💡 Selecciona la sesión clínica que deseas analizar. MirrorSoul utilizará su identificador interno automáticamente."}
         </p>
       </section>
 
@@ -582,7 +754,7 @@ export default function ReportViewer({
 
               <h3 style={currentReportTitle}>
                 {modoPreanalisis
-                  ? `🤖 Preanálisis clínico — Sesión #${sesionSeleccionada}`
+                  ? `🤖 Preanálisis clínico — Sesión #${numeroSesionVisible || sesionSeleccionada}`
                   : "📄 Reporte clínico actual"}
               </h3>
             </div>
@@ -770,7 +942,8 @@ export default function ReportViewer({
                               <>
                                 {"  •  "}
                                 🧠 Sesión #
-                                {r.id_sesion}
+                                {r.numero_sesion ||
+                                  r.id_sesion}
                               </>
                             )}
                           </div>
@@ -983,7 +1156,7 @@ const inputLabel = {
 };
 
 const sessionInput = {
-  width: "180px",
+  width: "300px",
   boxSizing: "border-box",
   border: "1px solid #cbd8e6",
   borderRadius: "10px",

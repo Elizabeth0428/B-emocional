@@ -11,7 +11,6 @@ import {
 import fs from "fs";
 import path from "path";
 
-
 // ==================================================
 // TIPOS DE DOCUMENTOS PERMITIDOS
 // ==================================================
@@ -24,7 +23,6 @@ const TIPOS_DOCUMENTO = [
   "comprobante",
   "otro"
 ];
-
 
 // ==================================================
 // AUXILIAR - TEXTO
@@ -45,7 +43,6 @@ const limpiarTexto = (valor) => {
   return texto || null;
 };
 
-
 // ==================================================
 // VALIDAR ACCESO AL PROSPECTO
 // ==================================================
@@ -56,55 +53,122 @@ const validarAccesoProspecto = async (
 ) => {
 
   const idUsuario =
-    user?.id_usuario;
-
-  const tipoAdmin =
-    user?.tipo_admin
-      ? String(user.tipo_admin)
-          .trim()
-          .toLowerCase()
-      : null;
-
-  const area =
-    user?.area
-      ? String(user.area)
-          .trim()
-          .toLowerCase()
-      : null;
-
+    Number(user?.id_usuario) || null;
 
   if (!idUsuario) {
-
     return {
       ok: false,
       status: 401,
       message:
-        "No se pudo identificar al usuario"
+        "No se pudo identificar al usuario",
     };
   }
 
+  const [usuarios] =
+    await pool.query(
+      `
+        SELECT
+          u.id_usuario,
+          u.tipo_admin,
+          u.area,
+          u.rol,
+          u.id_admin_padre,
+          u.id_organizacion,
+          o.tipo AS tipo_organizacion,
+          o.perfil_independiente,
+          o.estado AS estado_organizacion
+        FROM usuarios u
+        LEFT JOIN organizaciones o
+          ON o.id_organizacion =
+             u.id_organizacion
+        WHERE u.id_usuario = ?
+        LIMIT 1
+      `,
+      [idUsuario]
+    );
 
-  if (
-    tipoAdmin !== "master" &&
-    area !== "rh"
-  ) {
+  if (!usuarios.length) {
+    return {
+      ok: false,
+      status: 401,
+      message:
+        "No se pudo identificar al usuario",
+    };
+  }
 
+  const usuario =
+    usuarios[0];
+
+  const tipoAdmin =
+    String(
+      usuario.tipo_admin || ""
+    )
+      .trim()
+      .toLowerCase();
+
+  const area =
+    String(
+      usuario.area || ""
+    )
+      .trim()
+      .toLowerCase();
+
+  const rol =
+    String(
+      usuario.rol || ""
+    )
+      .trim()
+      .toLowerCase();
+
+  const perfilIndependiente =
+    String(
+      usuario.perfil_independiente || ""
+    )
+      .trim()
+      .toLowerCase();
+
+  const estadoOrganizacion =
+    String(
+      usuario.estado_organizacion || ""
+    )
+      .trim()
+      .toLowerCase();
+
+  const esMaster =
+    tipoAdmin === "master";
+
+  const esAdminRH =
+    tipoAdmin === "normal" &&
+    area === "rh";
+
+  const esUsuarioRH =
+    rol === "rh" &&
+    area === "rh";
+
+  const esIndependienteRH =
+    rol === "independiente" &&
+    area === "independiente" &&
+    perfilIndependiente === "rh" &&
+    estadoOrganizacion === "activa";
+
+  const tienePermiso =
+    esMaster ||
+    esAdminRH ||
+    esUsuarioRH ||
+    esIndependienteRH;
+
+  if (!tienePermiso) {
     return {
       ok: false,
       status: 403,
       message:
-        "No tienes permiso para acceder a documentos de prospectos"
+        "No tienes permiso para acceder a documentos de prospectos",
     };
   }
 
-
   let query = `
     SELECT
-      id_prospecto,
-      id_mirror,
-      nombre,
-      id_admin_padre,
-      estatus
+      *
     FROM prospectos
     WHERE id_prospecto = ?
   `;
@@ -113,11 +177,7 @@ const validarAccesoProspecto = async (
     idProspecto
   ];
 
-
-  // RH NORMAL:
-  // solo puede trabajar con sus propios prospectos.
-  if (tipoAdmin !== "master") {
-
+  if (!esMaster) {
     query += `
       AND id_admin_padre = ?
     `;
@@ -127,11 +187,9 @@ const validarAccesoProspecto = async (
     );
   }
 
-
   query += `
     LIMIT 1
   `;
-
 
   const [rows] =
     await pool.query(
@@ -139,24 +197,36 @@ const validarAccesoProspecto = async (
       params
     );
 
-
   if (!rows.length) {
-
     return {
       ok: false,
       status: 404,
       message:
-        "Prospecto no encontrado o no tienes permiso para acceder a él"
+        "Prospecto no encontrado o no tienes permiso para acceder a él",
     };
   }
 
-
   return {
     ok: true,
-    prospecto: rows[0]
+    prospecto:
+      rows[0],
+    contexto: {
+      idUsuario,
+      tipoAdmin,
+      area,
+      rol,
+      idOrganizacion:
+        Number(
+          usuario.id_organizacion
+        ) || null,
+      perfilIndependiente,
+      esMaster,
+      esAdminRH,
+      esUsuarioRH,
+      esIndependienteRH,
+    },
   };
 };
-
 
 // ==================================================
 // ELIMINAR ARCHIVO FÍSICO AUXILIAR
@@ -196,7 +266,6 @@ const eliminarArchivoFisico = async (
   }
 };
 
-
 // ==================================================
 // SUBIR DOCUMENTO
 //
@@ -212,7 +281,6 @@ export const subirDocumentoProspecto = async (
 
     const idProspecto =
       Number(req.params.id);
-
 
     if (
       !Number.isInteger(idProspecto) ||
@@ -232,13 +300,11 @@ export const subirDocumentoProspecto = async (
       });
     }
 
-
     const acceso =
       await validarAccesoProspecto(
         idProspecto,
         req.user
       );
-
 
     if (!acceso.ok) {
 
@@ -257,7 +323,6 @@ export const subirDocumentoProspecto = async (
         });
     }
 
-
     if (!req.file) {
 
       return res.status(400).json({
@@ -267,7 +332,6 @@ export const subirDocumentoProspecto = async (
       });
     }
 
-
     const tipoDocumento =
       String(
         req.body.tipo_documento ||
@@ -275,7 +339,6 @@ export const subirDocumentoProspecto = async (
       )
         .trim()
         .toLowerCase();
-
 
     if (
       !TIPOS_DOCUMENTO.includes(
@@ -294,12 +357,10 @@ export const subirDocumentoProspecto = async (
       });
     }
 
-
     const descripcion =
       limpiarTexto(
         req.body.descripcion
       );
-
 
     const rutaInterna =
       path.join(
@@ -308,7 +369,6 @@ export const subirDocumentoProspecto = async (
         req.file.filename
       )
         .replaceAll("\\", "/");
-
 
     const [resultado] =
       await pool.query(
@@ -358,7 +418,6 @@ export const subirDocumentoProspecto = async (
         ]
       );
 
-
     const [rows] =
       await pool.query(
         `
@@ -381,9 +440,7 @@ export const subirDocumentoProspecto = async (
         ]
       );
 
-
     return res.status(201).json({
-
       success: true,
 
       message:
@@ -391,9 +448,7 @@ export const subirDocumentoProspecto = async (
 
       documento:
         rows[0] || null
-
     });
-
 
   } catch (error) {
 
@@ -404,15 +459,12 @@ export const subirDocumentoProspecto = async (
       );
     }
 
-
     console.error(
       "❌ Error subiendo documento del prospecto:",
       error
     );
 
-
     return res.status(500).json({
-
       success: false,
 
       message:
@@ -423,11 +475,9 @@ export const subirDocumentoProspecto = async (
         "development"
           ? error.message
           : undefined
-
     });
   }
 };
-
 
 // ==================================================
 // LISTAR DOCUMENTOS
@@ -445,7 +495,6 @@ export const listarDocumentosProspecto = async (
     const idProspecto =
       Number(req.params.id);
 
-
     if (
       !Number.isInteger(idProspecto) ||
       idProspecto <= 0
@@ -458,13 +507,11 @@ export const listarDocumentosProspecto = async (
       });
     }
 
-
     const acceso =
       await validarAccesoProspecto(
         idProspecto,
         req.user
       );
-
 
     if (!acceso.ok) {
 
@@ -476,7 +523,6 @@ export const listarDocumentosProspecto = async (
             acceso.message
         });
     }
-
 
     const [documentos] =
       await pool.query(
@@ -501,18 +547,14 @@ export const listarDocumentosProspecto = async (
         ]
       );
 
-
     return res.json({
-
       success: true,
 
       prospecto:
         acceso.prospecto,
 
       documentos
-
     });
-
 
   } catch (error) {
 
@@ -521,9 +563,7 @@ export const listarDocumentosProspecto = async (
       error
     );
 
-
     return res.status(500).json({
-
       success: false,
 
       message:
@@ -534,11 +574,9 @@ export const listarDocumentosProspecto = async (
         "development"
           ? error.message
           : undefined
-
     });
   }
 };
-
 
 // ==================================================
 // ABRIR / DESCARGAR DOCUMENTO
@@ -560,7 +598,6 @@ export const obtenerArchivoDocumentoProspecto = async (
     const idDocumento =
       Number(req.params.idDocumento);
 
-
     if (
       !Number.isInteger(idProspecto) ||
       idProspecto <= 0 ||
@@ -575,13 +612,11 @@ export const obtenerArchivoDocumentoProspecto = async (
       });
     }
 
-
     const acceso =
       await validarAccesoProspecto(
         idProspecto,
         req.user
       );
-
 
     if (!acceso.ok) {
 
@@ -593,7 +628,6 @@ export const obtenerArchivoDocumentoProspecto = async (
             acceso.message
         });
     }
-
 
     const [rows] =
       await pool.query(
@@ -615,7 +649,6 @@ export const obtenerArchivoDocumentoProspecto = async (
         ]
       );
 
-
     if (!rows.length) {
 
       return res.status(404).json({
@@ -625,10 +658,8 @@ export const obtenerArchivoDocumentoProspecto = async (
       });
     }
 
-
     const documento =
       rows[0];
-
 
     const rutaFisica =
       path.join(
@@ -637,7 +668,6 @@ export const obtenerArchivoDocumentoProspecto = async (
           documento.nombre_archivo
         )
       );
-
 
     if (
       !fs.existsSync(
@@ -652,28 +682,24 @@ export const obtenerArchivoDocumentoProspecto = async (
       });
     }
 
-
     res.setHeader(
       "Content-Type",
+
       documento.mime_type ||
       "application/octet-stream"
     );
 
-
-    // inline permite abrir PDF/imágenes en navegador.
-    // El frontend podrá descargarlo si el usuario lo desea.
     res.setHeader(
       "Content-Disposition",
+
       `inline; filename*=UTF-8''${encodeURIComponent(
         documento.nombre_original
       )}`
     );
 
-
     return res.sendFile(
       rutaFisica
     );
-
 
   } catch (error) {
 
@@ -682,9 +708,7 @@ export const obtenerArchivoDocumentoProspecto = async (
       error
     );
 
-
     return res.status(500).json({
-
       success: false,
 
       message:
@@ -695,11 +719,9 @@ export const obtenerArchivoDocumentoProspecto = async (
         "development"
           ? error.message
           : undefined
-
     });
   }
 };
-
 
 // ==================================================
 // ELIMINAR DOCUMENTO
@@ -721,7 +743,6 @@ export const eliminarDocumentoProspecto = async (
     const idDocumento =
       Number(req.params.idDocumento);
 
-
     if (
       !Number.isInteger(idProspecto) ||
       idProspecto <= 0 ||
@@ -736,13 +757,11 @@ export const eliminarDocumentoProspecto = async (
       });
     }
 
-
     const acceso =
       await validarAccesoProspecto(
         idProspecto,
         req.user
       );
-
 
     if (!acceso.ok) {
 
@@ -754,7 +773,6 @@ export const eliminarDocumentoProspecto = async (
             acceso.message
         });
     }
-
 
     const [rows] =
       await pool.query(
@@ -774,7 +792,6 @@ export const eliminarDocumentoProspecto = async (
         ]
       );
 
-
     if (!rows.length) {
 
       return res.status(404).json({
@@ -784,10 +801,8 @@ export const eliminarDocumentoProspecto = async (
       });
     }
 
-
     const documento =
       rows[0];
-
 
     await pool.query(
       `
@@ -801,21 +816,16 @@ export const eliminarDocumentoProspecto = async (
       ]
     );
 
-
     await eliminarArchivoFisico(
       documento.nombre_archivo
     );
 
-
     return res.json({
-
       success: true,
 
       message:
         "Documento eliminado correctamente"
-
     });
-
 
   } catch (error) {
 
@@ -824,9 +834,7 @@ export const eliminarDocumentoProspecto = async (
       error
     );
 
-
     return res.status(500).json({
-
       success: false,
 
       message:
@@ -837,7 +845,6 @@ export const eliminarDocumentoProspecto = async (
         "development"
           ? error.message
           : undefined
-
     });
   }
 };

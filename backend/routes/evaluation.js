@@ -29,7 +29,8 @@ import {
 } from "../controllers/evaluationController.js";
 
 import {
-  verifyToken
+  verifyToken,
+  verificarSuscripcionOrganizacion
 } from "../middlewares/authMiddleware.js";
 
 
@@ -47,6 +48,7 @@ router.get(
   "/pruebas",
 
   verifyToken,
+  verificarSuscripcionOrganizacion,
 
   obtenerPruebas
 
@@ -64,6 +66,7 @@ router.post(
   "/pruebas/habilitar",
 
   verifyToken,
+  verificarSuscripcionOrganizacion,
 
   habilitarPrueba
 
@@ -81,6 +84,7 @@ router.get(
   "/pruebas/habilitadas/:id_paciente",
 
   verifyToken,
+  verificarSuscripcionOrganizacion,
 
   obtenerPruebasHabilitadas
 
@@ -98,6 +102,7 @@ router.get(
   "/resultados/:id_paciente",
 
   verifyToken,
+  verificarSuscripcionOrganizacion,
 
   obtenerResultadosPaciente
 
@@ -115,6 +120,7 @@ router.get(
   "/pruebas/:id/preguntas",
 
   verifyToken,
+  verificarSuscripcionOrganizacion,
 
   obtenerPreguntasPrueba
 
@@ -132,6 +138,7 @@ router.post(
   "/pruebas/:id/finalizar",
 
   verifyToken,
+  verificarSuscripcionOrganizacion,
 
   finalizarPrueba
 
@@ -164,6 +171,7 @@ router.post(
   "/respuestas",
 
   verifyToken,
+  verificarSuscripcionOrganizacion,
 
   guardarRespuestas
 

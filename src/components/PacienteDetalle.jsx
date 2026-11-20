@@ -5,7 +5,8 @@ import { getToken } from "../services/AuthService";
 import { useNavigate, useParams } from "react-router-dom";
 
 export default function PacienteDetalle({
-  idPaciente: idPacienteProp
+  idPaciente: idPacienteProp,
+  onBack
 }) {
   const [paciente, setPaciente] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -95,7 +96,7 @@ export default function PacienteDetalle({
 
           const res =
             await fetch(
-              `https://reflejoyalma.com/api/pacientes/${idPaciente}`,
+              `http://localhost:5000/api/pacientes/${idPaciente}`,
               {
                 headers: {
                   Authorization:
@@ -165,6 +166,15 @@ export default function PacienteDetalle({
   // =====================================================
 
   const volver = () => {
+
+    if (
+      typeof onBack ===
+      "function"
+    ) {
+      onBack();
+      return;
+    }
+
     navigate(
       "/dashboard",
       {
@@ -937,19 +947,22 @@ function GuideArrow() {
 
 const page = {
   minHeight: "100vh",
-  padding: "30px",
-  maxWidth: "1200px",
+  padding: "40px 6% 70px",
+  maxWidth: "1350px",
   margin: "0 auto",
   boxSizing: "border-box",
   fontFamily:
-    "'Segoe UI', Arial, sans-serif"
+    "'Segoe UI', Arial, sans-serif",
+  color: "#1A2B4B"
 };
 
 const header = {
   display: "flex",
   alignItems: "center",
-  gap: "25px",
-  marginBottom: "25px"
+  justifyContent: "space-between",
+  gap: "22px",
+  marginBottom: "30px",
+  flexWrap: "wrap"
 };
 
 const headerInfo = {
@@ -957,15 +970,23 @@ const headerInfo = {
 };
 
 const backButton = {
+  appearance: "none",
+  WebkitAppearance: "none",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  minHeight: "44px",
+  padding: "11px 22px",
   border: "none",
-  background: "#eef3f8",
-  color: "#263238",
-  padding: "10px 16px",
-  borderRadius: "10px",
+  borderRadius: "999px",
+  background:
+    "linear-gradient(135deg,#64B5F6,#1976D2)",
+  color: "#FFFFFF",
   cursor: "pointer",
-  fontWeight: "600",
-  fontSize: "14px",
-  transition: "0.2s"
+  fontWeight: "700",
+  fontSize: "15px",
+  boxShadow:
+    "0 5px 14px rgba(25,118,210,.22)"
 };
 
 const helpTopButton = {
@@ -992,30 +1013,31 @@ const headerLabel = {
 
 const title = {
   margin: 0,
-  color: "#263238",
-  fontSize: "30px",
-  fontWeight: "700"
+  color: "#19355E",
+  fontSize: "34px",
+  fontWeight: "800"
 };
 
 const mirrorId = {
-  marginTop: "6px",
-  display: "inline-block",
-  background: "#e8f1ff",
-  color: "#1565c0",
-  padding: "6px 12px",
-  borderRadius: "8px",
+  marginTop: "9px",
+  display: "inline-flex",
+  alignItems: "center",
+  background: "#EAF2FF",
+  color: "#1565C0",
+  padding: "7px 13px",
+  borderRadius: "10px",
   fontSize: "13px",
-  fontWeight: "700"
+  fontWeight: "800"
 };
 
 const patientCard = {
-  background: "#ffffff",
-  border: "1px solid #e2e8f0",
-  borderRadius: "18px",
-  padding: "25px",
-  marginBottom: "30px",
+  background: "#FFFFFF",
+  border: "1px solid #E0E8F4",
+  borderRadius: "24px",
+  padding: "30px",
+  marginBottom: "34px",
   boxShadow:
-    "0 6px 20px rgba(30,60,90,.07)"
+    "0 10px 30px rgba(40,80,140,.09)"
 };
 
 const patientHeader = {
@@ -1026,23 +1048,26 @@ const patientHeader = {
 };
 
 const patientAvatar = {
-  width: "58px",
-  height: "58px",
-  borderRadius: "50%",
+  width: "66px",
+  height: "66px",
+  borderRadius: "20px",
   background:
-    "linear-gradient(135deg,#3f51b5,#2196f3)",
-  color: "#fff",
+    "linear-gradient(135deg,#4F6FD8,#3FA2EF)",
+  color: "#FFFFFF",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  fontSize: "23px",
-  fontWeight: "700"
+  fontSize: "27px",
+  fontWeight: "800",
+  boxShadow:
+    "0 8px 20px rgba(63,81,181,.18)"
 };
 
 const patientName = {
   margin: 0,
-  color: "#263238",
-  fontSize: "22px"
+  color: "#203F6F",
+  fontSize: "24px",
+  fontWeight: "800"
 };
 
 const patientSubtitle = {
@@ -1061,10 +1086,11 @@ const patientInfoGrid = {
 const infoItem = {
   display: "flex",
   alignItems: "center",
-  gap: "12px",
-  background: "#f8fafc",
-  padding: "14px",
-  borderRadius: "12px"
+  gap: "13px",
+  background: "#F8FAFD",
+  border: "1px solid #EDF1F6",
+  padding: "15px",
+  borderRadius: "15px"
 };
 
 const infoIcon = {
@@ -1112,8 +1138,9 @@ const sectionIcon = {
 const sectionTitle = {
   display: "inline",
   margin: 0,
-  color: "#263238",
-  fontSize: "21px"
+  color: "#203F6F",
+  fontSize: "23px",
+  fontWeight: "800"
 };
 
 const sectionDescription = {
@@ -1135,13 +1162,13 @@ const moduleCard = {
   gap: "18px",
   textAlign: "left",
   width: "100%",
-  padding: "22px",
-  background: "#ffffff",
-  border: "1px solid #e1e8ef",
-  borderRadius: "16px",
+  padding: "24px",
+  background: "#FFFFFF",
+  border: "1px solid #E0E8F4",
+  borderRadius: "20px",
   cursor: "pointer",
   boxShadow:
-    "0 4px 14px rgba(30,60,90,.05)",
+    "0 8px 24px rgba(40,80,140,.07)",
   transition: "all .2s",
   position: "relative"
 };
@@ -1189,12 +1216,12 @@ const toolsGrid = {
 };
 
 const toolCard = {
-  background: "#ffffff",
-  border: "1px solid #e1e8ef",
-  borderRadius: "16px",
-  padding: "22px",
+  background: "#FFFFFF",
+  border: "1px solid #E0E8F4",
+  borderRadius: "20px",
+  padding: "24px",
   boxShadow:
-    "0 4px 14px rgba(30,60,90,.05)",
+    "0 8px 24px rgba(40,80,140,.07)",
   position: "relative"
 };
 
@@ -1241,13 +1268,16 @@ const toolButton = {
     "space-between",
   alignItems: "center",
   border: "none",
-  borderRadius: "9px",
-  padding: "11px 14px",
-  background: "#3f51b5",
-  color: "#ffffff",
-  fontWeight: "700",
-  fontSize: "15px",
-  cursor: "pointer"
+  borderRadius: "12px",
+  padding: "12px 15px",
+  background:
+    "linear-gradient(135deg,#4A67D6,#3B4FC0)",
+  color: "#FFFFFF",
+  fontWeight: "800",
+  fontSize: "14px",
+  cursor: "pointer",
+  boxShadow:
+    "0 5px 14px rgba(63,81,181,.18)"
 };
 
 const cardHelp = {
@@ -1277,10 +1307,6 @@ const cardHelpActive = {
   boxShadow:
     "0 4px 12px rgba(33,103,213,.22)"
 };
-
-// =====================================================
-// POPOVER PEQUEÑO
-// =====================================================
 
 const helpPopover = {
   position: "absolute",
@@ -1404,10 +1430,6 @@ const errorIcon = {
   fontSize: "45px",
   marginBottom: "10px"
 };
-
-// =====================================================
-// MODAL SOLO PARA GUÍA GENERAL
-// =====================================================
 
 const overlay = {
   position: "fixed",

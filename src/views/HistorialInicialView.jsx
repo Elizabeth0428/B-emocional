@@ -25,7 +25,7 @@ export default function HistorialInicialView() {
       try {
 
         const res = await fetch(
-          `https://reflejoyalma.com/api/historial-inicial/${idPaciente}`,
+          `https://www.reflejoyalma.com/api/historial-inicial/${idPaciente}`,
           {
             headers: {
               Authorization: `Bearer ${getToken()}`
@@ -94,7 +94,7 @@ export default function HistorialInicialView() {
       setGuardando(true);
 
       const res = await fetch(
-        `https://reflejoyalma.com/api/historial-inicial/${idPaciente}`,
+        `https://www.reflejoyalma.com/api/historial-inicial/${idPaciente}`,
         {
           method: "PUT",
 
@@ -245,7 +245,11 @@ export default function HistorialInicialView() {
   const campos = Object.keys(historial).filter(
     (campo) =>
       campo !== "id_paciente" &&
-      campo !== "id_historial"
+      campo !== "id_historial" &&
+      campo !== "id_historial_inicial" &&
+      campo !== "fecha_registro" &&
+      campo !== "created_at" &&
+      campo !== "updated_at"
   );
 
 
@@ -533,6 +537,13 @@ const container = {
   maxWidth: "1100px",
 
   margin: "0 auto",
+
+};
+
+
+const topBar = {
+
+  marginBottom: "22px",
 
 };
 

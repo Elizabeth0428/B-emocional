@@ -1,4 +1,6 @@
+// ============================================================
 // backend/routes/usuariosIndependiente.js
+// ============================================================
 
 import express from "express";
 
@@ -12,29 +14,31 @@ import {
 } from "../middlewares/authMiddleware.js";
 
 
-const router = express.Router();
+const router =
+  express.Router();
 
 
-/* ============================================================
-   REGISTRAR USUARIO INDEPENDIENTE
-
-   POST
-   /api/usuarios-independiente
-============================================================ */
+// ============================================================
+// CREAR CUENTA INDEPENDIENTE
+//
+// PÚBLICA
+//
+// El propio profesional crea su cuenta.
+// NO necesita token.
+// ============================================================
 
 router.post(
   "/",
-  verifyToken,
   registrarUsuarioIndependiente
 );
 
 
-/* ============================================================
-   LISTAR USUARIOS INDEPENDIENTES
-
-   GET
-   /api/usuarios-independiente
-============================================================ */
+// ============================================================
+// LISTAR CUENTAS INDEPENDIENTES
+//
+// PRIVADA
+// SOLO MASTER
+// ============================================================
 
 router.get(
   "/",

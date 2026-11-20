@@ -32,6 +32,7 @@ import PsychologistView from "./views/PsychologistView";
 import ChangePasswordView from "./views/ChangePasswordView";
 import PruebasView from "./views/PruebasView";
 import Dashboard from "./views/Dashboard";
+import AdminComercial from "./views/AdminComercial";
 import CalendarView from "./views/CalendarView";
 import ResultadosPaciente from "./views/ResultadosPaciente";
 import ResponderPrueba from "./views/ResponderPrueba";
@@ -39,7 +40,33 @@ import HistorialInicialView from "./views/HistorialInicialView";
 import SeguimientoView from "./views/SeguimientoView";
 import ResultadosPruebasView from "./views/ResultadosPruebasView";
 import SesionesView from "./views/SesionesView";
+import Transferencias from "./views/Transferencias.jsx";
+import PerfilProfesionalPsicologo
+  from "./views/PerfilProfesionalPsicologo.jsx";
 
+import MisCanalizacionesPsicologo
+  from "./views/MisCanalizacionesPsicologo.jsx";
+
+// ==================================================
+// VISTAS PÚBLICAS MIRRORSOUL
+// ==================================================
+import InicioMirrorSoul
+  from "./views/public/InicioMirrorSoul.jsx";
+
+import PlanesMirrorSoul
+  from "./views/public/PlanesMirrorSoul.jsx";
+
+import RegistroPlan
+  from "./views/public/RegistroPlan.jsx";
+
+import CheckoutMirrorSoul
+  from "./views/public/CheckoutMirrorSoul.jsx";
+
+import ServiciosMirrorSoul
+  from "./views/public/ServiciosMirrorSoul.jsx";
+
+import ContactoMirrorSoul
+  from "./views/public/ContactoMirrorSoul.jsx";
 // ==================================================
 // RH - USUARIOS
 // ==================================================
@@ -71,7 +98,9 @@ import SeguimientoEmpleado from "./views/SeguimientoEmpleado";
 import EvaluacionesEmpleado from "./views/EvaluacionesEmpleado";
 import ResponderEvaluacionEmpleado from "./views/ResponderEvaluacionEmpleado";
 import BienestarEmpleado from "./views/BienestarEmpleado";
-
+import CanalizacionEmpleado from "./views/CanalizacionEmpleado";
+import CanalizacionPublica from "./views/CanalizacionPublica";
+import CitasRH from "./views/CitasRH.jsx";
 // ==================================================
 // RH - NOM-035
 // ==================================================
@@ -88,6 +117,7 @@ import UsuariosEducativo from "./views/UsuariosEducativo";
 // INDEPENDIENTES
 // ==================================================
 import RegisterUsuarioIndependiente from "./views/RegisterUsuarioIndependiente";
+import CheckoutIndependiente from "./views/CheckoutIndependiente";
 import UsuariosIndependiente from "./views/UsuariosIndependiente";
 
 // ==================================================
@@ -106,6 +136,12 @@ import {
   getCurrentUser
 } from "./services/AuthService";
 
+// ==================================================
+// RUTA PRUEBAS DEL PACIENTE
+// ==================================================
+
+import PagoExitoso from "./views/public/PagoExitoso.jsx";
+import CrearPassword from "./views/public/CrearPassword.jsx";
 // ==================================================
 // RUTA PRUEBAS DEL PACIENTE
 // ==================================================
@@ -367,37 +403,6 @@ function VideollamadaPacienteRoute() {
   );
 }
 
-// ==================================================
-// CITAS RH PROVISIONAL
-// ==================================================
-
-function CitasRH({
-  onBack
-}) {
-  return (
-    <div style={placeholderPage}>
-      <h2>
-        📅 Calendario RH
-      </h2>
-
-      <p>
-        Gestiona entrevistas, citas y
-        actividades de Recursos Humanos.
-      </p>
-
-      <button
-        style={
-          backFromToolButton
-        }
-        onClick={
-          onBack
-        }
-      >
-        ← Volver
-      </button>
-    </div>
-  );
-}
 
 // ==================================================
 // RUTA EMPLEADOS RH
@@ -963,6 +968,27 @@ const MainApp = () => {
             />
           )}
 
+        {/* =================================================
+        ADMINISTRACIÓN COMERCIAL MASTER
+        ================================================= */}
+
+        {view ===
+        "adminComercial" &&
+        user?.role === 1 &&
+        user?.tipo_admin ===
+        "master" && (
+
+        <AdminComercial
+        key="adminComercial"
+         onBack={() =>
+        setView(
+        "dashboard"
+        )
+      }
+      />
+
+    )}
+
           {/* =================================================
               PRUEBAS
           ================================================= */}
@@ -1241,7 +1267,6 @@ const MainApp = () => {
 
           {view ===
             "citasRH" && (
-
             <CitasRH
               onBack={() =>
                 setView(
@@ -1348,8 +1373,122 @@ const MainApp = () => {
       <Routes>
 
         {/* =================================================
-            PRUEBAS CLÍNICAS PÚBLICAS
+            MIRRORSOUL - SITIO PÚBLICO
         ================================================= */}
+
+        <Route
+          path="/"
+          element={
+            <InicioMirrorSoul />
+          }
+        />
+
+        <Route
+          path="/planes"
+          element={
+            <PlanesMirrorSoul />
+          }
+        />
+
+        <Route
+          path="/registro-plan"
+          element={
+            <RegistroPlan />
+          }
+        />
+
+        <Route
+          path="/checkout"
+          element={
+            <CheckoutMirrorSoul />
+          }
+        />
+        
+        <Route
+        path="/pago-exitoso"
+        element={<PagoExitoso />}
+        />
+
+        <Route
+          path="/servicios"
+          element={
+            <ServiciosMirrorSoul />
+          }
+        />
+
+        <Route
+          path="/contacto"
+          element={
+            <ContactoMirrorSoul />
+          }
+        />
+
+        {/* =================================================
+            LOGIN DEL SISTEMA
+        ================================================= */}
+
+        <Route
+          path="/login"
+          element={
+            <LoginView
+              onLoginSuccess={
+                u => {
+                  setUser(
+                    u
+                  );
+
+                  setIsAdmin(
+                    u?.role === 1
+                  );
+
+                  setView(
+                    "dashboard"
+                  );
+
+                  window.location.href =
+                    "/sistema";
+                }
+              }
+              onBack={() =>
+                window.location.href =
+                  "/"
+              }
+            />
+          }
+        />
+
+        {/* =================================================
+            SISTEMA / DASHBOARD
+        ================================================= */}
+
+        <Route
+          path="/sistema"
+          element={
+            <LegacyShell />
+          }
+        />
+
+      <Route
+       path="/mi-perfil-profesional"
+       element={
+      <PerfilProfesionalPsicologo />
+      }
+      />
+
+      {/* =================================================
+          CANALIZACIONES RECIBIDAS DEL PSICÓLOGO
+      ================================================= */}
+
+      <Route
+        path="/mis-canalizaciones"
+        element={
+          <MisCanalizacionesPsicologo />
+        }
+      />
+
+    {/* =================================================
+        PRUEBAS CLÍNICAS PÚBLICAS
+    ================================================= */}
         <Route
           path="/prueba/:idHabilitacion"
           element={
@@ -1393,6 +1532,22 @@ const MainApp = () => {
             <ResponderNom035 />
           }
         />
+        
+        {/* =================================================
+            CANALIZACION
+        ================================================= */}
+        
+       <Route
+        path="/empleado/:idEmpleado/canalizacion"
+        element={<CanalizacionEmpleado />}
+        />
+
+       <Route
+       path="/canalizacion/:token"
+       element={
+       <CanalizacionPublica />
+       }
+       />
 
         {/* =================================================
             VIDEOLLAMADAS CLÍNICAS
@@ -1556,6 +1711,15 @@ const MainApp = () => {
               <RegisterUsuarioRH />
             </MainLayout>
           }
+        />
+        
+{/* =================================================
+           TRANSFERENCIA
+  ================================================= */}
+
+        <Route
+       path="/transferencias"
+       element={<Transferencias />}
         />
 
         {/* =================================================
@@ -1816,17 +1980,23 @@ const MainApp = () => {
         />
 
         <Route
-          path="/independiente/registrar-usuario"
+          path="/independiente/registro"
           element={
-            <MainLayout
-              onNavigate={() =>
-                window.history.back()
-              }
-            >
-              <RegisterUsuarioIndependiente />
-            </MainLayout>
+            <RegisterUsuarioIndependiente />
           }
         />
+
+        <Route
+          path="/independiente/checkout"
+          element={
+            <CheckoutIndependiente />
+          }
+        />
+
+       <Route
+      path="/crear-password"
+      element={<CrearPassword />}
+      />
 
         {/* =================================================
             RESTO / SISTEMA LEGACY
@@ -1847,357 +2017,123 @@ const MainApp = () => {
 // ESTILOS
 // ==================================================
 
-const reportesPage = {
-  maxWidth:
-    "1100px",
-  margin:
-    "0 auto",
-  padding:
-    "30px 20px"
-};
-
-const videollamadaPage = {
-  maxWidth:
-    "1100px",
-  margin:
-    "0 auto",
-  padding:
-    "30px 20px"
-};
+const reportesPage = { maxWidth: "1100px", margin: "0 auto", padding: "30px 20px" };
+const videollamadaPage = { maxWidth: "1100px", margin: "0 auto", padding: "30px 20px" };
 
 const placeholderPage = {
-  maxWidth:
-    "850px",
-  margin:
-    "40px auto",
-  padding:
-    "40px",
-  background:
-    "#fff",
-  borderRadius:
-    "18px",
-  boxShadow:
-    "0 8px 24px rgba(40,80,140,.08)",
-  textAlign:
-    "center",
-  fontFamily:
-    "'Segoe UI',Arial,sans-serif",
-  color:
-    "#1A2B4B"
+  maxWidth: "850px", margin: "40px auto", padding: "40px",
+  background: "#fff", borderRadius: "18px",
+  boxShadow: "0 8px 24px rgba(40,80,140,.08)",
+  textAlign: "center", fontFamily: "'Segoe UI',Arial,sans-serif",
+  color: "#1A2B4B"
 };
 
 const backFromToolButton = {
-  marginTop:
-    20,
-  padding:
-    "12px 22px",
-  border:
-    "none",
-  borderRadius:
-    10,
-  background:
-    "linear-gradient(135deg,#64B5F6,#1976D2)",
-  color:
-    "#fff",
-  fontWeight:
-    700,
-  cursor:
-    "pointer",
-  fontSize:
-    15
+  marginTop: 20, padding: "12px 22px", border: "none",
+  borderRadius: 10, background: "linear-gradient(135deg,#64B5F6,#1976D2)",
+  color: "#fff", fontWeight: 700, cursor: "pointer", fontSize: 15
 };
 
 const buttonPrimary = {
-  padding:
-    "14px 32px",
-  borderRadius:
-    30,
-  background:
-    "linear-gradient(90deg,#64B5F6,#1E88E5)",
-  color:
-    "#fff",
-  border:
-    "none",
-  cursor:
-    "pointer",
-  fontWeight:
-    600,
-  fontSize:
-    18,
-  boxShadow:
-    "0 6px 14px rgba(30,136,229,.4)",
-  transition:
-    "transform .2s ease,box-shadow .2s ease"
+  padding: "14px 32px", borderRadius: 30,
+  background: "linear-gradient(90deg,#64B5F6,#1E88E5)",
+  color: "#fff", border: "none", cursor: "pointer",
+  fontWeight: 600, fontSize: 18,
+  boxShadow: "0 6px 14px rgba(30,136,229,.4)",
+  transition: "transform .2s ease,box-shadow .2s ease"
 };
 
 const landingContainer = {
-  position:
-    "relative",
-  minHeight:
-    "100vh",
-  width:
-    "100%",
-  display:
-    "flex",
-  alignItems:
-    "center",
-  justifyContent:
-    "center",
-  overflow:
-    "hidden",
-  background:
-    "radial-gradient(circle at center,#F8FCFF 0%,#EAF4FF 45%,#DCEEFF 100%)",
-  fontFamily:
-    "'Segoe UI',sans-serif"
+  position: "relative", minHeight: "100vh", width: "100%",
+  display: "flex", alignItems: "center", justifyContent: "center",
+  overflow: "hidden",
+  background: "radial-gradient(circle at center,#F8FCFF 0%,#EAF4FF 45%,#DCEEFF 100%)",
+  fontFamily: "'Segoe UI',sans-serif"
 };
 
 const landingCard = {
-  position:
-    "relative",
-  zIndex:
-    5,
-  width:
-    "min(680px,90%)",
-  textAlign:
-    "center",
-  padding:
-    "40px 35px",
-  borderRadius:
-    30,
-  background:
-    "rgba(255,255,255,.62)",
-  border:
-    "1px solid rgba(255,255,255,.8)",
-  boxShadow:
-    "0 25px 70px rgba(40,100,170,.14)",
-  backdropFilter:
-    "blur(12px)"
+  position: "relative", zIndex: 5, width: "min(680px,90%)",
+  textAlign: "center", padding: "40px 35px", borderRadius: 30,
+  background: "rgba(255,255,255,.62)",
+  border: "1px solid rgba(255,255,255,.8)",
+  boxShadow: "0 25px 70px rgba(40,100,170,.14)",
+  backdropFilter: "blur(12px)"
 };
 
 const landingLogoContainer = {
-  width:
-    300,
-  height:
-    150,
-  margin:
-    "0 auto 18px",
-  display:
-    "flex",
-  alignItems:
-    "center",
-  justifyContent:
-    "center",
-  borderRadius:
-    22,
-  background:
-    "linear-gradient(145deg,rgba(255,255,255,.98),rgba(225,240,255,.90))",
-  boxShadow:
-    "0 15px 40px rgba(55,125,190,.18)",
-  backdropFilter:
-    "blur(8px)",
-  overflow:
-    "hidden"
+  width: 300, height: 150, margin: "0 auto 18px",
+  display: "flex", alignItems: "center", justifyContent: "center",
+  borderRadius: 22,
+  background: "linear-gradient(145deg,rgba(255,255,255,.98),rgba(225,240,255,.90))",
+  boxShadow: "0 15px 40px rgba(55,125,190,.18)",
+  backdropFilter: "blur(8px)", overflow: "hidden"
 };
 
 const landingLogo = {
-  width:
-    280,
-  height:
-    135,
-  objectFit:
-    "contain",
-  display:
-    "block",
-  filter:
-    "drop-shadow(0 8px 15px rgba(40,100,160,.20))"
+  width: 280, height: 135, objectFit: "contain", display: "block",
+  filter: "drop-shadow(0 8px 15px rgba(40,100,160,.20))"
 };
 
 const landingTitle = {
-  margin:
-    "8px 0 0",
-  fontSize:
-    48,
-  fontWeight:
-    800,
-  letterSpacing:
-    "-1.5px",
-  color:
-    "#173B68"
+  margin: "8px 0 0", fontSize: 48, fontWeight: 800,
+  letterSpacing: "-1.5px", color: "#173B68"
 };
 
-const landingTitleAccent = {
-  color:
-    "#4A90E2"
-};
+const landingTitleAccent = { color: "#4A90E2" };
 
 const landingSlogan = {
-  margin:
-    "18px 0 0",
-  fontSize:
-    28,
-  lineHeight:
-    1.3,
-  fontWeight:
-    700,
-  color:
-    "#263B5A"
+  margin: "18px 0 0", fontSize: 28, lineHeight: 1.3,
+  fontWeight: 700, color: "#263B5A"
 };
 
 const landingDescription = {
-  maxWidth:
-    560,
-  margin:
-    "18px auto 0",
-  fontSize:
-    16,
-  lineHeight:
-    1.7,
-  color:
-    "#526579"
+  maxWidth: 560, margin: "18px auto 0", fontSize: 16,
+  lineHeight: 1.7, color: "#526579"
 };
 
 const landingButton = {
-  marginTop:
-    30,
-  padding:
-    "14px 26px",
-  display:
-    "inline-flex",
-  alignItems:
-    "center",
-  justifyContent:
-    "center",
-  gap:
-    12,
-  border:
-    "none",
-  borderRadius:
-    30,
-  background:
-    "linear-gradient(135deg,#64B5F6,#1976D2)",
-  color:
-    "#fff",
-  fontSize:
-    16,
-  fontWeight:
-    700,
-  cursor:
-    "pointer",
-  boxShadow:
-    "0 8px 22px rgba(30,136,229,.30)",
-  transition:
-    "all .25s ease"
+  marginTop: 30, padding: "14px 26px", display: "inline-flex",
+  alignItems: "center", justifyContent: "center", gap: 12,
+  border: "none", borderRadius: 30,
+  background: "linear-gradient(135deg,#64B5F6,#1976D2)",
+  color: "#fff", fontSize: 16, fontWeight: 700, cursor: "pointer",
+  boxShadow: "0 8px 22px rgba(30,136,229,.30)",
+  transition: "all .25s ease"
 };
 
 const landingFooter = {
-  marginTop:
-    28,
-  display:
-    "flex",
-  justifyContent:
-    "center",
-  alignItems:
-    "center",
-  gap:
-    10,
-  fontSize:
-    12,
-  color:
-    "#78909C",
-  letterSpacing:
-    ".3px"
+  marginTop: 28, display: "flex", justifyContent: "center",
+  alignItems: "center", gap: 10, fontSize: 12,
+  color: "#78909C", letterSpacing: ".3px"
 };
 
 const emotion = {
-  position:
-    "absolute",
-  zIndex:
-    2,
-  width:
-    65,
-  height:
-    65,
-  display:
-    "flex",
-  alignItems:
-    "center",
-  justifyContent:
-    "center",
-  borderRadius:
-    "50%",
-  background:
-    "rgba(255,255,255,.65)",
-  border:
-    "1px solid rgba(255,255,255,.9)",
-  boxShadow:
-    "0 12px 30px rgba(60,120,180,.12)",
-  backdropFilter:
-    "blur(8px)",
-  fontSize:
-    32
+  position: "absolute", zIndex: 2, width: 65, height: 65,
+  display: "flex", alignItems: "center", justifyContent: "center",
+  borderRadius: "50%", background: "rgba(255,255,255,.65)",
+  border: "1px solid rgba(255,255,255,.9)",
+  boxShadow: "0 12px 30px rgba(60,120,180,.12)",
+  backdropFilter: "blur(8px)", fontSize: 32
 };
 
 const emotionSmall = {
-  position:
-    "absolute",
-  zIndex:
-    1,
-  width:
-    48,
-  height:
-    48,
-  display:
-    "flex",
-  alignItems:
-    "center",
-  justifyContent:
-    "center",
-  borderRadius:
-    "50%",
-  background:
-    "rgba(255,255,255,.45)",
-  boxShadow:
-    "0 8px 20px rgba(60,120,180,.10)",
-  fontSize:
-    24
+  position: "absolute", zIndex: 1, width: 48, height: 48,
+  display: "flex", alignItems: "center", justifyContent: "center",
+  borderRadius: "50%", background: "rgba(255,255,255,.45)",
+  boxShadow: "0 8px 20px rgba(60,120,180,.10)",
+  fontSize: 24
 };
 
 const glowOne = {
-  position:
-    "absolute",
-  width:
-    400,
-  height:
-    400,
-  borderRadius:
-    "50%",
-  background:
-    "rgba(100,181,246,.16)",
-  filter:
-    "blur(70px)",
-  top:
-    -180,
-  left:
-    -120
+  position: "absolute", width: 400, height: 400, borderRadius: "50%",
+  background: "rgba(100,181,246,.16)", filter: "blur(70px)",
+  top: -180, left: -120
 };
 
 const glowTwo = {
-  position:
-    "absolute",
-  width:
-    350,
-  height:
-    350,
-  borderRadius:
-    "50%",
-  background:
-    "rgba(129,199,132,.12)",
-  filter:
-    "blur(70px)",
-  bottom:
-    -150,
-  right:
-    -100
+  position: "absolute", width: 350, height: 350, borderRadius: "50%",
+  background: "rgba(129,199,132,.12)", filter: "blur(70px)",
+  bottom: -150, right: -100
 };
 
 export default MainApp;

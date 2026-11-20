@@ -47,7 +47,8 @@ import {
 } from "../controllers/decisionProspectoController.js";
 
 import {
-  verifyToken
+  verifyToken,
+  verificarSuscripcionOrganizacion
 } from "../middlewares/authMiddleware.js";
 
 const router =
@@ -81,6 +82,7 @@ router.post(
 router.post(
   "/",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   registrarProspecto
 );
 
@@ -92,6 +94,7 @@ router.post(
 router.get(
   "/",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   listarProspectos
 );
 
@@ -102,12 +105,14 @@ router.get(
 router.get(
   "/:id/seguimiento",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   listarSeguimientoProspecto
 );
 
 router.post(
   "/:id/seguimiento",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   registrarSeguimientoProspecto
 );
 
@@ -118,18 +123,21 @@ router.post(
 router.get(
   "/:id/entrevistas",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   listarEntrevistasProspecto
 );
 
 router.post(
   "/:id/entrevistas",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   registrarEntrevistaProspecto
 );
 
 router.put(
   "/:id/entrevistas/:idEntrevista",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   actualizarEntrevistaProspecto
 );
 
@@ -140,6 +148,7 @@ router.put(
 router.post(
   "/:id/entrevistas/:idEntrevista/videollamada",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   crearVideollamadaEntrevistaProspecto
 );
 
@@ -150,24 +159,28 @@ router.post(
 router.get(
   "/:id/pruebas/disponibles",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   listarPruebasDisponiblesProspecto
 );
 
 router.post(
   "/:id/pruebas/habilitar",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   habilitarPruebaProspecto
 );
 
 router.get(
   "/:id/pruebas/resultados",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   obtenerResultadosPruebasProspecto
 );
 
 router.get(
   "/:id/pruebas",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   listarPruebasProspecto
 );
 
@@ -178,24 +191,28 @@ router.get(
 router.get(
   "/:id/observaciones",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   listarObservacionesProspecto
 );
 
 router.post(
   "/:id/observaciones",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   registrarObservacionProspecto
 );
 
 router.put(
   "/:id/observaciones/:idObservacion",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   actualizarObservacionProspecto
 );
 
 router.delete(
   "/:id/observaciones/:idObservacion",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   eliminarObservacionProspecto
 );
 
@@ -206,18 +223,21 @@ router.delete(
 router.post(
   "/:id/reporte-ia",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   generarReporteIAProspecto
 );
 
 router.get(
   "/:id/reportes-ia",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   listarReportesIAProspecto
 );
 
 router.get(
   "/:id/reportes-ia/:idReporte",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   obtenerReporteIAProspecto
 );
 
@@ -228,12 +248,14 @@ router.get(
 router.get(
   "/:id/decision",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   obtenerDecisionProspecto
 );
 
 router.post(
   "/:id/decision",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   registrarDecisionProspecto
 );
 
@@ -245,6 +267,7 @@ router.post(
 router.get(
   "/:id",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   obtenerProspecto
 );
 

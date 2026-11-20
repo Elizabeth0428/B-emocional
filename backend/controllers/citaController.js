@@ -29,70 +29,193 @@ const ESTADOS = [
   "cancelada"
 ];
 
+
 /* ==================================================
-   LISTAR EVENTOS / CITAS DEL PSICÓLOGO
+   AUXILIAR: NORMALIZAR TEXTO
+================================================== */
+
+function normalizar(valor) {
+  return valor
+    ? String(valor).trim().toLowerCase()
+    : "";
+}
+
+
+/* ==================================================
+   AUXILIAR: OBTENER ID DEL PERFIL CLÍNICO
+
+   PERMITE:
+   - Psicólogo normal
+   - Independiente con perfil_independiente = clinica
+
+   IMPORTANTE:
+   El Independiente conserva:
+   rol = independiente
+   area = independiente
+
+   Solo reutiliza su registro en la tabla psicologos.
+================================================== */
+
+async function obtenerIdPsicologoSesion(req) {
+
+  if (!req.user) {
+    return null;
+  }
+
+  const rol =
+    normalizar(req.user?.rol);
+
+  const perfilIndependiente =
+    normalizar(
+      req.user?.perfil_independiente
+    );
+
+  const esPsicologo =
+    rol === "psicologo";
+
+  const esIndependienteClinica =
+    rol === "independiente" &&
+    perfilIndependiente === "clinica";
+
+  if (
+    !esPsicologo &&
+    !esIndependienteClinica
+  ) {
+    return null;
+  }
+
+  const idPsicologoToken =
+    Number(req.user?.id_psicologo);
+
+  if (
+    Number.isInteger(idPsicologoToken) &&
+    idPsicologoToken > 0
+  ) {
+    return idPsicologoToken;
+  }
+
+  const idUsuario =
+    Number(req.user?.id_usuario);
+
+  if (
+    !Number.isInteger(idUsuario) ||
+    idUsuario <= 0
+  ) {
+    return null;
+  }
+
+  const [rows] =
+    await pool.query(
+      `
+        SELECT
+          id_psicologo
+
+        FROM psicologos
+
+        WHERE id_usuario = ?
+
+        LIMIT 1
+      `,
+      [idUsuario]
+    );
+
+  if (!rows.length) {
+    return null;
+  }
+
+  return Number(
+    rows[0].id_psicologo
+  ) || null;
+}
+
+
+/* ==================================================
+   LISTAR EVENTOS / CITAS
 
    GET /api/citas
 ================================================== */
 
 export async function listarCitas(req, res) {
+
   try {
-    const idPsicologo = req.user?.id_psicologo;
+
+    const idPsicologo =
+      await obtenerIdPsicologoSesion(req);
+
 
     if (!idPsicologo) {
+
       return res.status(401).json({
         success: false,
-        message: "Usuario no autenticado"
+        message:
+          "Tu cuenta no tiene configurado un perfil clínico válido"
       });
+
     }
 
-    const [rows] = await pool.query(
-      `
-      SELECT
-        c.id_cita,
-        c.id_psicologo,
-        c.id_paciente,
-        c.tipo_evento,
-        c.titulo,
-        c.fecha,
-        c.hora,
-        c.modalidad,
-        c.motivo,
-        c.notas,
-        c.estado,
 
-        p.nombre AS paciente_nombre,
-        p.correo AS paciente_correo,
-        p.telefono AS paciente_telefono
+    const [rows] =
+      await pool.query(
+        `
+          SELECT
+            c.id_cita,
+            c.id_psicologo,
+            c.id_paciente,
+            c.tipo_evento,
+            c.titulo,
+            c.fecha,
+            c.hora,
+            c.modalidad,
+            c.motivo,
+            c.notas,
+            c.estado,
 
-      FROM citas c
+            p.nombre AS paciente_nombre,
+            p.correo AS paciente_correo,
+            p.telefono AS paciente_telefono
 
-      LEFT JOIN pacientes p
-        ON p.id_paciente = c.id_paciente
+          FROM citas c
 
-      WHERE c.id_psicologo = ?
+          LEFT JOIN pacientes p
+            ON p.id_paciente =
+               c.id_paciente
 
-      ORDER BY
-        c.fecha ASC,
-        c.hora ASC
-      `,
-      [idPsicologo]
+          WHERE
+            c.id_psicologo = ?
+
+          ORDER BY
+            c.fecha ASC,
+            c.hora ASC
+        `,
+        [
+          idPsicologo
+        ]
+      );
+
+
+    return res.json(
+      rows || []
     );
 
-    return res.json(rows || []);
 
   } catch (error) {
+
     console.error(
       "❌ Error al listar citas/eventos:",
       error
     );
 
+
     return res.status(500).json({
       success: false,
-      message: "Error al obtener la agenda"
+      message:
+        "Error al obtener la agenda"
     });
+
   }
+
 }
+
 
 /* ==================================================
    CREAR EVENTO / CITA
@@ -101,15 +224,23 @@ export async function listarCitas(req, res) {
 ================================================== */
 
 export async function crearCita(req, res) {
+
   try {
-    const idPsicologo = req.user?.id_psicologo;
+
+    const idPsicologo =
+      await obtenerIdPsicologoSesion(req);
+
 
     if (!idPsicologo) {
+
       return res.status(401).json({
         success: false,
-        message: "Usuario no autenticado"
+        message:
+          "Tu cuenta no tiene configurado un perfil clínico válido"
       });
+
     }
+
 
     let {
       id_paciente,
@@ -122,29 +253,42 @@ export async function crearCita(req, res) {
       notas
     } = req.body;
 
+
     /* ==================================================
        NORMALIZAR DATOS
     ================================================== */
 
     tipo_evento =
-      tipo_evento?.trim()?.toLowerCase() ||
+      tipo_evento
+        ?.trim()
+        ?.toLowerCase() ||
       "consulta";
 
+
     titulo =
-      titulo?.trim() ||
+      titulo
+        ?.trim() ||
       null;
+
 
     modalidad =
-      modalidad?.trim()?.toLowerCase() ||
+      modalidad
+        ?.trim()
+        ?.toLowerCase() ||
       null;
+
 
     motivo =
-      motivo?.trim() ||
+      motivo
+        ?.trim() ||
       null;
 
+
     notas =
-      notas?.trim() ||
+      notas
+        ?.trim() ||
       null;
+
 
     id_paciente =
       id_paciente !== undefined &&
@@ -153,256 +297,349 @@ export async function crearCita(req, res) {
         ? Number(id_paciente)
         : null;
 
+
     /* ==================================================
        VALIDACIONES GENERALES
     ================================================== */
 
-    if (!TIPOS_EVENTO.includes(tipo_evento)) {
+    if (
+      !TIPOS_EVENTO.includes(
+        tipo_evento
+      )
+    ) {
+
       return res.status(400).json({
         success: false,
-        message: "Tipo de evento no válido"
+        message:
+          "Tipo de evento no válido"
       });
+
     }
+
 
     if (!fecha) {
+
       return res.status(400).json({
         success: false,
-        message: "La fecha es obligatoria"
+        message:
+          "La fecha es obligatoria"
       });
+
     }
 
+
     if (!hora) {
+
       return res.status(400).json({
         success: false,
-        message: "La hora es obligatoria"
+        message:
+          "La hora es obligatoria"
       });
+
     }
+
 
     if (
       modalidad &&
-      !MODALIDADES.includes(modalidad)
+      !MODALIDADES.includes(
+        modalidad
+      )
     ) {
+
       return res.status(400).json({
         success: false,
-        message: "Modalidad no válida"
+        message:
+          "Modalidad no válida"
       });
+
     }
+
 
     /* ==================================================
        CONSULTA CON PACIENTE
-
-       Una consulta SÍ requiere paciente.
     ================================================== */
 
-    if (tipo_evento === "consulta") {
+    if (
+      tipo_evento ===
+      "consulta"
+    ) {
+
       if (!id_paciente) {
+
         return res.status(400).json({
           success: false,
           message:
             "Debes seleccionar un paciente para una consulta"
         });
+
       }
 
-      const [pacientes] = await pool.query(
-        `
-        SELECT id_paciente
-        FROM pacientes
-        WHERE id_paciente = ?
-        LIMIT 1
-        `,
-        [id_paciente]
-      );
 
-      if (!pacientes.length) {
+      const [pacientes] =
+        await pool.query(
+          `
+            SELECT
+              id_paciente
+
+            FROM pacientes
+
+            WHERE
+              id_paciente = ?
+
+            LIMIT 1
+          `,
+          [
+            id_paciente
+          ]
+        );
+
+
+      if (
+        !pacientes.length
+      ) {
+
         return res.status(404).json({
           success: false,
-          message: "Paciente no encontrado"
+          message:
+            "Paciente no encontrado"
         });
+
       }
 
-      /* ================================================
-         VERIFICAR QUE EL PACIENTE PERTENEZCA
-         AL PSICÓLOGO
 
-         Si tu tabla pacientes tiene id_psicologo,
-         se valida aquí.
-      ================================================= */
+      /* ==================================================
+         VALIDAR QUE EL PACIENTE SEA DEL PROFESIONAL
+      ================================================== */
 
-      try {
-        const [columnas] = await pool.query(
+      const [
+        pacientePropio
+      ] =
+        await pool.query(
           `
-          SHOW COLUMNS
-          FROM pacientes
-          LIKE 'id_psicologo'
-          `
-        );
+            SELECT
+              id_paciente
 
-        if (columnas.length) {
-          const [pacientePropio] = await pool.query(
-            `
-            SELECT id_paciente
             FROM pacientes
-            WHERE id_paciente = ?
-              AND id_psicologo = ?
-            LIMIT 1
-            `,
-            [
-              id_paciente,
-              idPsicologo
-            ]
-          );
 
-          if (!pacientePropio.length) {
-            return res.status(403).json({
-              success: false,
-              message:
-                "No tienes permiso para agendar citas para este paciente"
-            });
-          }
-        }
-      } catch (errorValidacion) {
-        console.warn(
-          "⚠️ No se pudo validar propietario del paciente:",
-          errorValidacion.message
+            WHERE
+              id_paciente = ?
+
+              AND id_psicologo = ?
+
+            LIMIT 1
+          `,
+          [
+            id_paciente,
+            idPsicologo
+          ]
         );
+
+
+      if (
+        !pacientePropio.length
+      ) {
+
+        return res.status(403).json({
+          success: false,
+          message:
+            "No tienes permiso para agendar citas para este paciente"
+        });
+
       }
+
     }
+
 
     /* ==================================================
        EVENTOS SIN PACIENTE
-
-       Reunión, supervisión, capacitación, etc.
     ================================================== */
 
-    if (tipo_evento !== "consulta") {
-      id_paciente = null;
+    if (
+      tipo_evento !==
+      "consulta"
+    ) {
+
+      id_paciente =
+        null;
+
 
       if (!titulo) {
+
         return res.status(400).json({
           success: false,
           message:
             "El título es obligatorio para este tipo de evento"
         });
+
       }
+
     }
+
 
     /* ==================================================
        VERIFICAR HORARIO OCUPADO
-
-       Un psicólogo no puede tener dos eventos
-       activos exactamente a la misma fecha y hora.
-
-       Los cancelados NO bloquean el horario.
     ================================================== */
 
-    const [ocupadas] = await pool.query(
-      `
-      SELECT
-        id_cita,
-        tipo_evento,
-        titulo,
-        id_paciente,
-        estado
+    const [
+      ocupadas
+    ] =
+      await pool.query(
+        `
+          SELECT
+            id_cita,
+            tipo_evento,
+            titulo,
+            id_paciente,
+            estado
 
-      FROM citas
+          FROM citas
 
-      WHERE id_psicologo = ?
-        AND fecha = ?
-        AND hora = ?
-        AND estado <> 'cancelada'
+          WHERE
+            id_psicologo = ?
 
-      LIMIT 1
-      `,
-      [
-        idPsicologo,
-        fecha,
-        hora
-      ]
-    );
+            AND fecha = ?
 
-    if (ocupadas.length) {
+            AND hora = ?
+
+            AND estado <> 'cancelada'
+
+          LIMIT 1
+        `,
+        [
+          idPsicologo,
+          fecha,
+          hora
+        ]
+      );
+
+
+    if (
+      ocupadas.length
+    ) {
+
       return res.status(409).json({
         success: false,
         message:
           "Ya tienes una cita o evento programado en esa fecha y hora"
       });
+
     }
+
 
     /* ==================================================
        CREAR EVENTO
     ================================================== */
 
-    const [result] = await pool.query(
-      `
-      INSERT INTO citas
-      (
-        id_psicologo,
-        id_paciente,
-        tipo_evento,
-        titulo,
-        fecha,
-        hora,
-        modalidad,
-        motivo,
-        notas,
-        estado
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'apartada')
-      `,
-      [
-        idPsicologo,
-        id_paciente,
-        tipo_evento,
-        titulo,
-        fecha,
-        hora,
-        modalidad,
-        motivo,
-        notas
-      ]
-    );
+    const [result] =
+      await pool.query(
+        `
+          INSERT INTO citas
+          (
+            id_psicologo,
+            id_paciente,
+            tipo_evento,
+            titulo,
+            fecha,
+            hora,
+            modalidad,
+            motivo,
+            notas,
+            estado
+          )
 
-    /* ==================================================
-       RESPUESTA
-    ================================================== */
+          VALUES
+          (
+            ?,
+            ?,
+            ?,
+            ?,
+            ?,
+            ?,
+            ?,
+            ?,
+            ?,
+            'apartada'
+          )
+        `,
+        [
+          idPsicologo,
+          id_paciente,
+          tipo_evento,
+          titulo,
+          fecha,
+          hora,
+          modalidad,
+          motivo,
+          notas
+        ]
+      );
 
-    return res.status(201).json({
-      success: true,
 
-      message:
-        tipo_evento === "consulta"
-          ? "✅ Cita agendada correctamente"
-          : "✅ Evento agendado correctamente",
+    return res
+      .status(201)
+      .json({
 
-      id_cita: result.insertId,
+        success: true,
 
-      evento: {
-        id_cita: result.insertId,
-        id_psicologo: idPsicologo,
-        id_paciente,
-        tipo_evento,
-        titulo,
-        fecha,
-        hora,
-        modalidad,
-        motivo,
-        notas,
-        estado: "apartada"
-      }
-    });
+        message:
+          tipo_evento ===
+          "consulta"
+            ? "✅ Cita agendada correctamente"
+            : "✅ Evento agendado correctamente",
+
+        id_cita:
+          result.insertId,
+
+        evento: {
+
+          id_cita:
+            result.insertId,
+
+          id_psicologo:
+            idPsicologo,
+
+          id_paciente,
+
+          tipo_evento,
+
+          titulo,
+
+          fecha,
+
+          hora,
+
+          modalidad,
+
+          motivo,
+
+          notas,
+
+          estado:
+            "apartada"
+
+        }
+
+      });
+
 
   } catch (error) {
+
     console.error(
       "❌ Error al crear cita/evento:",
       error
     );
 
+
     return res.status(500).json({
       success: false,
-      message: "Error al guardar el evento"
+      message:
+        "Error al guardar el evento"
     });
+
   }
+
 }
+
 
 /* ==================================================
    ACTUALIZAR CITA / EVENTO
@@ -410,230 +647,419 @@ export async function crearCita(req, res) {
    PUT /api/citas/:id
 ================================================== */
 
-export async function actualizarCita(req, res) {
+export async function actualizarCita(
+  req,
+  res
+) {
+
   try {
-    const idPsicologo = req.user?.id_psicologo;
-    const { id } = req.params;
+
+    const idPsicologo =
+      await obtenerIdPsicologoSesion(req);
+
+
+    const {
+      id
+    } = req.params;
+
 
     if (!idPsicologo) {
+
       return res.status(401).json({
         success: false,
-        message: "Usuario no autenticado"
+        message:
+          "Tu cuenta no tiene configurado un perfil clínico válido"
       });
+
     }
+
 
     /* ==================================================
        BUSCAR EVENTO ACTUAL
     ================================================== */
 
-    const [actuales] = await pool.query(
-      `
-      SELECT *
-      FROM citas
-      WHERE id_cita = ?
-        AND id_psicologo = ?
-      LIMIT 1
-      `,
-      [
-        id,
-        idPsicologo
-      ]
-    );
+    const [
+      actuales
+    ] =
+      await pool.query(
+        `
+          SELECT *
 
-    if (!actuales.length) {
+          FROM citas
+
+          WHERE
+            id_cita = ?
+
+            AND id_psicologo = ?
+
+          LIMIT 1
+        `,
+        [
+          id,
+          idPsicologo
+        ]
+      );
+
+
+    if (
+      !actuales.length
+    ) {
+
       return res.status(404).json({
         success: false,
-        message: "Cita o evento no encontrado"
+        message:
+          "Cita o evento no encontrado"
       });
+
     }
 
-    const actual = actuales[0];
+
+    const actual =
+      actuales[0];
+
 
     /* ==================================================
        COMBINAR DATOS ACTUALES + NUEVOS
     ================================================== */
 
     let tipo_evento =
-      req.body.tipo_evento !== undefined
-        ? String(req.body.tipo_evento)
+      req.body.tipo_evento !==
+      undefined
+        ? String(
+            req.body.tipo_evento
+          )
             .trim()
             .toLowerCase()
         : actual.tipo_evento;
 
+
     let id_paciente =
-      req.body.id_paciente !== undefined
+      req.body.id_paciente !==
+      undefined
         ? (
-            req.body.id_paciente === "" ||
-            req.body.id_paciente === null
+            req.body.id_paciente ===
+              "" ||
+            req.body.id_paciente ===
+              null
               ? null
-              : Number(req.body.id_paciente)
+              : Number(
+                  req.body
+                    .id_paciente
+                )
           )
         : actual.id_paciente;
 
+
     let titulo =
-      req.body.titulo !== undefined
+      req.body.titulo !==
+      undefined
         ? (
-            String(req.body.titulo || "")
-              .trim() || null
+            String(
+              req.body.titulo ||
+              ""
+            )
+              .trim() ||
+            null
           )
         : actual.titulo;
 
+
     const fecha =
-      req.body.fecha !== undefined
+      req.body.fecha !==
+      undefined
         ? req.body.fecha
         : actual.fecha;
 
+
     const hora =
-      req.body.hora !== undefined
+      req.body.hora !==
+      undefined
         ? req.body.hora
         : actual.hora;
 
+
     let modalidad =
-      req.body.modalidad !== undefined
+      req.body.modalidad !==
+      undefined
         ? (
-            String(req.body.modalidad || "")
+            String(
+              req.body.modalidad ||
+              ""
+            )
               .trim()
-              .toLowerCase() || null
+              .toLowerCase() ||
+            null
           )
         : actual.modalidad;
 
+
     const motivo =
-      req.body.motivo !== undefined
+      req.body.motivo !==
+      undefined
         ? (
-            String(req.body.motivo || "")
-              .trim() || null
+            String(
+              req.body.motivo ||
+              ""
+            )
+              .trim() ||
+            null
           )
         : actual.motivo;
 
+
     const notas =
-      req.body.notas !== undefined
+      req.body.notas !==
+      undefined
         ? (
-            String(req.body.notas || "")
-              .trim() || null
+            String(
+              req.body.notas ||
+              ""
+            )
+              .trim() ||
+            null
           )
         : actual.notas;
 
+
     const estado =
-      req.body.estado !== undefined
-        ? String(req.body.estado)
+      req.body.estado !==
+      undefined
+        ? String(
+            req.body.estado
+          )
             .trim()
             .toLowerCase()
         : actual.estado;
+
 
     /* ==================================================
        VALIDACIONES
     ================================================== */
 
-    if (!TIPOS_EVENTO.includes(tipo_evento)) {
+    if (
+      !TIPOS_EVENTO.includes(
+        tipo_evento
+      )
+    ) {
+
       return res.status(400).json({
         success: false,
-        message: "Tipo de evento no válido"
+        message:
+          "Tipo de evento no válido"
       });
+
     }
 
-    if (!fecha || !hora) {
+
+    if (
+      !fecha ||
+      !hora
+    ) {
+
       return res.status(400).json({
         success: false,
         message:
           "La fecha y la hora son obligatorias"
       });
+
     }
+
 
     if (
       modalidad &&
-      !MODALIDADES.includes(modalidad)
+      !MODALIDADES.includes(
+        modalidad
+      )
     ) {
+
       return res.status(400).json({
         success: false,
-        message: "Modalidad no válida"
+        message:
+          "Modalidad no válida"
       });
+
     }
 
-    if (!ESTADOS.includes(estado)) {
+
+    if (
+      !ESTADOS.includes(
+        estado
+      )
+    ) {
+
       return res.status(400).json({
         success: false,
-        message: "Estado no válido"
+        message:
+          "Estado no válido"
       });
+
     }
+
 
     /* ==================================================
        VALIDAR CONSULTA
     ================================================== */
 
-    if (tipo_evento === "consulta") {
+    if (
+      tipo_evento ===
+      "consulta"
+    ) {
+
       if (!id_paciente) {
+
         return res.status(400).json({
           success: false,
           message:
             "Debes seleccionar un paciente para una consulta"
         });
+
       }
 
-      const [pacientes] = await pool.query(
-        `
-        SELECT id_paciente
-        FROM pacientes
-        WHERE id_paciente = ?
-        LIMIT 1
-        `,
-        [id_paciente]
-      );
 
-      if (!pacientes.length) {
+      const [
+        pacientes
+      ] =
+        await pool.query(
+          `
+            SELECT
+              id_paciente
+
+            FROM pacientes
+
+            WHERE
+              id_paciente = ?
+
+            LIMIT 1
+          `,
+          [
+            id_paciente
+          ]
+        );
+
+
+      if (
+        !pacientes.length
+      ) {
+
         return res.status(404).json({
           success: false,
-          message: "Paciente no encontrado"
+          message:
+            "Paciente no encontrado"
         });
+
       }
+
+
+      const [
+        pacientePropio
+      ] =
+        await pool.query(
+          `
+            SELECT
+              id_paciente
+
+            FROM pacientes
+
+            WHERE
+              id_paciente = ?
+
+              AND id_psicologo = ?
+
+            LIMIT 1
+          `,
+          [
+            id_paciente,
+            idPsicologo
+          ]
+        );
+
+
+      if (
+        !pacientePropio.length
+      ) {
+
+        return res.status(403).json({
+          success: false,
+          message:
+            "No tienes permiso para utilizar este paciente"
+        });
+
+      }
+
     } else {
-      id_paciente = null;
+
+      id_paciente =
+        null;
+
 
       if (!titulo) {
+
         return res.status(400).json({
           success: false,
           message:
             "El título es obligatorio para este tipo de evento"
         });
+
       }
+
     }
+
 
     /* ==================================================
        VALIDAR HORARIO
-
-       Ignorar el propio evento que estamos editando.
     ================================================== */
 
-    if (estado !== "cancelada") {
-      const [ocupadas] = await pool.query(
-        `
-        SELECT id_cita
+    if (
+      estado !==
+      "cancelada"
+    ) {
 
-        FROM citas
+      const [
+        ocupadas
+      ] =
+        await pool.query(
+          `
+            SELECT
+              id_cita
 
-        WHERE id_psicologo = ?
-          AND fecha = ?
-          AND hora = ?
-          AND estado <> 'cancelada'
-          AND id_cita <> ?
+            FROM citas
 
-        LIMIT 1
-        `,
-        [
-          idPsicologo,
-          fecha,
-          hora,
-          id
-        ]
-      );
+            WHERE
+              id_psicologo = ?
 
-      if (ocupadas.length) {
+              AND fecha = ?
+
+              AND hora = ?
+
+              AND estado <> 'cancelada'
+
+              AND id_cita <> ?
+
+            LIMIT 1
+          `,
+          [
+            idPsicologo,
+            fecha,
+            hora,
+            id
+          ]
+        );
+
+
+      if (
+        ocupadas.length
+      ) {
+
         return res.status(409).json({
           success: false,
           message:
             "Ya tienes otra cita o evento programado en esa fecha y hora"
         });
+
       }
+
     }
+
 
     /* ==================================================
        ACTUALIZAR
@@ -641,21 +1067,23 @@ export async function actualizarCita(req, res) {
 
     await pool.query(
       `
-      UPDATE citas
+        UPDATE citas
 
-      SET
-        id_paciente = ?,
-        tipo_evento = ?,
-        titulo = ?,
-        fecha = ?,
-        hora = ?,
-        modalidad = ?,
-        motivo = ?,
-        notas = ?,
-        estado = ?
+        SET
+          id_paciente = ?,
+          tipo_evento = ?,
+          titulo = ?,
+          fecha = ?,
+          hora = ?,
+          modalidad = ?,
+          motivo = ?,
+          notas = ?,
+          estado = ?
 
-      WHERE id_cita = ?
-        AND id_psicologo = ?
+        WHERE
+          id_cita = ?
+
+          AND id_psicologo = ?
       `,
       [
         id_paciente,
@@ -672,25 +1100,32 @@ export async function actualizarCita(req, res) {
       ]
     );
 
+
     return res.json({
       success: true,
       message:
         "✅ Cita o evento actualizado correctamente"
     });
 
+
   } catch (error) {
+
     console.error(
       "❌ Error al actualizar cita/evento:",
       error
     );
+
 
     return res.status(500).json({
       success: false,
       message:
         "Error al actualizar la cita o evento"
     });
+
   }
+
 }
+
 
 /* ==================================================
    CAMBIAR ESTADO
@@ -698,69 +1133,123 @@ export async function actualizarCita(req, res) {
    PATCH /api/citas/:id/estado
 ================================================== */
 
-export async function cambiarEstadoCita(req, res) {
+export async function cambiarEstadoCita(
+  req,
+  res
+) {
+
   try {
-    const idPsicologo = req.user?.id_psicologo;
-    const { id } = req.params;
+
+    const idPsicologo =
+      await obtenerIdPsicologoSesion(req);
+
+
+    const {
+      id
+    } = req.params;
+
 
     const estado =
-      String(req.body.estado || "")
+      String(
+        req.body.estado ||
+        ""
+      )
         .trim()
         .toLowerCase();
 
+
     if (!idPsicologo) {
+
       return res.status(401).json({
         success: false,
-        message: "Usuario no autenticado"
+        message:
+          "Tu cuenta no tiene configurado un perfil clínico válido"
       });
+
     }
 
-    if (!ESTADOS.includes(estado)) {
+
+    if (
+      !ESTADOS.includes(
+        estado
+      )
+    ) {
+
       return res.status(400).json({
         success: false,
-        message: "Estado no válido"
+        message:
+          "Estado no válido"
       });
+
     }
 
-    const [result] = await pool.query(
-      `
-      UPDATE citas
-      SET estado = ?
-      WHERE id_cita = ?
-        AND id_psicologo = ?
-      `,
-      [
-        estado,
-        id,
-        idPsicologo
-      ]
-    );
 
-    if (!result.affectedRows) {
+    const [
+      result
+    ] =
+      await pool.query(
+        `
+          UPDATE citas
+
+          SET
+            estado = ?
+
+          WHERE
+            id_cita = ?
+
+            AND id_psicologo = ?
+        `,
+        [
+          estado,
+          id,
+          idPsicologo
+        ]
+      );
+
+
+    if (
+      !result.affectedRows
+    ) {
+
       return res.status(404).json({
         success: false,
-        message: "Cita o evento no encontrado"
+        message:
+          "Cita o evento no encontrado"
       });
+
     }
 
+
     return res.json({
+
       success: true,
-      message: "✅ Estado actualizado correctamente",
+
+      message:
+        "✅ Estado actualizado correctamente",
+
       estado
+
     });
 
+
   } catch (error) {
+
     console.error(
       "❌ Error al cambiar estado:",
       error
     );
 
+
     return res.status(500).json({
       success: false,
-      message: "Error al cambiar el estado"
+      message:
+        "Error al cambiar el estado"
     });
+
   }
+
 }
+
 
 /* ==================================================
    ELIMINAR CITA / EVENTO
@@ -768,36 +1257,64 @@ export async function cambiarEstadoCita(req, res) {
    DELETE /api/citas/:id
 ================================================== */
 
-export async function eliminarCita(req, res) {
+export async function eliminarCita(
+  req,
+  res
+) {
+
   try {
-    const idPsicologo = req.user?.id_psicologo;
-    const { id } = req.params;
+
+    const idPsicologo =
+      await obtenerIdPsicologoSesion(req);
+
+
+    const {
+      id
+    } = req.params;
+
 
     if (!idPsicologo) {
+
       return res.status(401).json({
         success: false,
-        message: "Usuario no autenticado"
+        message:
+          "Tu cuenta no tiene configurado un perfil clínico válido"
       });
+
     }
 
-    const [result] = await pool.query(
-      `
-      DELETE FROM citas
-      WHERE id_cita = ?
-        AND id_psicologo = ?
-      `,
-      [
-        id,
-        idPsicologo
-      ]
-    );
 
-    if (!result.affectedRows) {
+    const [
+      result
+    ] =
+      await pool.query(
+        `
+          DELETE FROM citas
+
+          WHERE
+            id_cita = ?
+
+            AND id_psicologo = ?
+        `,
+        [
+          id,
+          idPsicologo
+        ]
+      );
+
+
+    if (
+      !result.affectedRows
+    ) {
+
       return res.status(404).json({
         success: false,
-        message: "Cita o evento no encontrado"
+        message:
+          "Cita o evento no encontrado"
       });
+
     }
+
 
     return res.json({
       success: true,
@@ -805,37 +1322,41 @@ export async function eliminarCita(req, res) {
         "✅ Cita o evento eliminado correctamente"
     });
 
+
   } catch (error) {
+
     console.error(
       "❌ Error al eliminar cita/evento:",
       error
     );
 
-    /*
-      Si una cita ya está relacionada con una sesión,
-      una FK podría impedir eliminarla.
-
-      En ese caso es preferible cancelarla.
-    */
 
     if (
-      error.code === "ER_ROW_IS_REFERENCED_2" ||
-      error.errno === 1451
+      error.code ===
+        "ER_ROW_IS_REFERENCED_2" ||
+      error.errno ===
+        1451
     ) {
+
       return res.status(409).json({
         success: false,
         message:
           "Este registro ya está relacionado con información clínica. Cancélalo en lugar de eliminarlo."
       });
+
     }
+
 
     return res.status(500).json({
       success: false,
       message:
         "Error al eliminar la cita o evento"
     });
+
   }
+
 }
+
 
 /* ==================================================
    OBTENER UNA CITA / EVENTO
@@ -843,72 +1364,107 @@ export async function eliminarCita(req, res) {
    GET /api/citas/:id
 ================================================== */
 
-export async function obtenerCita(req, res) {
+export async function obtenerCita(
+  req,
+  res
+) {
+
   try {
-    const idPsicologo = req.user?.id_psicologo;
-    const { id } = req.params;
+
+    const idPsicologo =
+      await obtenerIdPsicologoSesion(req);
+
+
+    const {
+      id
+    } = req.params;
+
 
     if (!idPsicologo) {
+
       return res.status(401).json({
         success: false,
-        message: "Usuario no autenticado"
+        message:
+          "Tu cuenta no tiene configurado un perfil clínico válido"
       });
+
     }
 
-    const [rows] = await pool.query(
-      `
-      SELECT
-        c.id_cita,
-        c.id_psicologo,
-        c.id_paciente,
-        c.tipo_evento,
-        c.titulo,
-        c.fecha,
-        c.hora,
-        c.modalidad,
-        c.motivo,
-        c.notas,
-        c.estado,
 
-        p.nombre AS paciente_nombre,
-        p.correo AS paciente_correo,
-        p.telefono AS paciente_telefono
+    const [
+      rows
+    ] =
+      await pool.query(
+        `
+          SELECT
+            c.id_cita,
+            c.id_psicologo,
+            c.id_paciente,
+            c.tipo_evento,
+            c.titulo,
+            c.fecha,
+            c.hora,
+            c.modalidad,
+            c.motivo,
+            c.notas,
+            c.estado,
 
-      FROM citas c
+            p.nombre AS paciente_nombre,
+            p.correo AS paciente_correo,
+            p.telefono AS paciente_telefono
 
-      LEFT JOIN pacientes p
-        ON p.id_paciente = c.id_paciente
+          FROM citas c
 
-      WHERE c.id_cita = ?
-        AND c.id_psicologo = ?
+          LEFT JOIN pacientes p
+            ON p.id_paciente =
+               c.id_paciente
 
-      LIMIT 1
-      `,
-      [
-        id,
-        idPsicologo
-      ]
-    );
+          WHERE
+            c.id_cita = ?
 
-    if (!rows.length) {
+            AND c.id_psicologo = ?
+
+          LIMIT 1
+        `,
+        [
+          id,
+          idPsicologo
+        ]
+      );
+
+
+    if (
+      !rows.length
+    ) {
+
       return res.status(404).json({
         success: false,
-        message: "Cita o evento no encontrado"
+        message:
+          "Cita o evento no encontrado"
       });
+
     }
 
-    return res.json(rows[0]);
+
+    return res.json(
+      rows[0]
+    );
+
 
   } catch (error) {
+
     console.error(
       "❌ Error al obtener cita/evento:",
       error
     );
+
 
     return res.status(500).json({
       success: false,
       message:
         "Error al obtener la cita o evento"
     });
+
   }
+
 }

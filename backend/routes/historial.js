@@ -8,7 +8,9 @@ import {
   actualizarHistorialInicial
 } from "../controllers/historialController.js";
 
-import { verifyToken } from "../middlewares/authMiddleware.js";
+import { verifyToken,
+  verificarSuscripcionOrganizacion
+} from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
 
@@ -20,6 +22,7 @@ const router = express.Router();
 router.get(
   "/:id_paciente",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   obtenerHistorialInicial
 );
 
@@ -31,6 +34,7 @@ router.get(
 router.post(
   "/",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   crearHistorialInicial
 );
 
@@ -42,6 +46,7 @@ router.post(
 router.put(
   "/:id_paciente",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   actualizarHistorialInicial
 );
 

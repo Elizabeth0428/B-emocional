@@ -1,0 +1,573 @@
+
+/* ============================================================
+   MIRRORSOUL - NAVBAR PÚBLICA
+   MODO CLARO Y OSCURO
+   ============================================================ */
+
+/* ============================================================
+   1. VARIABLES - MODO CLARO
+   ============================================================ */
+
+:root,
+:root[data-ms-theme="claro"] {
+  --ms-nav-bg: rgba(255, 255, 255, 0.96);
+  --ms-nav-text: #172b4d;
+  --ms-nav-border: rgba(37, 99, 235, 0.12);
+  --ms-nav-hover: #eaf2ff;
+  --ms-nav-button: #ffffff;
+  --ms-nav-shadow:
+    0 6px 28px rgba(20, 50, 100, 0.08);
+
+  --ms-public-bg: #f5f9ff;
+  --ms-public-surface: #ffffff;
+  --ms-public-text: #14233e;
+  --ms-public-muted: #526783;
+  --ms-public-border: #dbe7fa;
+  --ms-public-soft: #eaf3ff;
+  --ms-public-accent: #2563eb;
+}
+
+/* ============================================================
+   2. VARIABLES - MODO OSCURO
+   ============================================================ */
+
+:root[data-ms-theme="oscuro"] {
+  --ms-nav-bg: rgba(7, 17, 31, 0.96);
+  --ms-nav-text: #f5f8ff;
+  --ms-nav-border: rgba(255, 255, 255, 0.10);
+  --ms-nav-hover: rgba(255, 255, 255, 0.08);
+  --ms-nav-button: rgba(255, 255, 255, 0.04);
+  --ms-nav-shadow:
+    0 6px 28px rgba(0, 0, 0, 0.18);
+
+  --ms-public-bg: #07111f;
+  --ms-public-surface: #101d31;
+  --ms-public-text: #f5f8ff;
+  --ms-public-muted: #b1c3df;
+  --ms-public-border: rgba(255, 255, 255, 0.12);
+  --ms-public-soft: #172a45;
+  --ms-public-accent: #61cfff;
+}
+
+/* ============================================================
+   3. CABECERA PRINCIPAL
+   ============================================================ */
+
+.ms-public-navbar {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+
+  width: 100%;
+
+  background: var(--ms-nav-bg);
+  color: var(--ms-nav-text);
+
+  border-bottom: 1px solid var(--ms-nav-border);
+  box-shadow: var(--ms-nav-shadow);
+
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+
+  transition:
+    background 0.25s ease,
+    color 0.25s ease,
+    border-color 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+/* ============================================================
+   4. CONTENEDOR DE NAVEGACIÓN
+   ============================================================ */
+
+.ms-navbar-container {
+  max-width: 1480px;
+  min-height: 84px;
+
+  margin: 0 auto;
+  padding: 8px 24px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 18px;
+}
+
+/* ============================================================
+   5. LOGO Y NOMBRE MIRRORSOUL
+   SIN DOBLE FONDO
+   ============================================================ */
+
+.ms-navbar-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  flex-shrink: 0;
+  gap: 10px;
+
+  padding: 0;
+  margin: 0;
+
+  background: transparent;
+  border: none;
+  box-shadow: none;
+
+  cursor: pointer;
+}
+
+.ms-navbar-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  flex-shrink: 0;
+
+  width: 76px;
+  height: 66px;
+
+  min-width: 76px;
+  min-height: 66px;
+
+  padding: 0;
+
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.ms-navbar-logo img {
+  display: block;
+
+  width: 100%;
+  height: 100%;
+
+  max-width: 100%;
+
+  object-fit: contain;
+  object-position: center;
+
+  background: transparent;
+}
+
+/* ============================================================
+   6. TEXTO JUNTO AL LOGO
+   ============================================================ */
+
+.ms-navbar-brand-name {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+
+  gap: 3px;
+
+  white-space: nowrap;
+}
+
+.ms-navbar-brand-name strong {
+  color: var(--ms-nav-text);
+
+  font-size: 20px;
+  font-weight: 900;
+
+  letter-spacing: -0.5px;
+  line-height: 1.15;
+}
+
+.ms-navbar-brand-name small {
+  color: var(--ms-public-muted);
+
+  font-size: 11px;
+  font-weight: 600;
+
+  line-height: 1.3;
+}
+
+/* ============================================================
+   7. ENLACES DEL MENÚ DESKTOP
+   ============================================================ */
+
+.ms-navbar-links {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  flex: 1;
+
+  gap: 3px;
+  min-width: 0;
+}
+
+.ms-navbar-links button {
+  padding: 11px 10px;
+
+  background: transparent;
+  border: none;
+  border-radius: 10px;
+
+  color: var(--ms-nav-text);
+
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 700;
+
+  cursor: pointer;
+  white-space: nowrap;
+
+  transition:
+    background 0.2s ease,
+    color 0.2s ease;
+}
+
+.ms-navbar-links button:hover {
+  background: var(--ms-nav-hover);
+}
+
+/* ============================================================
+   8. ACCIONES DESKTOP
+   ============================================================ */
+
+.ms-navbar-actions {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+
+  gap: 8px;
+}
+
+/* ============================================================
+   9. SELECTOR DE MODO CLARO / OSCURO
+   ============================================================ */
+
+.ms-theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 8px;
+
+  min-height: 43px;
+  padding: 9px 13px;
+
+  background: var(--ms-nav-button);
+
+  border: 1px solid var(--ms-nav-border);
+  border-radius: 12px;
+
+  color: var(--ms-nav-text);
+
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 800;
+
+  cursor: pointer;
+  white-space: nowrap;
+
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.ms-theme-toggle:hover {
+  background: var(--ms-nav-hover);
+  transform: translateY(-1px);
+}
+
+.ms-theme-toggle span:first-child {
+  font-size: 17px;
+}
+
+/* ============================================================
+   10. BOTÓN INICIAR SESIÓN
+   ============================================================ */
+
+.ms-navbar-login {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  min-height: 43px;
+  padding: 10px 14px;
+
+  border: 1px solid var(--ms-nav-border);
+  border-radius: 12px;
+
+  background: var(--ms-nav-button);
+  color: var(--ms-nav-text);
+
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 800;
+
+  cursor: pointer;
+  white-space: nowrap;
+
+  transition:
+    background 0.2s ease,
+    transform 0.2s ease;
+}
+
+.ms-navbar-login:hover {
+  background: var(--ms-nav-hover);
+  transform: translateY(-1px);
+}
+
+/* ============================================================
+   11. BOTÓN COMENZAR
+   ============================================================ */
+
+.ms-navbar-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  min-height: 43px;
+  padding: 10px 16px;
+
+  border: none;
+  border-radius: 12px;
+
+  background: linear-gradient(
+    135deg,
+    #22b9ed,
+    #5369f5
+  );
+
+  color: #ffffff;
+
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 900;
+
+  cursor: pointer;
+  white-space: nowrap;
+
+  box-shadow:
+    0 8px 20px rgba(37, 99, 235, 0.14);
+
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.ms-navbar-primary:hover {
+  transform: translateY(-2px);
+
+  box-shadow:
+    0 12px 25px rgba(37, 99, 235, 0.24);
+}
+
+/* ============================================================
+   12. CONTROLES MÓVILES
+   ============================================================ */
+
+.ms-navbar-mobile-controls {
+  display: none;
+  align-items: center;
+
+  gap: 8px;
+}
+
+.ms-navbar-menu-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 44px;
+  height: 44px;
+
+  background: var(--ms-nav-button);
+  color: var(--ms-nav-text);
+
+  border: 1px solid var(--ms-nav-border);
+  border-radius: 11px;
+
+  font-size: 20px;
+
+  cursor: pointer;
+}
+
+/* ============================================================
+   13. MENÚ MÓVIL DESPLEGABLE
+   ============================================================ */
+
+.ms-navbar-mobile-menu {
+  display: flex;
+  flex-direction: column;
+
+  padding: 15px 22px 22px;
+
+  background: var(--ms-nav-bg);
+
+  border-top: 1px solid var(--ms-nav-border);
+
+  box-shadow: var(--ms-nav-shadow);
+}
+
+.ms-navbar-mobile-menu > button {
+  display: block;
+
+  width: 100%;
+  padding: 13px 8px;
+
+  background: transparent;
+
+  border: none;
+  border-radius: 10px;
+
+  color: var(--ms-nav-text);
+
+  text-align: left;
+
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 700;
+
+  cursor: pointer;
+
+  transition:
+    background 0.2s ease,
+    color 0.2s ease;
+}
+
+.ms-navbar-mobile-menu > button:hover {
+  background: var(--ms-nav-hover);
+}
+
+/* ============================================================
+   14. BOTONES DENTRO DEL MENÚ MÓVIL
+   ============================================================ */
+
+.ms-mobile-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.ms-mobile-actions .ms-navbar-login,
+.ms-mobile-actions .ms-navbar-primary {
+  width: 100%;
+  padding: 12px 10px;
+
+  text-align: center;
+}
+
+/* ============================================================
+   15. ACCESIBILIDAD
+   ============================================================ */
+
+.ms-public-navbar button:focus-visible {
+  outline: 3px solid #3b82f6;
+  outline-offset: 3px;
+}
+
+/* ============================================================
+   16. PANTALLAS MEDIANAS
+   ============================================================ */
+
+@media (max-width: 1280px) {
+  .ms-navbar-container {
+    gap: 12px;
+    padding: 8px 18px;
+  }
+
+  .ms-navbar-links {
+    gap: 0;
+  }
+
+  .ms-navbar-links button {
+    padding: 10px 7px;
+    font-size: 14px;
+  }
+
+  .ms-navbar-actions {
+    gap: 6px;
+  }
+
+  .ms-navbar-brand-name small {
+    display: none;
+  }
+}
+
+/* ============================================================
+   17. TABLET Y MENÚ MÓVIL
+   ============================================================ */
+
+@media (max-width: 1080px) {
+  .ms-navbar-links,
+  .ms-navbar-actions {
+    display: none;
+  }
+
+  .ms-navbar-mobile-controls {
+    display: flex;
+  }
+
+  .ms-navbar-container {
+    min-height: 76px;
+    padding: 7px 16px;
+  }
+}
+
+/* ============================================================
+   18. CELULARES
+   ============================================================ */
+
+@media (max-width: 480px) {
+  .ms-navbar-container {
+    min-height: 66px;
+    padding: 6px 12px;
+    gap: 8px;
+  }
+
+  .ms-navbar-brand {
+    gap: 7px;
+  }
+
+  .ms-navbar-logo {
+    width: 55px;
+    height: 55px;
+
+    min-width: 55px;
+    min-height: 55px;
+  }
+
+  .ms-navbar-logo > * {
+    max-width: 55px;
+    max-height: 55px;
+  }
+
+  .ms-navbar-brand-name strong {
+    font-size: 17px;
+  }
+
+  .ms-navbar-brand-name small {
+    display: none;
+  }
+
+  .ms-theme-mobile {
+    min-width: 42px;
+    padding: 8px;
+  }
+
+  .ms-navbar-mobile-menu {
+    padding: 12px 15px 20px;
+  }
+}
+
+/* ============================================================
+   19. RESPETAR MOVIMIENTO REDUCIDO
+   ============================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  .ms-public-navbar,
+  .ms-public-navbar * {
+    transition: none !important;
+    animation: none !important;
+  }
+}

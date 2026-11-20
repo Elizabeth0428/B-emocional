@@ -7,7 +7,9 @@ import { useNavigate, useParams } from "react-router-dom";
 import { getToken } from "../services/AuthService";
 import VideoRecorder from "../components/VideoRecorder";
 
-const API_URL = import.meta.env.VITE_API_URL || (window.location.protocol === 'https:' ? 'https://reflejoyalma.com' : `http://${window.location.hostname}:5000`);
+const API_URL =
+  import.meta.env.VITE_API_URL ||
+  `http://${window.location.hostname}:5000`;
 
 // ==================================================
 // ENTREVISTAS DEL PROSPECTO
@@ -684,17 +686,21 @@ const EntrevistasProspecto = () => {
           {error}
         </p>
 
-        <button
-          type="button"
-          onClick={() =>
-            navigate(
-              `/prospecto/${idProspecto}`
-            )
-          }
-          style={backButton}
-        >
-          ← Regresar al expediente
-        </button>
+        <div style={backButtonRow}>
+          <button
+            type="button"
+            onClick={() =>
+              navigate(
+                `/prospecto/${idProspecto}`
+              )
+            }
+            style={backButton}
+          >
+            <span style={backButtonText}>
+              ← Volver al expediente
+            </span>
+          </button>
+        </div>
       </div>
     );
   }
@@ -711,17 +717,21 @@ const EntrevistasProspecto = () => {
       ================================================== */}
 
       <div style={header}>
-        <button
-          type="button"
-          onClick={() =>
-            navigate(
-              `/prospecto/${idProspecto}`
-            )
-          }
-          style={backButton}
-        >
-          ← Regresar al expediente
-        </button>
+        <div style={backButtonRow}>
+          <button
+            type="button"
+            onClick={() =>
+              navigate(
+                `/prospecto/${idProspecto}`
+              )
+            }
+            style={backButton}
+          >
+            <span style={backButtonText}>
+              ← Volver al expediente
+            </span>
+          </button>
+        </div>
 
         <div style={headerInfo}>
           <div style={headerLabel}>
@@ -1290,19 +1300,51 @@ const subtitle = {
 // BOTÓN REGRESAR
 // ==================================================
 
+const backButtonRow = {
+  position: "relative",
+  zIndex: 9999,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "flex-start",
+  width: "100%",
+  pointerEvents: "auto"
+};
+
 const backButton = {
+  appearance: "none",
+  WebkitAppearance: "none",
+  position: "relative",
+  zIndex: 10000,
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  minWidth: "240px",
+  minHeight: "46px",
+  padding: "12px 24px",
+  margin: 0,
   border: "none",
-  background:
-    "linear-gradient(135deg,#66C8F5,#8BD9FF)",
-  color: "#073B57",
-  padding: "11px 20px",
   borderRadius: "999px",
+  background:
+    "linear-gradient(135deg,#64B5F6,#1976D2)",
+  color: "#FFFFFF",
   cursor: "pointer",
-  fontWeight: "800",
-  fontSize: "14px",
+  fontWeight: "700",
+  fontSize: "16px",
+  lineHeight: 1.2,
   boxShadow:
-    "0 5px 14px rgba(75,160,210,.25)",
+    "0 5px 14px rgba(25,118,210,.25)",
+  pointerEvents: "auto",
+  userSelect: "none",
+  WebkitUserSelect: "none",
+  touchAction: "manipulation",
   whiteSpace: "nowrap"
+};
+
+const backButtonText = {
+  display: "block",
+  width: "100%",
+  textAlign: "center",
+  pointerEvents: "none"
 };
 
 // ==================================================

@@ -3,7 +3,9 @@ import axios from "axios";
 import { useNavigate, useParams } from "react-router-dom";
 import { getToken } from "../services/AuthService";
 
-const API_URL = import.meta.env.VITE_API_URL || (window.location.protocol === 'https:' ? 'https://reflejoyalma.com' : `http://${window.location.hostname}:5000`);
+const API_URL =
+  import.meta.env.VITE_API_URL ||
+  `http://${window.location.hostname}:5000`;
 
 const ReporteIAProspecto = () => {
   const { idProspecto } = useParams();
@@ -64,6 +66,7 @@ const ReporteIAProspecto = () => {
             lista[0]
         );
       }
+
     } catch (err) {
       console.error(
         "❌ Error cargando reportes IA RH:",
@@ -74,6 +77,7 @@ const ReporteIAProspecto = () => {
         err.response?.data?.message ||
         "No fue posible cargar los reportes."
       );
+
     } finally {
       setCargando(false);
     }
@@ -118,6 +122,7 @@ const ReporteIAProspecto = () => {
       );
 
       await cargarReportes();
+
     } catch (err) {
       console.error(
         "❌ Error generando reporte IA RH:",
@@ -128,6 +133,7 @@ const ReporteIAProspecto = () => {
         err.response?.data?.message ||
         "No fue posible generar el preanálisis laboral."
       );
+
     } finally {
       setGenerando(false);
     }
@@ -151,6 +157,7 @@ const ReporteIAProspecto = () => {
         respuesta.data?.reporte ||
         null
       );
+
     } catch (err) {
       console.error(
         "❌ Error obteniendo reporte IA RH:",
@@ -161,6 +168,7 @@ const ReporteIAProspecto = () => {
         err.response?.data?.message ||
         "No fue posible abrir el reporte."
       );
+
     } finally {
       setCargandoReporte(false);
     }
@@ -264,16 +272,21 @@ const ReporteIAProspecto = () => {
 
         {/* VOLVER */}
 
-        <button
-          style={styles.backButton}
-          onClick={() =>
-            navigate(
-              `/prospecto/${idProspecto}`
-            )
-          }
-        >
-          ← Volver al expediente
-        </button>
+        <div style={styles.backButtonRow}>
+          <button
+            type="button"
+            style={styles.backButton}
+            onClick={() =>
+              navigate(
+                `/prospecto/${idProspecto}`
+              )
+            }
+          >
+            <span style={styles.backButtonText}>
+              ← Volver al expediente
+            </span>
+          </button>
+        </div>
 
         {/* ENCABEZADO */}
 
@@ -628,6 +641,7 @@ const ReporteIAProspecto = () => {
               )}
             </div>
           </div>
+
         </div>
       </div>
     </div>
@@ -646,19 +660,51 @@ const styles = {
     margin: "0 auto"
   },
 
+  backButtonRow: {
+    position: "relative",
+    zIndex: 9999,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "flex-start",
+    width: "100%",
+    marginBottom: "18px",
+    pointerEvents: "auto"
+  },
+
   backButton: {
+    appearance: "none",
+    WebkitAppearance: "none",
+    position: "relative",
+    zIndex: 10000,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: "240px",
+    minHeight: "46px",
+    padding: "12px 24px",
+    margin: 0,
     border: "none",
+    borderRadius: "999px",
     background:
       "linear-gradient(135deg,#64B5F6,#1976D2)",
     color: "#ffffff",
-    padding: "10px 20px",
-    marginBottom: "18px",
-    borderRadius: "30px",
     cursor: "pointer",
     fontWeight: "700",
-    fontSize: "14px",
+    fontSize: "16px",
+    lineHeight: 1.2,
     boxShadow:
-      "0 5px 14px rgba(25,118,210,.25)"
+      "0 5px 14px rgba(25,118,210,.25)",
+    pointerEvents: "auto",
+    userSelect: "none",
+    WebkitUserSelect: "none",
+    touchAction: "manipulation"
+  },
+
+  backButtonText: {
+    display: "block",
+    width: "100%",
+    textAlign: "center",
+    pointerEvents: "none"
   },
 
   header: {

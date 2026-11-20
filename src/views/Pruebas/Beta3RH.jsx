@@ -7,7 +7,9 @@ import ParesBeta3 from "./beta3/ParesBeta3";
 import ObjetosBeta3 from "./beta3/ObjetosBeta3";
 import MatricesBeta3 from "./beta3/MatricesBeta3";
 
-const API_URL = import.meta.env.VITE_API_URL || (window.location.protocol === 'https:' ? 'https://reflejoyalma.com' : `http://${window.location.hostname}:5000`);
+const API_URL =
+  import.meta.env.VITE_API_URL ||
+  `http://${window.location.hostname}:5000`;
 
 const Beta3RH = ({ token, pruebaBase }) => {
   const [prueba, setPrueba] = useState(pruebaBase || null);

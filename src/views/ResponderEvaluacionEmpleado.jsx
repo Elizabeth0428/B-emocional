@@ -11,6 +11,12 @@ import {
 } from "react-router-dom";
 
 
+const API_URL =
+  import.meta.env.VITE_API_URL ||
+  `http://${window.location.hostname}:5000`;
+
+
+
 const ResponderEvaluacionEmpleado = () => {
 
   const { token } =
@@ -78,16 +84,43 @@ const ResponderEvaluacionEmpleado = () => {
 
             setCargando(true);
             setError("");
+            setMensaje("");
+
 
             const respuesta =
               await axios.get(
-                `/api/empleados/evaluacion-publica/${token}`
+                `${API_URL}/api/empleados/evaluacion-publica/${token}`
               );
 
 
-            setEvaluacion(
+            console.log(
+              "🧠 Evaluación pública recibida:",
+              respuesta.data
+            );
+
+
+            const evaluacionRecibida =
               respuesta.data?.evaluacion ||
-              null
+              null;
+
+
+            if (!evaluacionRecibida) {
+
+              throw new Error(
+                "La API no devolvió una evaluación válida."
+              );
+
+            }
+
+
+            console.log(
+              "📋 Preguntas recibidas:",
+              evaluacionRecibida?.preguntas
+            );
+
+
+            setEvaluacion(
+              evaluacionRecibida
             );
 
 
@@ -95,6 +128,7 @@ const ResponderEvaluacionEmpleado = () => {
 
             console.error(
               "❌ Error cargando evaluación pública:",
+              err.response?.data ||
               err
             );
 
@@ -104,6 +138,7 @@ const ResponderEvaluacionEmpleado = () => {
 
             setError(
               err.response?.data?.message ||
+              err.message ||
               "No fue posible abrir la evaluación."
             );
 
@@ -118,7 +153,17 @@ const ResponderEvaluacionEmpleado = () => {
 
 
       if (token) {
+
         cargarEvaluacion();
+
+      } else {
+
+        setCargando(false);
+
+        setError(
+          "El enlace de evaluación no es válido."
+        );
+
       }
 
     },
@@ -141,14 +186,18 @@ const ResponderEvaluacionEmpleado = () => {
           ...prev,
 
           [idPregunta]: {
+
             id_pregunta_rh:
               idPregunta,
 
             id_opcion_rh:
               idOpcion
+
           }
+
         })
       );
+
 
       setError("");
       setMensaje("");
@@ -171,14 +220,18 @@ const ResponderEvaluacionEmpleado = () => {
           ...prev,
 
           [idPregunta]: {
+
             id_pregunta_rh:
               idPregunta,
 
             respuesta:
               texto
+
           }
+
         })
       );
+
 
       setError("");
       setMensaje("");
@@ -210,7 +263,9 @@ const ResponderEvaluacionEmpleado = () => {
       if (
         preguntas.length === 0
       ) {
+
         return false;
+
       }
 
 
@@ -226,7 +281,9 @@ const ResponderEvaluacionEmpleado = () => {
 
 
         if (!respuesta) {
+
           return false;
+
         }
 
 
@@ -241,7 +298,9 @@ const ResponderEvaluacionEmpleado = () => {
               ""
             ).trim()
           ) {
+
             return false;
+
           }
 
         }
@@ -257,7 +316,9 @@ const ResponderEvaluacionEmpleado = () => {
           if (
             !respuesta.id_opcion_rh
           ) {
+
             return false;
+
           }
 
         }
@@ -290,6 +351,7 @@ const ResponderEvaluacionEmpleado = () => {
         );
 
         return false;
+
       }
 
 
@@ -300,7 +362,7 @@ const ResponderEvaluacionEmpleado = () => {
 
 
         await axios.post(
-          `/api/empleados/evaluacion-publica/${token}/respuestas`,
+          `${API_URL}/api/empleados/evaluacion-publica/${token}/respuestas`,
           {
             respuestas:
               lista
@@ -326,6 +388,7 @@ const ResponderEvaluacionEmpleado = () => {
 
         console.error(
           "❌ Error guardando respuestas:",
+          err.response?.data ||
           err
         );
 
@@ -364,6 +427,7 @@ const ResponderEvaluacionEmpleado = () => {
         );
 
         return;
+
       }
 
 
@@ -374,7 +438,9 @@ const ResponderEvaluacionEmpleado = () => {
 
 
       if (!confirmar) {
+
         return;
+
       }
 
 
@@ -396,7 +462,9 @@ const ResponderEvaluacionEmpleado = () => {
 
 
         if (!guardado) {
+
           return;
+
         }
 
 
@@ -406,8 +474,14 @@ const ResponderEvaluacionEmpleado = () => {
 
         const respuesta =
           await axios.post(
-            `/api/empleados/evaluacion-publica/${token}/finalizar`
+            `${API_URL}/api/empleados/evaluacion-publica/${token}/finalizar`
           );
+
+
+        console.log(
+          "✅ Evaluación finalizada:",
+          respuesta.data
+        );
 
 
         setResultado(
@@ -425,6 +499,7 @@ const ResponderEvaluacionEmpleado = () => {
 
         console.error(
           "❌ Error finalizando evaluación:",
+          err.response?.data ||
           err
         );
 
@@ -459,7 +534,9 @@ const ResponderEvaluacionEmpleado = () => {
 
 
         if (!respuesta) {
+
           return false;
+
         }
 
 
@@ -613,23 +690,25 @@ const ResponderEvaluacionEmpleado = () => {
           </div>
 
 
-          {resultado?.puntaje_total !==
-            undefined && (
+          {
+            resultado?.puntaje_total !==
+              undefined && (
 
-            <div style={styles.processedBox}>
+              <div style={styles.processedBox}>
 
-              <strong>
-                Evaluación procesada
-              </strong>
+                <strong>
+                  Evaluación procesada
+                </strong>
 
-              <p>
-                La evaluación fue registrada
-                correctamente en MirrorSoul.
-              </p>
+                <p>
+                  La evaluación fue registrada
+                  correctamente en MirrorSoul.
+                </p>
 
-            </div>
+              </div>
 
-          )}
+            )
+          }
 
 
           <p style={styles.smallText}>
@@ -644,6 +723,10 @@ const ResponderEvaluacionEmpleado = () => {
 
   }
 
+
+  // ==================================================
+  // VISTA PRINCIPAL
+  // ==================================================
 
   return (
 
@@ -671,15 +754,17 @@ const ResponderEvaluacionEmpleado = () => {
           </h1>
 
 
-          {evaluacion?.prueba?.descripcion && (
+          {
+            evaluacion?.prueba?.descripcion && (
 
-            <p style={styles.description}>
-              {
-                evaluacion.prueba.descripcion
-              }
-            </p>
+              <p style={styles.description}>
+                {
+                  evaluacion.prueba.descripcion
+                }
+              </p>
 
-          )}
+            )
+          }
 
 
           {/* DATOS */}
@@ -752,23 +837,25 @@ const ResponderEvaluacionEmpleado = () => {
           </div>
 
 
-          {evaluacion?.motivo && (
+          {
+            evaluacion?.motivo && (
 
-            <div style={styles.reasonBox}>
+              <div style={styles.reasonBox}>
 
-              <span style={styles.infoLabel}>
-                Motivo de la evaluación
-              </span>
+                <span style={styles.infoLabel}>
+                  Motivo de la evaluación
+                </span>
 
-              <p style={styles.reasonText}>
-                {
-                  evaluacion.motivo
-                }
-              </p>
+                <p style={styles.reasonText}>
+                  {
+                    evaluacion.motivo
+                  }
+                </p>
 
-            </div>
+              </div>
 
-          )}
+            )
+          }
 
 
           <div style={styles.instructions}>
@@ -777,13 +864,45 @@ const ResponderEvaluacionEmpleado = () => {
               Instrucciones
             </strong>
 
-            <p style={styles.instructionsText}>
-              Lee cada pregunta con atención y
-              selecciona la respuesta que mejor
-              represente tu situación. Responde
-              de forma sincera y evita dejar
-              preguntas sin contestar.
-            </p>
+
+            {
+              String(
+                evaluacion?.prueba?.version ||
+                ""
+              )
+                .trim()
+                .toLowerCase() ===
+              "gad-7"
+                ? (
+
+                  <>
+                    <p style={styles.instructionsText}>
+                      Durante las últimas 2 semanas,
+                      ¿con qué frecuencia ha sentido
+                      molestias por los siguientes
+                      problemas?
+                    </p>
+
+                    <p style={styles.instructionsText}>
+                      Selecciona una respuesta en cada
+                      pregunta y evita dejar reactivos
+                      sin contestar.
+                    </p>
+                  </>
+
+                )
+                : (
+
+                  <p style={styles.instructionsText}>
+                    Lee cada pregunta con atención y
+                    selecciona la respuesta que mejor
+                    represente tu situación. Responde
+                    de forma sincera y evita dejar
+                    preguntas sin contestar.
+                  </p>
+
+                )
+            }
 
           </div>
 
@@ -815,6 +934,7 @@ const ResponderEvaluacionEmpleado = () => {
             <div
               style={{
                 ...styles.progressBar,
+
                 width:
                   `${porcentaje}%`
               }}
@@ -834,261 +954,300 @@ const ResponderEvaluacionEmpleado = () => {
             MENSAJES
         ========================================== */}
 
-        {mensaje && (
+        {
+          mensaje && (
 
-          <div style={styles.success}>
-            ✅ {mensaje}
-          </div>
+            <div style={styles.success}>
+              ✅ {mensaje}
+            </div>
 
-        )}
+          )
+        }
 
 
-        {error && (
+        {
+          error && (
 
-          <div style={styles.error}>
-            ❌ {error}
-          </div>
+            <div style={styles.error}>
+              ❌ {error}
+            </div>
 
-        )}
+          )
+        }
 
 
         {/* ==========================================
             SIN PREGUNTAS
         ========================================== */}
 
-        {preguntas.length === 0 ? (
+        {
+          preguntas.length === 0
+            ? (
 
-          <div style={styles.questionCard}>
+              <div style={styles.questionCard}>
 
-            <div style={styles.bigIcon}>
-              📋
-            </div>
+                <div style={styles.bigIcon}>
+                  📋
+                </div>
 
-            <h3>
-              Esta evaluación no contiene
-              preguntas disponibles.
-            </h3>
+                <h3>
+                  Esta evaluación no contiene
+                  preguntas disponibles.
+                </h3>
 
-          </div>
+              </div>
 
-        ) : (
+            )
+            : (
 
-          preguntas.map(
-            (
-              pregunta,
-              indice
-            ) => {
+              preguntas.map(
+                (
+                  pregunta,
+                  indice
+                ) => {
 
-              const respuestaActual =
-                respuestas[
-                  pregunta.id_pregunta_rh
-                ];
-
-
-              return (
-
-                <div
-                  key={
-                    pregunta.id_pregunta_rh
-                  }
-                  style={styles.questionCard}
-                >
-
-                  <div style={styles.questionNumber}>
-                    Pregunta {indice + 1}
-                  </div>
+                  const respuestaActual =
+                    respuestas[
+                      pregunta.id_pregunta_rh
+                    ];
 
 
-                  <h3 style={styles.questionText}>
-                    {
-                      pregunta.texto_pregunta
-                    }
-                  </h3>
+                  return (
+
+                    <div
+                      key={
+                        pregunta.id_pregunta_rh
+                      }
+                      style={styles.questionCard}
+                    >
+
+                      <div style={styles.questionNumber}>
+                        Pregunta {indice + 1}
+                        {" "}
+                        de
+                        {" "}
+                        {preguntas.length}
+                      </div>
 
 
-                  {/* ==================================
-                      OPCIÓN / ESCALA
-                  ================================== */}
-
-                  {(
-                    pregunta.tipo_respuesta ===
-                      "opcion" ||
-                    pregunta.tipo_respuesta ===
-                      "escala"
-                  ) && (
-
-                    <div style={styles.options}>
-
-                      {Array.isArray(
-                        pregunta.opciones
-                      ) &&
-                        pregunta.opciones.map(
-                          opcion => {
-
-                            const seleccionada =
-                              Number(
-                                respuestaActual
-                                  ?.id_opcion_rh
-                              ) ===
-                              Number(
-                                opcion.id_opcion_rh
-                              );
+                      <h3 style={styles.questionText}>
+                        {
+                          pregunta.texto_pregunta
+                        }
+                      </h3>
 
 
-                            return (
+                      {/* ==================================
+                          OPCIÓN / ESCALA
+                      ================================== */}
 
-                              <label
-                                key={
-                                  opcion.id_opcion_rh
-                                }
-                                style={{
-                                  ...styles.option,
+                      {
+                        (
+                          pregunta.tipo_respuesta ===
+                            "opcion" ||
+                          pregunta.tipo_respuesta ===
+                            "escala"
+                        ) && (
 
-                                  ...(seleccionada
-                                    ? styles.optionSelected
-                                    : {})
-                                }}
-                              >
+                          <div style={styles.options}>
 
-                                <input
-                                  type="radio"
-                                  name={
-                                    `pregunta-${pregunta.id_pregunta_rh}`
-                                  }
-                                  checked={
-                                    seleccionada
-                                  }
-                                  onChange={() =>
-                                    seleccionarOpcion(
-                                      pregunta.id_pregunta_rh,
+                            {
+                              Array.isArray(
+                                pregunta.opciones
+                              ) &&
+                              pregunta.opciones.map(
+                                opcion => {
+
+                                  const seleccionada =
+                                    Number(
+                                      respuestaActual
+                                        ?.id_opcion_rh
+                                    ) ===
+                                    Number(
                                       opcion.id_opcion_rh
-                                    )
-                                  }
-                                />
+                                    );
 
 
-                                <span>
-                                  {
-                                    opcion.texto_opcion
-                                  }
-                                </span>
+                                  return (
 
-                              </label>
+                                    <label
+                                      key={
+                                        opcion.id_opcion_rh
+                                      }
+                                      style={{
+                                        ...styles.option,
 
-                            );
+                                        ...(seleccionada
+                                          ? styles.optionSelected
+                                          : {})
+                                      }}
+                                    >
 
-                          }
-                        )}
+                                      <input
+                                        type="radio"
+
+                                        name={
+                                          `pregunta-${pregunta.id_pregunta_rh}`
+                                        }
+
+                                        checked={
+                                          seleccionada
+                                        }
+
+                                        onChange={
+                                          () =>
+                                            seleccionarOpcion(
+                                              pregunta.id_pregunta_rh,
+                                              opcion.id_opcion_rh
+                                            )
+                                        }
+                                      />
+
+
+                                      <span>
+                                        {
+                                          opcion.texto_opcion
+                                        }
+                                      </span>
+
+                                    </label>
+
+                                  );
+
+                                }
+                              )
+                            }
+
+                          </div>
+
+                        )
+                      }
+
+
+                      {/* ==================================
+                          RESPUESTA ABIERTA
+                      ================================== */}
+
+                      {
+                        pregunta.tipo_respuesta ===
+                          "abierta" && (
+
+                          <textarea
+                            style={styles.textarea}
+
+                            rows={5}
+
+                            placeholder="Escribe tu respuesta..."
+
+                            value={
+                              respuestaActual
+                                ?.respuesta ||
+                              ""
+                            }
+
+                            onChange={
+                              e =>
+                                escribirRespuesta(
+                                  pregunta.id_pregunta_rh,
+                                  e.target.value
+                                )
+                            }
+                          />
+
+                        )
+                      }
 
                     </div>
 
-                  )}
+                  );
 
+                }
+              )
 
-                  {/* ==================================
-                      RESPUESTA ABIERTA
-                  ================================== */}
-
-                  {pregunta.tipo_respuesta ===
-                    "abierta" && (
-
-                    <textarea
-                      style={styles.textarea}
-                      rows={5}
-                      placeholder="Escribe tu respuesta..."
-                      value={
-                        respuestaActual
-                          ?.respuesta ||
-                        ""
-                      }
-                      onChange={
-                        e =>
-                          escribirRespuesta(
-                            pregunta.id_pregunta_rh,
-                            e.target.value
-                          )
-                      }
-                    />
-
-                  )}
-
-                </div>
-
-              );
-
-            }
-          )
-
-        )}
+            )
+        }
 
 
         {/* ==========================================
             ACCIONES
         ========================================== */}
 
-        {preguntas.length > 0 && (
+        {
+          preguntas.length > 0 && (
 
-          <div style={styles.actionsCard}>
+            <div style={styles.actionsCard}>
 
-            <div style={styles.actionsInfo}>
+              <div style={styles.actionsInfo}>
 
-              <strong>
-                {respondidas}/{preguntas.length}
-              </strong>
+                <strong>
+                  {respondidas}/{preguntas.length}
+                </strong>
 
-              <span>
-                preguntas respondidas
-              </span>
+                <span>
+                  preguntas respondidas
+                </span>
+
+              </div>
+
+
+              <div style={styles.actions}>
+
+                <button
+                  type="button"
+
+                  style={styles.saveButton}
+
+                  disabled={
+                    guardando ||
+                    finalizando
+                  }
+
+                  onClick={
+                    () =>
+                      guardarRespuestas(
+                        true
+                      )
+                  }
+                >
+
+                  {
+                    guardando
+                      ? "Guardando..."
+                      : "💾 Guardar respuestas"
+                  }
+
+                </button>
+
+
+                <button
+                  type="button"
+
+                  style={styles.finishButton}
+
+                  disabled={
+                    guardando ||
+                    finalizando
+                  }
+
+                  onClick={
+                    finalizarEvaluacion
+                  }
+                >
+
+                  {
+                    finalizando
+                      ? "Finalizando..."
+                      : "✅ Finalizar evaluación"
+                  }
+
+                </button>
+
+              </div>
 
             </div>
 
-
-            <div style={styles.actions}>
-
-              <button
-                type="button"
-                style={styles.saveButton}
-                disabled={
-                  guardando ||
-                  finalizando
-                }
-                onClick={() =>
-                  guardarRespuestas(
-                    true
-                  )
-                }
-              >
-                {
-                  guardando
-                    ? "Guardando..."
-                    : "💾 Guardar respuestas"
-                }
-              </button>
-
-
-              <button
-                type="button"
-                style={styles.finishButton}
-                disabled={
-                  guardando ||
-                  finalizando
-                }
-                onClick={
-                  finalizarEvaluacion
-                }
-              >
-                {
-                  finalizando
-                    ? "Finalizando..."
-                    : "✅ Finalizar evaluación"
-                }
-              </button>
-
-            </div>
-
-          </div>
-
-        )}
+          )
+        }
 
 
         {/* ==========================================
@@ -1128,312 +1287,734 @@ const ResponderEvaluacionEmpleado = () => {
 const styles = {
 
   page: {
-    minHeight: "100vh",
-    background: "#f5f7fa",
-    padding: "30px 18px"
+
+    minHeight:
+      "100vh",
+
+    background:
+      "#f5f7fa",
+
+    padding:
+      "30px 18px"
+
   },
+
 
   container: {
-    maxWidth: "850px",
-    margin: "0 auto"
+
+    maxWidth:
+      "850px",
+
+    margin:
+      "0 auto"
+
   },
+
 
   centerCard: {
-    maxWidth: "620px",
-    margin: "60px auto",
-    background: "#ffffff",
-    borderRadius: "18px",
-    padding: "35px",
-    textAlign: "center",
+
+    maxWidth:
+      "620px",
+
+    margin:
+      "60px auto",
+
+    background:
+      "#ffffff",
+
+    borderRadius:
+      "18px",
+
+    padding:
+      "35px",
+
+    textAlign:
+      "center",
+
     boxShadow:
       "0 5px 22px rgba(0,0,0,.06)"
+
   },
+
 
   logo: {
-    fontSize: "42px"
+
+    fontSize:
+      "42px"
+
   },
+
 
   bigIcon: {
-    fontSize: "50px",
-    marginBottom: "8px"
+
+    fontSize:
+      "50px",
+
+    marginBottom:
+      "8px"
+
   },
+
 
   muted: {
-    color: "#667085",
-    lineHeight: 1.5
+
+    color:
+      "#667085",
+
+    lineHeight:
+      1.5
+
   },
+
 
   headerCard: {
-    background: "#ffffff",
-    borderRadius: "18px",
-    padding: "28px",
-    marginBottom: "18px",
-    textAlign: "center",
+
+    background:
+      "#ffffff",
+
+    borderRadius:
+      "18px",
+
+    padding:
+      "28px",
+
+    marginBottom:
+      "18px",
+
+    textAlign:
+      "center",
+
     boxShadow:
       "0 4px 20px rgba(0,0,0,.05)"
+
   },
+
 
   brand: {
-    fontSize: "20px",
-    fontWeight: "800",
-    marginBottom: "14px"
+
+    fontSize:
+      "20px",
+
+    fontWeight:
+      "800",
+
+    marginBottom:
+      "14px"
+
   },
+
 
   title: {
-    margin: "0 0 9px"
+
+    margin:
+      "0 0 9px"
+
   },
+
 
   description: {
-    color: "#667085",
-    lineHeight: 1.55,
-    maxWidth: "650px",
-    margin: "0 auto"
+
+    color:
+      "#667085",
+
+    lineHeight:
+      1.55,
+
+    maxWidth:
+      "650px",
+
+    margin:
+      "0 auto"
+
   },
+
 
   infoGrid: {
-    display: "grid",
+
+    display:
+      "grid",
+
     gridTemplateColumns:
       "repeat(auto-fit, minmax(150px, 1fr))",
-    gap: "11px",
-    marginTop: "24px"
+
+    gap:
+      "11px",
+
+    marginTop:
+      "24px"
+
   },
+
 
   infoBox: {
-    background: "#f8fafc",
-    borderRadius: "10px",
-    padding: "13px",
-    display: "flex",
-    flexDirection: "column",
-    gap: "5px"
+
+    background:
+      "#f8fafc",
+
+    borderRadius:
+      "10px",
+
+    padding:
+      "13px",
+
+    display:
+      "flex",
+
+    flexDirection:
+      "column",
+
+    gap:
+      "5px"
+
   },
+
 
   infoLabel: {
-    color: "#667085",
-    fontSize: "12px"
+
+    color:
+      "#667085",
+
+    fontSize:
+      "12px"
+
   },
+
 
   reasonBox: {
-    background: "#f8fafc",
-    borderRadius: "10px",
-    padding: "13px",
-    marginTop: "14px"
+
+    background:
+      "#f8fafc",
+
+    borderRadius:
+      "10px",
+
+    padding:
+      "13px",
+
+    marginTop:
+      "14px"
+
   },
+
 
   reasonText: {
-    margin: "5px 0 0",
-    color: "#344054"
+
+    margin:
+      "5px 0 0",
+
+    color:
+      "#344054"
+
   },
+
 
   instructions: {
-    marginTop: "20px",
-    padding: "15px",
-    borderRadius: "10px",
-    background: "#eff6ff",
-    color: "#1e3a8a",
-    textAlign: "left"
+
+    marginTop:
+      "20px",
+
+    padding:
+      "15px",
+
+    borderRadius:
+      "10px",
+
+    background:
+      "#eff6ff",
+
+    color:
+      "#1e3a8a",
+
+    textAlign:
+      "left"
+
   },
+
 
   instructionsText: {
-    margin: "6px 0 0",
-    lineHeight: 1.5
+
+    margin:
+      "6px 0 0",
+
+    lineHeight:
+      1.5
+
   },
+
 
   progressCard: {
-    background: "#ffffff",
-    borderRadius: "14px",
-    padding: "17px",
-    marginBottom: "18px",
+
+    background:
+      "#ffffff",
+
+    borderRadius:
+      "14px",
+
+    padding:
+      "17px",
+
+    marginBottom:
+      "18px",
+
     boxShadow:
       "0 3px 14px rgba(0,0,0,.04)"
+
   },
+
 
   progressTop: {
-    display: "flex",
-    justifyContent: "space-between",
-    marginBottom: "9px"
+
+    display:
+      "flex",
+
+    justifyContent:
+      "space-between",
+
+    marginBottom:
+      "9px"
+
   },
+
 
   progressTrack: {
-    height: "10px",
-    background: "#e4e7ec",
-    borderRadius: "20px",
-    overflow: "hidden"
+
+    height:
+      "10px",
+
+    background:
+      "#e4e7ec",
+
+    borderRadius:
+      "20px",
+
+    overflow:
+      "hidden"
+
   },
+
 
   progressBar: {
-    height: "100%",
-    background: "#2563eb",
+
+    height:
+      "100%",
+
+    background:
+      "#2563eb",
+
     transition:
       "width .25s ease"
+
   },
+
 
   progressPercent: {
-    marginTop: "7px",
-    color: "#667085",
-    fontSize: "12px",
-    textAlign: "right"
+
+    marginTop:
+      "7px",
+
+    color:
+      "#667085",
+
+    fontSize:
+      "12px",
+
+    textAlign:
+      "right"
+
   },
+
 
   success: {
-    background: "#ecfdf3",
-    border: "1px solid #abefc6",
-    padding: "13px",
-    borderRadius: "10px",
-    marginBottom: "16px"
+
+    background:
+      "#ecfdf3",
+
+    border:
+      "1px solid #abefc6",
+
+    padding:
+      "13px",
+
+    borderRadius:
+      "10px",
+
+    marginBottom:
+      "16px"
+
   },
+
 
   error: {
-    background: "#fef3f2",
-    border: "1px solid #fecdca",
-    padding: "13px",
-    borderRadius: "10px",
-    marginBottom: "16px"
+
+    background:
+      "#fef3f2",
+
+    border:
+      "1px solid #fecdca",
+
+    padding:
+      "13px",
+
+    borderRadius:
+      "10px",
+
+    marginBottom:
+      "16px"
+
   },
+
 
   questionCard: {
-    background: "#ffffff",
-    borderRadius: "15px",
-    padding: "23px",
-    marginBottom: "15px",
+
+    background:
+      "#ffffff",
+
+    borderRadius:
+      "15px",
+
+    padding:
+      "23px",
+
+    marginBottom:
+      "15px",
+
     boxShadow:
       "0 3px 14px rgba(0,0,0,.04)"
+
   },
+
 
   questionNumber: {
-    color: "#667085",
-    fontSize: "13px",
-    fontWeight: "700",
-    marginBottom: "8px"
+
+    color:
+      "#667085",
+
+    fontSize:
+      "13px",
+
+    fontWeight:
+      "700",
+
+    marginBottom:
+      "8px"
+
   },
+
 
   questionText: {
-    margin: 0,
-    lineHeight: 1.5
+
+    margin:
+      0,
+
+    lineHeight:
+      1.5
+
   },
+
 
   options: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "10px",
-    marginTop: "18px"
+
+    display:
+      "flex",
+
+    flexDirection:
+      "column",
+
+    gap:
+      "10px",
+
+    marginTop:
+      "18px"
+
   },
+
 
   option: {
-    display: "flex",
-    alignItems: "center",
-    gap: "12px",
-    border: "1px solid #e4e7ec",
-    borderRadius: "10px",
-    padding: "13px",
-    cursor: "pointer",
+
+    display:
+      "flex",
+
+    alignItems:
+      "center",
+
+    gap:
+      "12px",
+
+    border:
+      "1px solid #e4e7ec",
+
+    borderRadius:
+      "10px",
+
+    padding:
+      "13px",
+
+    cursor:
+      "pointer",
+
     transition:
       "all .15s ease"
+
   },
+
 
   optionSelected: {
-    background: "#eff6ff",
-    border: "2px solid #2563eb"
+
+    background:
+      "#eff6ff",
+
+    border:
+      "2px solid #2563eb"
+
   },
+
 
   textarea: {
-    width: "100%",
-    boxSizing: "border-box",
-    border: "1px solid #d0d5dd",
-    borderRadius: "10px",
-    padding: "12px",
-    marginTop: "15px",
-    resize: "vertical",
-    fontFamily: "inherit",
-    fontSize: "15px"
+
+    width:
+      "100%",
+
+    boxSizing:
+      "border-box",
+
+    border:
+      "1px solid #d0d5dd",
+
+    borderRadius:
+      "10px",
+
+    padding:
+      "12px",
+
+    marginTop:
+      "15px",
+
+    resize:
+      "vertical",
+
+    fontFamily:
+      "inherit",
+
+    fontSize:
+      "15px"
+
   },
+
 
   actionsCard: {
-    background: "#ffffff",
-    borderRadius: "15px",
-    padding: "18px",
-    marginTop: "18px",
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    flexWrap: "wrap",
-    gap: "15px",
+
+    background:
+      "#ffffff",
+
+    borderRadius:
+      "15px",
+
+    padding:
+      "18px",
+
+    marginTop:
+      "18px",
+
+    display:
+      "flex",
+
+    justifyContent:
+      "space-between",
+
+    alignItems:
+      "center",
+
+    flexWrap:
+      "wrap",
+
+    gap:
+      "15px",
+
     boxShadow:
       "0 3px 14px rgba(0,0,0,.05)"
+
   },
+
 
   actionsInfo: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "3px",
-    color: "#667085"
+
+    display:
+      "flex",
+
+    flexDirection:
+      "column",
+
+    gap:
+      "3px",
+
+    color:
+      "#667085"
+
   },
+
 
   actions: {
-    display: "flex",
-    flexWrap: "wrap",
-    gap: "10px"
+
+    display:
+      "flex",
+
+    flexWrap:
+      "wrap",
+
+    gap:
+      "10px"
+
   },
+
 
   saveButton: {
-    border: "1px solid #d0d5dd",
-    background: "#ffffff",
-    borderRadius: "10px",
-    padding: "11px 16px",
-    cursor: "pointer",
-    fontWeight: "700"
+
+    border:
+      "1px solid #d0d5dd",
+
+    background:
+      "#ffffff",
+
+    borderRadius:
+      "10px",
+
+    padding:
+      "11px 16px",
+
+    cursor:
+      "pointer",
+
+    fontWeight:
+      "700"
+
   },
+
 
   finishButton: {
-    border: "none",
-    background: "#2563eb",
-    color: "#ffffff",
-    borderRadius: "10px",
-    padding: "11px 16px",
-    cursor: "pointer",
-    fontWeight: "700"
+
+    border:
+      "none",
+
+    background:
+      "#2563eb",
+
+    color:
+      "#ffffff",
+
+    borderRadius:
+      "10px",
+
+    padding:
+      "11px 16px",
+
+    cursor:
+      "pointer",
+
+    fontWeight:
+      "700"
+
   },
+
 
   completeBox: {
-    marginTop: "24px",
-    padding: "18px",
-    background: "#f8fafc",
-    borderRadius: "12px"
+
+    marginTop:
+      "24px",
+
+    padding:
+      "18px",
+
+    background:
+      "#f8fafc",
+
+    borderRadius:
+      "12px"
+
   },
+
 
   completeText: {
-    color: "#667085",
-    marginBottom: 0,
-    lineHeight: 1.5
+
+    color:
+      "#667085",
+
+    marginBottom:
+      0,
+
+    lineHeight:
+      1.5
+
   },
+
 
   processedBox: {
-    marginTop: "15px",
-    background: "#ecfdf3",
-    border: "1px solid #abefc6",
-    borderRadius: "10px",
-    padding: "14px"
+
+    marginTop:
+      "15px",
+
+    background:
+      "#ecfdf3",
+
+    border:
+      "1px solid #abefc6",
+
+    borderRadius:
+      "10px",
+
+    padding:
+      "14px"
+
   },
+
 
   smallText: {
-    color: "#667085",
-    fontSize: "14px",
-    marginTop: "20px"
+
+    color:
+      "#667085",
+
+    fontSize:
+      "14px",
+
+    marginTop:
+      "20px"
+
   },
+
 
   footerNotice: {
-    marginTop: "18px",
-    padding: "15px",
-    borderRadius: "10px",
-    background: "#ffffff",
-    color: "#475467",
+
+    marginTop:
+      "18px",
+
+    padding:
+      "15px",
+
+    borderRadius:
+      "10px",
+
+    background:
+      "#ffffff",
+
+    color:
+      "#475467",
+
     boxShadow:
       "0 3px 14px rgba(0,0,0,.04)"
+
   },
 
+
   footerText: {
-    margin: "6px 0 0",
-    fontSize: "13px",
-    lineHeight: 1.5
+
+    margin:
+      "6px 0 0",
+
+    fontSize:
+      "13px",
+
+    lineHeight:
+      1.5
+
   }
 
 };

@@ -8,7 +8,7 @@ import pool from "../config/database.js";
 // FUNCIONES AUXILIARES
 // ==================================================
 
-const limpiarTexto = (valor) => {
+const limpiarTexto = valor => {
   if (
     valor === undefined ||
     valor === null
@@ -22,7 +22,123 @@ const limpiarTexto = (valor) => {
   return texto || null;
 };
 
-const normalizarSexo = (sexo) => {
+
+const normalizar = valor =>
+  valor
+    ? String(valor)
+        .trim()
+        .toLowerCase()
+    : "";
+
+// ==================================================
+// CONTEXTO RH DEL USUARIO
+//
+// Incluye soporte para:
+// - Master
+// - Admin RH
+// - Usuario RH
+// - Independiente con perfil RH
+// ==================================================
+
+const obtenerContextoRH = async user => {
+  const idUsuario =
+    Number(user?.id_usuario) || null;
+
+  if (!idUsuario) {
+    return {
+      idUsuario: null,
+      tipoAdmin: "",
+      area: "",
+      rol: "",
+      idAdminPadre: null,
+      idOrganizacion: null,
+      perfilIndependiente: "",
+      esMaster: false,
+      esAdminRH: false,
+      esUsuarioRH: false,
+      esIndependienteRH: false
+    };
+  }
+
+  const [rows] =
+    await pool.query(
+      `
+        SELECT
+          u.id_usuario,
+          u.tipo_admin,
+          u.area,
+          u.rol,
+          u.id_admin_padre,
+          u.id_organizacion,
+          o.perfil_independiente
+        FROM usuarios u
+        LEFT JOIN organizaciones o
+          ON o.id_organizacion = u.id_organizacion
+        WHERE u.id_usuario = ?
+        LIMIT 1
+      `,
+      [idUsuario]
+    );
+
+  const usuario = rows[0] || {};
+
+  const tipoAdmin =
+    normalizar(usuario.tipo_admin || user?.tipo_admin);
+
+  const area =
+    normalizar(usuario.area || user?.area);
+
+  const rol =
+    normalizar(usuario.rol || user?.rol);
+
+  const perfilIndependiente =
+    normalizar(
+      usuario.perfil_independiente ||
+      user?.perfil_independiente
+    );
+
+  const esMaster =
+    tipoAdmin === "master";
+
+  const esAdminRH =
+    tipoAdmin === "normal" &&
+    area === "rh";
+
+  const esUsuarioRH =
+    rol === "rh" &&
+    area === "rh";
+
+  const esIndependienteRH =
+    rol === "independiente" &&
+    area === "independiente" &&
+    perfilIndependiente === "rh";
+
+  return {
+    idUsuario,
+    tipoAdmin,
+    area,
+    rol,
+    idAdminPadre:
+      Number(usuario.id_admin_padre || user?.id_admin_padre) || null,
+    idOrganizacion:
+      Number(usuario.id_organizacion || user?.id_organizacion) || null,
+    perfilIndependiente,
+    esMaster,
+    esAdminRH,
+    esUsuarioRH,
+    esIndependienteRH
+  };
+};
+
+const tienePermisoRH = contexto =>
+  Boolean(
+    contexto?.esMaster ||
+    contexto?.esAdminRH ||
+    contexto?.esUsuarioRH ||
+    contexto?.esIndependienteRH
+  );
+
+const normalizarSexo = sexo => {
   if (!sexo) {
     return null;
   }
@@ -51,7 +167,7 @@ const normalizarSexo = (sexo) => {
   return null;
 };
 
-const codigoSexoMirror = (sexo) => {
+const codigoSexoMirror = sexo => {
   return sexo === "F"
     ? "FE"
     : "MA";
@@ -105,7 +221,7 @@ const generarIdMirrorProspecto = async (
   return {
     idMirror,
     consecutivo,
-    anio,
+    anio
   };
 };
 
@@ -128,7 +244,7 @@ export const registrarProspecto = async (
       correo,
       telefono,
       puesto,
-      direccion,
+      direccion
     } = req.body;
 
     // ==================================================
@@ -141,11 +257,13 @@ export const registrarProspecto = async (
       );
 
     if (!nombreLimpio) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "El nombre del prospecto es obligatorio",
-      });
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message:
+            "El nombre del prospecto es obligatorio"
+        });
     }
 
     // ==================================================
@@ -164,11 +282,13 @@ export const registrarProspecto = async (
       edadNumero < 1 ||
       edadNumero > 120
     ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "La edad del prospecto es obligatoria y debe ser válida",
-      });
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message:
+            "La edad del prospecto es obligatoria y debe ser válida"
+        });
     }
 
     // ==================================================
@@ -180,14 +300,14 @@ export const registrarProspecto = async (
         sexo
       );
 
-    if (
-      !sexoNormalizado
-    ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Selecciona un sexo válido: Femenino o Masculino",
-      });
+    if (!sexoNormalizado) {
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message:
+            "Selecciona un sexo válido: Femenino o Masculino"
+        });
     }
 
     // ==================================================
@@ -200,11 +320,13 @@ export const registrarProspecto = async (
       );
 
     if (!correoLimpio) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "El correo del prospecto es obligatorio",
-      });
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message:
+            "El correo del prospecto es obligatorio"
+        });
     }
 
     const correoValido =
@@ -212,69 +334,46 @@ export const registrarProspecto = async (
         correoLimpio
       );
 
-    if (
-      !correoValido
-    ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Ingresa un correo electrónico válido",
-      });
+    if (!correoValido) {
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message:
+            "Ingresa un correo electrónico válido"
+        });
     }
 
     // ==================================================
-    // ADMINISTRADOR QUE REGISTRA
+    // USUARIO QUE REGISTRA + PERMISO RH
     // ==================================================
+
+    const contexto =
+      await obtenerContextoRH(
+        req.user
+      );
 
     const idAdminPadre =
-      req.user?.id_usuario ||
-      null;
+      contexto.idUsuario;
 
-    if (
-      !idAdminPadre
-    ) {
-      return res.status(401).json({
-        success: false,
-        message:
-          "No se pudo identificar al administrador que registra el prospecto",
-      });
+    if (!idAdminPadre) {
+      return res
+        .status(401)
+        .json({
+          success: false,
+          message:
+            "No se pudo identificar al usuario que registra el prospecto"
+        });
     }
 
-    // ==================================================
-    // INFORMACIÓN DEL ADMIN
-    // ==================================================
-
-    const tipoAdmin =
-      req.user?.tipo_admin
-        ? String(
-            req.user.tipo_admin
-          )
-            .trim()
-            .toLowerCase()
-        : null;
-
-    const area =
-      req.user?.area
-        ? String(
-            req.user.area
-          )
-            .trim()
-            .toLowerCase()
-        : null;
-
-    // ==================================================
-    // SOLO RH O MASTER
-    // ==================================================
-
-    if (
-      tipoAdmin !== "master" &&
-      area !== "rh"
-    ) {
-      return res.status(403).json({
-        success: false,
-        message:
-          "Solo los administradores de Recursos Humanos pueden registrar prospectos",
-      });
+    if (!tienePermisoRH(contexto)) {
+      return res
+        .status(403)
+        .json({
+          success: false,
+          message:
+            "No tienes permiso para registrar prospectos de Recursos Humanos"
+        });
     }
 
     // ==================================================
@@ -297,20 +396,22 @@ export const registrarProspecto = async (
         `,
         [
           correoLimpio,
-          idAdminPadre,
+          idAdminPadre
         ]
       );
 
     if (
       existentes.length > 0
     ) {
-      return res.status(409).json({
-        success: false,
-        message:
-          "Ya existe un prospecto registrado con ese correo en tus registros",
-        prospecto:
-          existentes[0],
-      });
+      return res
+        .status(409)
+        .json({
+          success: false,
+          message:
+            "Ya existe un prospecto registrado con ese correo en tus registros",
+          prospecto:
+            existentes[0]
+        });
     }
 
     // ==================================================
@@ -320,7 +421,8 @@ export const registrarProspecto = async (
     connection =
       await pool.getConnection();
 
-    await connection.beginTransaction();
+    await connection
+      .beginTransaction();
 
     // ==================================================
     // GENERAR ID MIRRORSOUL
@@ -329,7 +431,7 @@ export const registrarProspecto = async (
     const {
       idMirror,
       consecutivo,
-      anio,
+      anio
     } =
       await generarIdMirrorProspecto(
         connection,
@@ -339,8 +441,6 @@ export const registrarProspecto = async (
 
     // ==================================================
     // INSERTAR PROSPECTO
-    //
-    // NUEVO PROSPECTO = EN PROCESO
     // ==================================================
 
     const [resultado] =
@@ -390,7 +490,7 @@ export const registrarProspecto = async (
           ),
           limpiarTexto(
             direccion
-          ),
+          )
         ]
       );
 
@@ -399,10 +499,6 @@ export const registrarProspecto = async (
 
     // ==================================================
     // REGISTRAR ID EN MIRROR_IDS
-    //
-    // tipo_persona sigue siendo "prospecto".
-    // Esto identifica el TIPO DE PERSONA,
-    // no el estado del proceso.
     // ==================================================
 
     await connection.query(
@@ -430,13 +526,9 @@ export const registrarProspecto = async (
         idMirror,
         consecutivo,
         anio,
-        idProspecto,
+        idProspecto
       ]
     );
-
-    // ==================================================
-    // CONFIRMAR
-    // ==================================================
 
     await connection.commit();
 
@@ -462,61 +554,59 @@ export const registrarProspecto = async (
           "en_proceso",
 
         id_admin_padre:
-          idAdminPadre,
+          idAdminPadre
       }
     );
 
-    // ==================================================
-    // RESPUESTA
-    // ==================================================
+    return res
+      .status(201)
+      .json({
+        success: true,
 
-    return res.status(201).json({
-      success: true,
+        message:
+          "Prospecto registrado correctamente",
 
-      message:
-        "Prospecto registrado correctamente",
+        prospecto: {
+          id_prospecto:
+            idProspecto,
 
-      prospecto: {
-        id_prospecto:
-          idProspecto,
+          id_mirror:
+            idMirror,
 
-        id_mirror:
-          idMirror,
+          nombre:
+            nombreLimpio,
 
-        nombre:
-          nombreLimpio,
+          edad:
+            edadNumero,
 
-        edad:
-          edadNumero,
+          sexo:
+            sexoNormalizado,
 
-        sexo:
-          sexoNormalizado,
+          correo:
+            correoLimpio,
 
-        correo:
-          correoLimpio,
+          telefono:
+            limpiarTexto(
+              telefono
+            ),
 
-        telefono:
-          limpiarTexto(
-            telefono
-          ),
+          puesto:
+            limpiarTexto(
+              puesto
+            ),
 
-        puesto:
-          limpiarTexto(
-            puesto
-          ),
+          direccion:
+            limpiarTexto(
+              direccion
+            ),
 
-        direccion:
-          limpiarTexto(
-            direccion
-          ),
+          estatus:
+            "en_proceso",
 
-        estatus:
-          "en_proceso",
-
-        id_admin_padre:
-          idAdminPadre,
-      },
-    });
+          id_admin_padre:
+            idAdminPadre
+        }
+      });
 
   } catch (error) {
     if (connection) {
@@ -541,26 +631,29 @@ export const registrarProspecto = async (
       error?.code ===
       "ER_DUP_ENTRY"
     ) {
-      return res.status(409).json({
+      return res
+        .status(409)
+        .json({
+          success: false,
+          message:
+            "No fue posible generar el ID MirrorSoul. Intenta registrar nuevamente."
+        });
+    }
+
+    return res
+      .status(500)
+      .json({
         success: false,
 
         message:
-          "No fue posible generar el ID MirrorSoul. Intenta registrar nuevamente.",
+          "Error interno al registrar prospecto",
+
+        error:
+          process.env.NODE_ENV ===
+          "development"
+            ? error.message
+            : undefined
       });
-    }
-
-    return res.status(500).json({
-      success: false,
-
-      message:
-        "Error interno al registrar prospecto",
-
-      error:
-        process.env.NODE_ENV ===
-        "development"
-          ? error.message
-          : undefined,
-    });
 
   } finally {
     if (connection) {
@@ -573,10 +666,20 @@ export const registrarProspecto = async (
 // LISTAR PROSPECTOS
 // GET /api/prospectos
 //
-// SOLO PROSPECTOS ACTIVOS.
+// DEVUELVE:
+// - activos
+// - contratados
+// - no contratados
 //
-// contratado y no_contratado ya terminaron
-// el proceso y NO deben aparecer aquí.
+// IMPORTANTE:
+//
+// Un usuario RH ve:
+//
+// 1. Los prospectos que él registró.
+// 2. El historial CONTRATADO de los empleados
+//    que actualmente tiene asignados.
+//
+// El creador original NO se modifica.
 // ==================================================
 
 export const listarProspectos = async (
@@ -584,140 +687,210 @@ export const listarProspectos = async (
   res
 ) => {
   try {
+    const contexto =
+      await obtenerContextoRH(
+        req.user
+      );
+
     const idUsuario =
-      req.user?.id_usuario;
+      contexto.idUsuario;
 
-    if (
-      !idUsuario
-    ) {
-      return res.status(401).json({
-        success: false,
+    if (!idUsuario) {
+      return res
+        .status(401)
+        .json({
+          success: false,
+          message:
+            "No se pudo identificar al usuario"
+        });
+    }
 
-        message:
-          "No se pudo identificar al usuario",
-      });
+    if (!tienePermisoRH(contexto)) {
+      return res
+        .status(403)
+        .json({
+          success: false,
+          message:
+            "No tienes permiso para consultar prospectos de Recursos Humanos"
+        });
     }
 
     const tipoAdmin =
-      req.user?.tipo_admin
-        ? String(
-            req.user.tipo_admin
-          )
-            .trim()
-            .toLowerCase()
-        : null;
+      contexto.tipoAdmin;
 
-    const area =
-      req.user?.area
-        ? String(
-            req.user.area
-          )
-            .trim()
-            .toLowerCase()
-        : null;
+    let query = `
+      SELECT
+        p.id_prospecto,
+        p.id_mirror,
+        p.nombre,
+        p.edad,
+        p.sexo,
+        p.correo,
+        p.telefono,
+        p.puesto,
+        p.direccion,
+        p.estatus,
+        p.id_admin_padre,
+        p.fecha_registro,
+        p.fecha_actualizacion,
 
-    if (
-      tipoAdmin !== "master" &&
-      area !== "rh"
-    ) {
-      return res.status(403).json({
-        success: false,
+        COALESCE(
+          rpc.decision,
+          rse.decision
+        ) AS decision_cierre,
 
-        message:
-          "Solo los administradores de Recursos Humanos pueden consultar prospectos",
-      });
-    }
+        COALESCE(
+          rpc.motivo,
+          rse.motivo
+        ) AS motivo,
 
-    // ==================================================
-    // MASTER
-    // ==================================================
+        COALESCE(
+          rpc.observacion_final,
+          rse.observacion_final
+        ) AS observacion_final,
 
-    if (
-      tipoAdmin ===
-      "master"
-    ) {
-      const [prospectos] =
-        await pool.query(
-          `
-            SELECT
-              id_prospecto,
-              id_mirror,
-              nombre,
-              edad,
-              sexo,
-              correo,
-              telefono,
-              puesto,
-              direccion,
-              estatus,
-              id_admin_padre,
-              fecha_registro,
-              fecha_actualizacion
+        COALESCE(
+          rpc.resumen_pruebas,
+          rse.resumen_pruebas
+        ) AS resumen_pruebas,
 
-            FROM prospectos
+        COALESCE(
+          rpc.fecha_decision,
+          rse.fecha_decision
+        ) AS fecha_decision,
 
-            WHERE estatus NOT IN
-            (
-              'contratado',
-              'no_contratado'
-            )
+        e.id_empleado,
 
-            ORDER BY
-              fecha_registro DESC,
-              id_prospecto DESC
-          `
-        );
+        e.id_usuario_responsable
 
-      return res.json({
-        success: true,
-        prospectos,
-      });
-    }
+      FROM prospectos p
+
+      LEFT JOIN resumen_prospectos_cerrados rpc
+        ON rpc.id_prospecto =
+           p.id_prospecto
+
+      LEFT JOIN empleados e
+        ON e.id_prospecto =
+           p.id_prospecto
+
+      LEFT JOIN resumen_seleccion_empleados rse
+        ON rse.id_empleado =
+           e.id_empleado
+    `;
+
+    const params = [];
 
     // ==================================================
     // RH NORMAL
+    //
+    // VE:
+    //
+    // 1. LOS PROSPECTOS QUE ÉL REGISTRÓ.
+    //
+    // 2. EL HISTORIAL CONTRATADO DE EMPLEADOS
+    //    QUE ACTUALMENTE TIENE ASIGNADOS.
+    //
+    // IMPORTANTE:
+    //
+    // p.id_admin_padre NO SE CAMBIA.
     // ==================================================
+
+    if (
+      tipoAdmin !== "master"
+    ) {
+      query += `
+        WHERE
+        (
+          p.id_admin_padre = ?
+
+          OR
+
+          (
+            LOWER(
+              TRIM(
+                COALESCE(
+                  p.estatus,
+                  ''
+                )
+              )
+            ) = 'contratado'
+
+            AND e.id_usuario_responsable = ?
+          )
+        )
+      `;
+
+      params.push(
+        idUsuario,
+        idUsuario
+      );
+    }
+
+    query += `
+      ORDER BY
+        COALESCE(
+          rpc.fecha_decision,
+          rse.fecha_decision,
+          p.fecha_actualizacion,
+          p.fecha_registro
+        ) DESC,
+
+        p.id_prospecto DESC
+    `;
 
     const [prospectos] =
       await pool.query(
-        `
-          SELECT
-            id_prospecto,
-            id_mirror,
-            nombre,
-            edad,
-            sexo,
-            correo,
-            telefono,
-            puesto,
-            direccion,
-            estatus,
-            id_admin_padre,
-            fecha_registro,
-            fecha_actualizacion
-
-          FROM prospectos
-
-          WHERE id_admin_padre = ?
-
-            AND estatus NOT IN
-            (
-              'contratado',
-              'no_contratado'
-            )
-
-          ORDER BY
-            fecha_registro DESC,
-            id_prospecto DESC
-        `,
-        [
-          idUsuario,
-        ]
+        query,
+        params
       );
+
+    console.log(
+      tipoAdmin === "master"
+        ? "📦 Prospectos Master:"
+        : "📦 Prospectos RH:",
+      {
+        idUsuario,
+
+        total:
+          prospectos.length,
+
+        activos:
+          prospectos.filter(
+            p =>
+              ![
+                "contratado",
+                "no_contratado"
+              ].includes(
+                String(
+                  p.estatus ||
+                  ""
+                )
+                  .trim()
+                  .toLowerCase()
+              )
+          ).length,
+
+        cerrados:
+          prospectos.filter(
+            p =>
+              [
+                "contratado",
+                "no_contratado"
+              ].includes(
+                String(
+                  p.estatus ||
+                  ""
+                )
+                  .trim()
+                  .toLowerCase()
+              )
+          ).length
+      }
+    );
 
     return res.json({
       success: true,
-      prospectos,
+      prospectos
     });
 
   } catch (error) {
@@ -726,18 +899,20 @@ export const listarProspectos = async (
       error
     );
 
-    return res.status(500).json({
-      success: false,
+    return res
+      .status(500)
+      .json({
+        success: false,
 
-      message:
-        "Error interno al obtener los prospectos",
+        message:
+          "Error interno al obtener los prospectos",
 
-      error:
-        process.env.NODE_ENV ===
-        "development"
-          ? error.message
-          : undefined,
-    });
+        error:
+          process.env.NODE_ENV ===
+          "development"
+            ? error.message
+            : undefined
+      });
   }
 };
 
@@ -745,10 +920,11 @@ export const listarProspectos = async (
 // OBTENER UN PROSPECTO
 // GET /api/prospectos/:id
 //
-// Aquí SÍ permitimos consultar el registro aunque
-// posteriormente esté contratado.
+// PERMITE:
 //
-// Esto es útil para historial / referencias internas.
+// - creador original
+// - Master
+// - responsable RH actual del empleado contratado
 // ==================================================
 
 export const obtenerProspecto = async (
@@ -767,57 +943,46 @@ export const obtenerProspecto = async (
       ) ||
       idProspecto <= 0
     ) {
-      return res.status(400).json({
-        success: false,
+      return res
+        .status(400)
+        .json({
+          success: false,
 
-        message:
-          "ID de prospecto inválido",
-      });
+          message:
+            "ID de prospecto inválido"
+        });
     }
 
+    const contexto =
+      await obtenerContextoRH(
+        req.user
+      );
+
     const idUsuario =
-      req.user?.id_usuario;
+      contexto.idUsuario;
 
-    if (
-      !idUsuario
-    ) {
-      return res.status(401).json({
-        success: false,
+    if (!idUsuario) {
+      return res
+        .status(401)
+        .json({
+          success: false,
+          message:
+            "No se pudo identificar al usuario"
+        });
+    }
 
-        message:
-          "No se pudo identificar al usuario",
-      });
+    if (!tienePermisoRH(contexto)) {
+      return res
+        .status(403)
+        .json({
+          success: false,
+          message:
+            "No tienes permiso para consultar prospectos"
+        });
     }
 
     const tipoAdmin =
-      req.user?.tipo_admin
-        ? String(
-            req.user.tipo_admin
-          )
-            .trim()
-            .toLowerCase()
-        : null;
-
-    const area =
-      req.user?.area
-        ? String(
-            req.user.area
-          )
-            .trim()
-            .toLowerCase()
-        : null;
-
-    if (
-      tipoAdmin !== "master" &&
-      area !== "rh"
-    ) {
-      return res.status(403).json({
-        success: false,
-
-        message:
-          "No tienes permiso para consultar prospectos",
-      });
-    }
+      contexto.tipoAdmin;
 
     let query = `
       SELECT
@@ -837,22 +1002,52 @@ export const obtenerProspecto = async (
 
       FROM prospectos
 
-      WHERE id_prospecto = ?
+      WHERE
+        id_prospecto = ?
     `;
 
     const params = [
-      idProspecto,
+      idProspecto
     ];
 
     if (
-      tipoAdmin !==
-      "master"
+      tipoAdmin !== "master"
     ) {
       query += `
-        AND id_admin_padre = ?
+        AND
+        (
+          id_admin_padre = ?
+
+          OR
+
+          (
+            LOWER(
+              TRIM(
+                COALESCE(
+                  estatus,
+                  ''
+                )
+              )
+            ) = 'contratado'
+
+            AND EXISTS
+            (
+              SELECT 1
+
+              FROM empleados e
+
+              WHERE
+                e.id_prospecto =
+                  prospectos.id_prospecto
+
+                AND e.id_usuario_responsable = ?
+            )
+          )
+        )
       `;
 
       params.push(
+        idUsuario,
         idUsuario
       );
     }
@@ -870,19 +1065,21 @@ export const obtenerProspecto = async (
     if (
       resultados.length === 0
     ) {
-      return res.status(404).json({
-        success: false,
+      return res
+        .status(404)
+        .json({
+          success: false,
 
-        message:
-          "Prospecto no encontrado",
-      });
+          message:
+            "Prospecto no encontrado"
+        });
     }
 
     return res.json({
       success: true,
 
       prospecto:
-        resultados[0],
+        resultados[0]
     });
 
   } catch (error) {
@@ -891,17 +1088,19 @@ export const obtenerProspecto = async (
       error
     );
 
-    return res.status(500).json({
-      success: false,
+    return res
+      .status(500)
+      .json({
+        success: false,
 
-      message:
-        "Error interno al obtener el prospecto",
+        message:
+          "Error interno al obtener el prospecto",
 
-      error:
-        process.env.NODE_ENV ===
-        "development"
-          ? error.message
-          : undefined,
-    });
+        error:
+          process.env.NODE_ENV ===
+          "development"
+            ? error.message
+            : undefined
+      });
   }
 };

@@ -1,5 +1,9 @@
 import pool from "../config/database.js";
 
+import fs from "fs/promises";
+
+import path from "path";
+
 
 // ==================================================
 // AUXILIAR: VALIDAR ACCESO AL PROSPECTO
@@ -12,22 +16,7 @@ const validarAccesoProspecto = async (
 ) => {
 
   const idUsuario =
-    user?.id_usuario;
-
-  const tipoAdmin =
-    user?.tipo_admin
-      ? String(user.tipo_admin)
-          .trim()
-          .toLowerCase()
-      : null;
-
-  const area =
-    user?.area
-      ? String(user.area)
-          .trim()
-          .toLowerCase()
-      : null;
-
+    Number(user?.id_usuario) || null;
 
   if (!idUsuario) {
     return {
@@ -38,11 +27,110 @@ const validarAccesoProspecto = async (
     };
   }
 
+  // ==================================================
+  // CONTEXTO REAL DEL USUARIO RH
+  //
+  // Permite:
+  // - Master
+  // - Admin RH
+  // - Usuario RH
+  // - Independiente con perfil RH
+  // ==================================================
 
-  if (
-    tipoAdmin !== "master" &&
-    area !== "rh"
-  ) {
+  const [usuarios] =
+    await connection.query(
+      `
+        SELECT
+          u.id_usuario,
+          u.tipo_admin,
+          u.area,
+          u.rol,
+          u.id_admin_padre,
+          u.id_organizacion,
+          o.tipo AS tipo_organizacion,
+          o.perfil_independiente,
+          o.estado AS estado_organizacion
+        FROM usuarios u
+        LEFT JOIN organizaciones o
+          ON o.id_organizacion =
+             u.id_organizacion
+        WHERE u.id_usuario = ?
+        LIMIT 1
+      `,
+      [idUsuario]
+    );
+
+  if (!usuarios.length) {
+    return {
+      ok: false,
+      status: 401,
+      message:
+        "No se pudo identificar al usuario",
+    };
+  }
+
+  const usuario =
+    usuarios[0];
+
+  const tipoAdmin =
+    String(
+      usuario.tipo_admin || ""
+    )
+      .trim()
+      .toLowerCase();
+
+  const area =
+    String(
+      usuario.area || ""
+    )
+      .trim()
+      .toLowerCase();
+
+  const rol =
+    String(
+      usuario.rol || ""
+    )
+      .trim()
+      .toLowerCase();
+
+  const perfilIndependiente =
+    String(
+      usuario.perfil_independiente || ""
+    )
+      .trim()
+      .toLowerCase();
+
+  const estadoOrganizacion =
+    String(
+      usuario.estado_organizacion || ""
+    )
+      .trim()
+      .toLowerCase();
+
+  const esMaster =
+    tipoAdmin === "master";
+
+  const esAdminRH =
+    tipoAdmin === "normal" &&
+    area === "rh";
+
+  const esUsuarioRH =
+    rol === "rh" &&
+    area === "rh";
+
+  const esIndependienteRH =
+    rol === "independiente" &&
+    area === "independiente" &&
+    perfilIndependiente === "rh" &&
+    estadoOrganizacion === "activa";
+
+  const tienePermiso =
+    esMaster ||
+    esAdminRH ||
+    esUsuarioRH ||
+    esIndependienteRH;
+
+  if (!tienePermiso) {
     return {
       ok: false,
       status: 403,
@@ -51,20 +139,9 @@ const validarAccesoProspecto = async (
     };
   }
 
-
   let query = `
     SELECT
-      id_prospecto,
-      id_admin_padre,
-      id_mirror,
-      nombre,
-      edad,
-      sexo,
-      correo,
-      telefono,
-      puesto,
-      direccion,
-      estatus
+      *
     FROM prospectos
     WHERE id_prospecto = ?
   `;
@@ -73,11 +150,10 @@ const validarAccesoProspecto = async (
     idProspecto
   ];
 
-
-  if (
-    tipoAdmin !== "master"
-  ) {
-
+  // Todo usuario RH no-master,
+  // incluido Independiente RH,
+  // solo puede acceder a sus propios prospectos.
+  if (!esMaster) {
     query += `
       AND id_admin_padre = ?
     `;
@@ -87,18 +163,15 @@ const validarAccesoProspecto = async (
     );
   }
 
-
   query += `
     LIMIT 1
   `;
-
 
   const [rows] =
     await connection.query(
       query,
       params
     );
-
 
   if (!rows.length) {
     return {
@@ -109,12 +182,571 @@ const validarAccesoProspecto = async (
     };
   }
 
-
   return {
     ok: true,
     prospecto:
       rows[0],
+    contexto: {
+      idUsuario,
+      tipoAdmin,
+      area,
+      rol,
+      idOrganizacion:
+        Number(
+          usuario.id_organizacion
+        ) || null,
+      perfilIndependiente,
+      esMaster,
+      esAdminRH,
+      esUsuarioRH,
+      esIndependienteRH,
+    },
   };
+};
+
+
+// ==================================================
+// AUXILIAR: CREAR RESUMEN DE PRUEBAS
+// ==================================================
+
+const crearResumenPruebasProspecto = async (
+  idProspecto,
+  connection
+) => {
+
+  const [resultados] =
+    await connection.query(
+      `
+        SELECT
+          r.id_resultado,
+          r.id_prueba_rh,
+          p.nombre AS prueba,
+          r.puntaje_total,
+          r.resultado_texto,
+          r.interpretacion,
+          r.interpretacion_laboral,
+          r.fortalezas,
+          r.areas_atencion,
+          r.compatibilidad_puesto,
+          r.recomendaciones,
+          r.fecha_resultado
+
+        FROM resultados_prueba_prospecto r
+
+        LEFT JOIN pruebas_rh p
+          ON p.id_prueba_rh =
+             r.id_prueba_rh
+
+        WHERE r.id_prospecto = ?
+
+        ORDER BY
+          r.fecha_resultado ASC,
+          r.id_resultado ASC
+      `,
+      [
+        idProspecto
+      ]
+    );
+
+  if (!resultados.length) {
+    return JSON.stringify([]);
+  }
+
+  return JSON.stringify(
+    resultados.map(
+      item => ({
+        prueba:
+          item.prueba ||
+          `Prueba #${item.id_prueba_rh}`,
+
+        puntaje_total:
+          item.puntaje_total,
+
+        resultado:
+          item.resultado_texto,
+
+        interpretacion:
+          item.interpretacion,
+
+        interpretacion_laboral:
+          item.interpretacion_laboral,
+
+        fortalezas:
+          item.fortalezas,
+
+        areas_atencion:
+          item.areas_atencion,
+
+        compatibilidad_puesto:
+          item.compatibilidad_puesto,
+
+        recomendaciones:
+          item.recomendaciones,
+
+        fecha_resultado:
+          item.fecha_resultado,
+      })
+    )
+  );
+};
+
+
+// ==================================================
+// AUXILIAR: COPIAR DOCUMENTOS AL EMPLEADO
+// ==================================================
+
+const copiarDocumentosAEmpleado = async (
+  idProspecto,
+  idEmpleado,
+  connection
+) => {
+
+  await connection.query(
+    `
+      INSERT INTO documentos_empleados
+      (
+        id_empleado,
+        tipo_documento,
+        nombre_original,
+        nombre_archivo,
+        ruta_archivo,
+        mime_type,
+        descripcion,
+        fecha_subida
+      )
+
+      SELECT
+        ?,
+        tipo_documento,
+        nombre_original,
+        nombre_archivo,
+        ruta_archivo,
+        mime_type,
+        descripcion,
+        fecha_subida
+
+      FROM documentos_prospectos
+
+      WHERE id_prospecto = ?
+    `,
+    [
+      idEmpleado,
+      idProspecto
+    ]
+  );
+};
+
+
+// ==================================================
+// AUXILIAR: OBTENER ARCHIVOS FÍSICOS A ELIMINAR
+//
+// CONTRATADO:
+// - eliminamos grabaciones de entrevistas.
+// - NO eliminamos físicamente documentos porque ahora
+//   documentos_empleados utiliza esos mismos archivos.
+//
+// NO CONTRATADO:
+// - eliminamos grabaciones y documentos físicos.
+// ==================================================
+
+const obtenerArchivosParaEliminar = async (
+  idProspecto,
+  connection,
+  incluirDocumentos = false
+) => {
+
+  const rutas = [];
+
+  const [grabaciones] =
+    await connection.query(
+      `
+        SELECT ruta_video
+        FROM videos_entrevista_rh
+        WHERE id_prospecto = ?
+      `,
+      [
+        idProspecto
+      ]
+    );
+
+  for (
+    const archivo of
+    grabaciones
+  ) {
+    if (
+      archivo?.ruta_video
+    ) {
+      rutas.push(
+        archivo.ruta_video
+      );
+    }
+  }
+
+  if (
+    incluirDocumentos
+  ) {
+
+    const [documentos] =
+      await connection.query(
+        `
+          SELECT ruta_archivo
+          FROM documentos_prospectos
+          WHERE id_prospecto = ?
+        `,
+        [
+          idProspecto
+        ]
+      );
+
+    for (
+      const documento of
+      documentos
+    ) {
+      if (
+        documento?.ruta_archivo
+      ) {
+        rutas.push(
+          documento.ruta_archivo
+        );
+      }
+    }
+  }
+
+  return [
+    ...new Set(rutas)
+  ];
+};
+
+
+// ==================================================
+// AUXILIAR: ELIMINAR ARCHIVOS FÍSICOS
+//
+// Se ejecuta DESPUÉS del COMMIT.
+// Si un archivo ya no existe, no rompe el proceso.
+// ==================================================
+
+const eliminarArchivosFisicos = async (
+  rutas = []
+) => {
+
+  for (
+    const rutaOriginal of
+    rutas
+  ) {
+
+    try {
+
+      const ruta =
+        String(
+          rutaOriginal || ""
+        ).trim();
+
+      if (
+        !ruta ||
+        /^https?:\/\//i.test(
+          ruta
+        )
+      ) {
+        continue;
+      }
+
+      const rutaRelativa =
+        ruta
+          .replace(
+            /^[\/\\]+/,
+            ""
+          )
+          .replace(
+            /\\/g,
+            "/"
+          );
+
+      const rutaAbsoluta =
+        path.resolve(
+          process.cwd(),
+          rutaRelativa
+        );
+
+      await fs.unlink(
+        rutaAbsoluta
+      );
+
+      console.log(
+        "🗑️ Archivo eliminado:",
+        rutaAbsoluta
+      );
+
+    } catch (error) {
+
+      if (
+        error?.code !==
+        "ENOENT"
+      ) {
+
+        console.warn(
+          "⚠️ No se pudo eliminar archivo físico:",
+          rutaOriginal,
+          error.message
+        );
+      }
+    }
+  }
+};
+
+
+// ==================================================
+// AUXILIAR: LIMPIAR PRUEBAS DEL PROSPECTO
+//
+// IMPORTANTE:
+// El resumen de resultados debe haberse guardado
+// ANTES de ejecutar esta función.
+//
+// Se eliminan únicamente aplicaciones, respuestas
+// y resultados del prospecto.
+//
+// NO se eliminan catálogos, preguntas, reactivos,
+// baremos ni configuraciones de las pruebas.
+// ==================================================
+
+const limpiarPruebasProspecto = async (
+  idProspecto,
+  connection
+) => {
+
+  // ==================================================
+  // RAVEN
+  // ==================================================
+
+  await connection.query(
+    `
+      DELETE FROM resultados_raven
+      WHERE id_prospecto = ?
+    `,
+    [
+      idProspecto
+    ]
+  );
+
+  await connection.query(
+    `
+      DELETE FROM respuestas_raven
+      WHERE id_prospecto = ?
+    `,
+    [
+      idProspecto
+    ]
+  );
+
+  // ==================================================
+  // BETA III
+  // ==================================================
+
+  await connection.query(
+    `
+      DELETE FROM resultados_beta3
+      WHERE id_prospecto = ?
+    `,
+    [
+      idProspecto
+    ]
+  );
+
+  await connection.query(
+    `
+      DELETE FROM respuestas_beta3
+      WHERE id_prospecto = ?
+    `,
+    [
+      idProspecto
+    ]
+  );
+
+  // ==================================================
+  // RESULTADOS GENERALES
+  //
+  // Aquí están también los resultados resumidos
+  // de IPIP-50, ORVIS, Raven y Beta III.
+  //
+  // Ya fueron copiados previamente a resumen_pruebas.
+  // ==================================================
+
+  await connection.query(
+    `
+      DELETE FROM resultados_prueba_prospecto
+      WHERE id_prospecto = ?
+    `,
+    [
+      idProspecto
+    ]
+  );
+
+  // ==================================================
+  // RESPUESTAS GENERALES
+  //
+  // IPIP-50
+  // ORVIS
+  // pruebas RH genéricas
+  // ==================================================
+
+  await connection.query(
+    `
+      DELETE FROM respuestas_prueba_prospecto
+      WHERE id_prospecto = ?
+    `,
+    [
+      idProspecto
+    ]
+  );
+
+  // ==================================================
+  // HABILITACIONES / TOKENS PÚBLICOS
+  //
+  // Se hace al final porque las respuestas y
+  // resultados dependen de id_habilitacion.
+  // ==================================================
+
+  await connection.query(
+    `
+      DELETE FROM pruebas_prospectos_habilitadas
+      WHERE id_prospecto = ?
+    `,
+    [
+      idProspecto
+    ]
+  );
+
+  console.log(
+    `🧹 Pruebas del prospecto ${idProspecto} limpiadas correctamente`
+  );
+};
+
+
+// ==================================================
+// AUXILIAR: LIMPIAR INFORMACIÓN TEMPORAL
+//
+// Esta función se ejecuta SOLAMENTE después de que:
+//
+// 1. Se creó el resumen de pruebas.
+// 2. Se creó el resumen de selección o cierre.
+// 3. Se transfirieron documentos si fue contratado.
+//
+// Todo ocurre dentro de la misma transacción.
+// ==================================================
+
+const limpiarProcesoProspecto = async (
+  idProspecto,
+  connection
+) => {
+
+  // ==================================================
+  // MULTIMEDIA DE ENTREVISTAS
+  // ==================================================
+
+  await connection.query(
+    `
+      DELETE FROM videos_entrevista_rh
+      WHERE id_prospecto = ?
+    `,
+    [
+      idProspecto
+    ]
+  );
+
+  // ==================================================
+  // ENTREVISTAS
+  //
+  // Al eliminar la entrevista se elimina también
+  // la información/transcripción asociada a ella.
+  // ==================================================
+
+  await connection.query(
+    `
+      DELETE FROM entrevistas_prospectos
+      WHERE id_prospecto = ?
+    `,
+    [
+      idProspecto
+    ]
+  );
+
+  // ==================================================
+  // SEGUIMIENTO DE SELECCIÓN
+  // ==================================================
+
+  await connection.query(
+    `
+      DELETE FROM seguimiento_prospectos
+      WHERE id_prospecto = ?
+    `,
+    [
+      idProspecto
+    ]
+  );
+
+  // ==================================================
+  // OBSERVACIONES INTERNAS RH
+  // ==================================================
+
+  await connection.query(
+    `
+      DELETE FROM observaciones_prospectos
+      WHERE id_prospecto = ?
+    `,
+    [
+      idProspecto
+    ]
+  );
+
+  // ==================================================
+  // REPORTES COMPLETOS DE IA
+  // ==================================================
+
+  await connection.query(
+    `
+      DELETE FROM reportes_ia_prospectos
+      WHERE id_prospecto = ?
+    `,
+    [
+      idProspecto
+    ]
+  );
+
+  // ==================================================
+  // DOCUMENTOS DEL PROCESO
+  //
+  // CONTRATADO:
+  // ya fueron registrados en documentos_empleados.
+  //
+  // NO CONTRATADO:
+  // los archivos físicos se eliminarán después
+  // del COMMIT.
+  // ==================================================
+
+  await connection.query(
+    `
+      DELETE FROM documentos_prospectos
+      WHERE id_prospecto = ?
+    `,
+    [
+      idProspecto
+    ]
+  );
+
+  // ==================================================
+  // PRUEBAS PSICOMÉTRICAS
+  //
+  // Se dejan para el final porque primero necesitábamos
+  // crear resumen_pruebas.
+  // ==================================================
+
+  await limpiarPruebasProspecto(
+    idProspecto,
+    connection
+  );
+
+  console.log(
+    `✅ Proceso temporal del prospecto ${idProspecto} limpiado`
+  );
 };
 
 
@@ -149,20 +781,19 @@ export const registrarDecisionProspecto =
           req.params.id
         );
 
-
       if (
         !Number.isInteger(
           idProspecto
         ) ||
         idProspecto <= 0
       ) {
+
         return res.status(400).json({
           success: false,
           message:
             "ID de prospecto inválido",
         });
       }
-
 
       const decision =
         String(
@@ -171,25 +802,23 @@ export const registrarDecisionProspecto =
           .trim()
           .toLowerCase();
 
-
       const decisionesPermitidas = [
         "contratar",
         "no_contratar"
       ];
-
 
       if (
         !decisionesPermitidas.includes(
           decision
         )
       ) {
+
         return res.status(400).json({
           success: false,
           message:
             "La decisión seleccionada es inválida",
         });
       }
-
 
       const motivo =
         req.body?.motivo
@@ -198,14 +827,12 @@ export const registrarDecisionProspecto =
             ).trim()
           : null;
 
-
       const observaciones =
         req.body?.observaciones
           ? String(
               req.body.observaciones
             ).trim()
           : null;
-
 
       const departamento =
         req.body?.departamento
@@ -214,17 +841,14 @@ export const registrarDecisionProspecto =
             ).trim()
           : null;
 
-
       const fechaContratacion =
         req.body?.fecha_contratacion ||
         null;
-
 
       connection =
         await pool.getConnection();
 
       await connection.beginTransaction();
-
 
       // ==================================================
       // VALIDAR ACCESO
@@ -236,7 +860,6 @@ export const registrarDecisionProspecto =
           req.user,
           connection
         );
-
 
       if (!acceso.ok) {
 
@@ -253,10 +876,8 @@ export const registrarDecisionProspecto =
           });
       }
 
-
       const prospecto =
         acceso.prospecto;
-
 
       // ==================================================
       // VALIDAR SI YA EXISTE UNA DECISIÓN FINAL
@@ -279,7 +900,6 @@ export const registrarDecisionProspecto =
             idProspecto
           ]
         );
-
 
       if (
         decisionesPrevias.length &&
@@ -307,7 +927,6 @@ export const registrarDecisionProspecto =
         });
       }
 
-
       // ==================================================
       // DECISIÓN: NO CONTRATAR
       // ==================================================
@@ -316,6 +935,73 @@ export const registrarDecisionProspecto =
         decision ===
         "no_contratar"
       ) {
+
+        const archivosParaEliminar =
+          await obtenerArchivosParaEliminar(
+            idProspecto,
+            connection,
+            true
+          );
+
+        const resumenPruebas =
+          await crearResumenPruebasProspecto(
+            idProspecto,
+            connection
+          );
+
+        await connection.query(
+          `
+            INSERT INTO resumen_prospectos_cerrados
+            (
+              id_prospecto,
+              id_admin_padre,
+              id_mirror,
+              nombre,
+              puesto,
+              decision,
+              motivo,
+              resumen_pruebas,
+              observacion_final,
+              fecha_decision
+            )
+            VALUES
+            (
+              ?,
+              ?,
+              ?,
+              ?,
+              ?,
+              'no_contratar',
+              ?,
+              ?,
+              ?,
+              NOW()
+            )
+
+            ON DUPLICATE KEY UPDATE
+              motivo =
+                VALUES(motivo),
+
+              resumen_pruebas =
+                VALUES(resumen_pruebas),
+
+              observacion_final =
+                VALUES(observacion_final),
+
+              fecha_decision =
+                VALUES(fecha_decision)
+          `,
+          [
+            idProspecto,
+            prospecto.id_admin_padre,
+            prospecto.id_mirror,
+            prospecto.nombre,
+            prospecto.puesto,
+            motivo,
+            resumenPruebas,
+            observaciones,
+          ]
+        );
 
         const [insertDecision] =
           await connection.query(
@@ -343,13 +1029,14 @@ export const registrarDecisionProspecto =
             `,
             [
               idProspecto,
+
               req.user?.id_usuario ||
                 null,
+
               motivo,
               observaciones,
             ]
           );
-
 
         await connection.query(
           `
@@ -362,15 +1049,22 @@ export const registrarDecisionProspecto =
           ]
         );
 
+        await limpiarProcesoProspecto(
+          idProspecto,
+          connection
+        );
 
         await connection.commit();
 
+        await eliminarArchivosFisicos(
+          archivosParaEliminar
+        );
 
         return res.status(201).json({
           success: true,
 
           message:
-            "Decisión registrada. El prospecto fue marcado como no contratado.",
+            "Decisión registrada. Se guardó el resumen y el proceso fue cerrado.",
 
           decision: {
             id_decision:
@@ -392,14 +1086,8 @@ export const registrarDecisionProspecto =
         });
       }
 
-
       // ==================================================
       // DECISIÓN: CONTRATAR
-      // ==================================================
-
-
-      // ==================================================
-      // VALIDAR ID MIRRORSOUL
       // ==================================================
 
       if (
@@ -414,11 +1102,6 @@ export const registrarDecisionProspecto =
             "El prospecto no tiene ID MirrorSoul y no puede convertirse en empleado",
         });
       }
-
-
-      // ==================================================
-      // VALIDAR SI YA EXISTE EMPLEADO
-      // ==================================================
 
       const [empleadosExistentes] =
         await connection.query(
@@ -440,7 +1123,6 @@ export const registrarDecisionProspecto =
           ]
         );
 
-
       if (
         empleadosExistentes.length
       ) {
@@ -456,13 +1138,23 @@ export const registrarDecisionProspecto =
         });
       }
 
+      // ==================================================
+      // RESPONSABLE INICIAL
+      // ==================================================
 
-      // ==================================================
-      // CREAR EMPLEADO
-      //
-      // NO CREAMOS OTRO ID MIRRORSOUL.
-      // SE CONSERVA EL MISMO DEL PROSPECTO.
-      // ==================================================
+      const esUsuarioRHNormal =
+        acceso.contexto.esUsuarioRH;
+
+      const esIndependienteRH =
+        acceso.contexto.esIndependienteRH;
+
+      const idResponsableInicial =
+        esUsuarioRHNormal ||
+        esIndependienteRH
+          ? Number(
+              req.user?.id_usuario
+            ) || null
+          : null;
 
       const [insertEmpleado] =
         await connection.query(
@@ -471,6 +1163,7 @@ export const registrarDecisionProspecto =
             (
               id_prospecto,
               id_admin_padre,
+              id_usuario_responsable,
               id_mirror,
               nombre,
               edad,
@@ -496,6 +1189,7 @@ export const registrarDecisionProspecto =
               ?,
               ?,
               ?,
+              ?,
               COALESCE(?, CURDATE()),
               'activo'
             )
@@ -503,6 +1197,7 @@ export const registrarDecisionProspecto =
           [
             idProspecto,
             prospecto.id_admin_padre,
+            idResponsableInicial,
             prospecto.id_mirror,
             prospecto.nombre,
             prospecto.edad,
@@ -516,14 +1211,72 @@ export const registrarDecisionProspecto =
           ]
         );
 
-
       const idEmpleado =
         insertEmpleado.insertId;
 
+      const archivosParaEliminar =
+        await obtenerArchivosParaEliminar(
+          idProspecto,
+          connection,
+          false
+        );
 
-      // ==================================================
-      // ACTUALIZAR PROSPECTO
-      // ==================================================
+      const resumenPruebas =
+        await crearResumenPruebasProspecto(
+          idProspecto,
+          connection
+        );
+
+      await copiarDocumentosAEmpleado(
+        idProspecto,
+        idEmpleado,
+        connection
+      );
+
+      await connection.query(
+        `
+          INSERT INTO resumen_seleccion_empleados
+          (
+            id_empleado,
+            id_prospecto_origen,
+            decision,
+            motivo,
+            observacion_final,
+            resumen_pruebas,
+            fecha_decision
+          )
+          VALUES
+          (
+            ?,
+            ?,
+            'contratar',
+            ?,
+            ?,
+            ?,
+            NOW()
+          )
+
+          ON DUPLICATE KEY UPDATE
+            motivo =
+              VALUES(motivo),
+
+            observacion_final =
+              VALUES(observacion_final),
+
+            resumen_pruebas =
+              VALUES(resumen_pruebas),
+
+            fecha_decision =
+              VALUES(fecha_decision)
+        `,
+        [
+          idEmpleado,
+          idProspecto,
+          motivo,
+          observaciones,
+          resumenPruebas,
+        ]
+      );
 
       await connection.query(
         `
@@ -535,15 +1288,6 @@ export const registrarDecisionProspecto =
           idProspecto
         ]
       );
-
-
-      // ==================================================
-      // ACTUALIZAR TIPO EN mirror_ids
-      //
-      // IMPORTANTE:
-      // NO INSERTAMOS OTRO REGISTRO.
-      // SE CONSERVA EL MISMO id_mirror.
-      // ==================================================
 
       await connection.query(
         `
@@ -558,11 +1302,6 @@ export const registrarDecisionProspecto =
           prospecto.id_mirror,
         ]
       );
-
-
-      // ==================================================
-      // GUARDAR DECISIÓN
-      // ==================================================
 
       const [insertDecision] =
         await connection.query(
@@ -590,21 +1329,26 @@ export const registrarDecisionProspecto =
           `,
           [
             idProspecto,
+
             req.user?.id_usuario ||
               null,
+
             idEmpleado,
             motivo,
             observaciones,
           ]
         );
 
+      await limpiarProcesoProspecto(
+        idProspecto,
+        connection
+      );
 
       await connection.commit();
 
-
-      // ==================================================
-      // DEVOLVER EMPLEADO
-      // ==================================================
+      await eliminarArchivosFisicos(
+        archivosParaEliminar
+      );
 
       const [empleados] =
         await pool.query(
@@ -613,6 +1357,7 @@ export const registrarDecisionProspecto =
               id_empleado,
               id_prospecto,
               id_admin_padre,
+              id_usuario_responsable,
               id_mirror,
               nombre,
               edad,
@@ -633,7 +1378,6 @@ export const registrarDecisionProspecto =
             idEmpleado
           ]
         );
-
 
       return res.status(201).json({
         success: true,
@@ -658,7 +1402,6 @@ export const registrarDecisionProspecto =
           null,
       });
 
-
     } catch (error) {
 
       if (connection) {
@@ -667,12 +1410,10 @@ export const registrarDecisionProspecto =
         } catch {}
       }
 
-
       console.error(
         "❌ Error registrando decisión del prospecto:",
         error
       );
-
 
       return res.status(500).json({
         success: false,
@@ -686,7 +1427,6 @@ export const registrarDecisionProspecto =
             ? error.message
             : undefined,
       });
-
 
     } finally {
 
@@ -717,13 +1457,13 @@ export const obtenerDecisionProspecto =
           req.params.id
         );
 
-
       if (
         !Number.isInteger(
           idProspecto
         ) ||
         idProspecto <= 0
       ) {
+
         return res.status(400).json({
           success: false,
           message:
@@ -731,15 +1471,14 @@ export const obtenerDecisionProspecto =
         });
       }
 
-
       const acceso =
         await validarAccesoProspecto(
           idProspecto,
           req.user
         );
 
-
       if (!acceso.ok) {
+
         return res
           .status(
             acceso.status
@@ -750,7 +1489,6 @@ export const obtenerDecisionProspecto =
               acceso.message,
           });
       }
-
 
       const [decisiones] =
         await pool.query(
@@ -796,7 +1534,6 @@ export const obtenerDecisionProspecto =
           ]
         );
 
-
       return res.json({
         success: true,
 
@@ -812,14 +1549,12 @@ export const obtenerDecisionProspecto =
           decisiones,
       });
 
-
     } catch (error) {
 
       console.error(
         "❌ Error obteniendo decisión RH:",
         error
       );
-
 
       return res.status(500).json({
         success: false,
@@ -842,8 +1577,11 @@ export const obtenerDecisionProspecto =
 //
 // GET /api/prospectos/empleados/lista
 //
-// Luego podemos mover esto a employees.js si
-// hacemos un módulo independiente de empleados.
+// Permite:
+// - Master
+// - Admin RH
+// - Usuario RH
+// - Independiente RH
 // ==================================================
 
 export const listarEmpleadosRH =
@@ -855,28 +1593,12 @@ export const listarEmpleadosRH =
     try {
 
       const idUsuario =
-        req.user?.id_usuario;
-
-      const tipoAdmin =
-        req.user?.tipo_admin
-          ? String(
-              req.user.tipo_admin
-            )
-              .trim()
-              .toLowerCase()
-          : null;
-
-      const area =
-        req.user?.area
-          ? String(
-              req.user.area
-            )
-              .trim()
-              .toLowerCase()
-          : null;
-
+        Number(
+          req.user?.id_usuario
+        ) || null;
 
       if (!idUsuario) {
+
         return res.status(401).json({
           success: false,
           message:
@@ -884,11 +1606,120 @@ export const listarEmpleadosRH =
         });
       }
 
+      const [usuarios] =
+        await pool.query(
+          `
+            SELECT
+              u.id_usuario,
+              u.tipo_admin,
+              u.area,
+              u.rol,
+              u.id_admin_padre,
+              u.id_organizacion,
+
+              o.perfil_independiente,
+              o.estado AS estado_organizacion
+
+            FROM usuarios u
+
+            LEFT JOIN organizaciones o
+              ON o.id_organizacion =
+                 u.id_organizacion
+
+            WHERE u.id_usuario = ?
+
+            LIMIT 1
+          `,
+          [
+            idUsuario
+          ]
+        );
+
+      if (!usuarios.length) {
+
+        return res.status(401).json({
+          success: false,
+          message:
+            "No se pudo identificar al usuario",
+        });
+      }
+
+      const usuario =
+        usuarios[0];
+
+      const tipoAdmin =
+        String(
+          usuario.tipo_admin ||
+          ""
+        )
+          .trim()
+          .toLowerCase();
+
+      const area =
+        String(
+          usuario.area ||
+          ""
+        )
+          .trim()
+          .toLowerCase();
+
+      const rol =
+        String(
+          usuario.rol ||
+          ""
+        )
+          .trim()
+          .toLowerCase();
+
+      const perfilIndependiente =
+        String(
+          usuario.perfil_independiente ||
+          ""
+        )
+          .trim()
+          .toLowerCase();
+
+      const estadoOrganizacion =
+        String(
+          usuario.estado_organizacion ||
+          ""
+        )
+          .trim()
+          .toLowerCase();
+
+      const esMaster =
+        tipoAdmin ===
+        "master";
+
+      const esAdminRH =
+        tipoAdmin ===
+          "normal" &&
+        area ===
+          "rh";
+
+      const esUsuarioRH =
+        rol ===
+          "rh" &&
+        area ===
+          "rh";
+
+      const esIndependienteRH =
+        rol ===
+          "independiente" &&
+        area ===
+          "independiente" &&
+        perfilIndependiente ===
+          "rh" &&
+        estadoOrganizacion ===
+          "activa";
 
       if (
-        tipoAdmin !== "master" &&
-        area !== "rh"
+        !esMaster &&
+        !esAdminRH &&
+        !esUsuarioRH &&
+        !esIndependienteRH
       ) {
+
         return res.status(403).json({
           success: false,
           message:
@@ -896,12 +1727,12 @@ export const listarEmpleadosRH =
         });
       }
 
-
       let query = `
         SELECT
           e.id_empleado,
           e.id_prospecto,
           e.id_admin_padre,
+          e.id_usuario_responsable,
           e.id_mirror,
           e.nombre,
           e.edad,
@@ -921,10 +1752,7 @@ export const listarEmpleadosRH =
 
       const params = [];
 
-
-      if (
-        tipoAdmin !== "master"
-      ) {
+      if (!esMaster) {
 
         query += `
           WHERE e.id_admin_padre = ?
@@ -935,13 +1763,11 @@ export const listarEmpleadosRH =
         );
       }
 
-
       query += `
         ORDER BY
           e.fecha_registro DESC,
           e.id_empleado DESC
       `;
-
 
       const [empleados] =
         await pool.query(
@@ -949,12 +1775,10 @@ export const listarEmpleadosRH =
           params
         );
 
-
       return res.json({
         success: true,
         empleados,
       });
-
 
     } catch (error) {
 
@@ -963,11 +1787,17 @@ export const listarEmpleadosRH =
         error
       );
 
-
       return res.status(500).json({
         success: false,
+
         message:
           "Error interno al obtener los empleados",
+
+        error:
+          process.env.NODE_ENV ===
+          "development"
+            ? error.message
+            : undefined,
       });
     }
   };

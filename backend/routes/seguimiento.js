@@ -7,7 +7,9 @@ import {
   obtenerSeguimiento
 } from "../controllers/seguimientoController.js";
 
-import { verifyToken } from "../middlewares/authMiddleware.js";
+import { verifyToken,
+  verificarSuscripcionOrganizacion
+} from "../middlewares/authMiddleware.js";
 
 
 const router = express.Router();
@@ -20,6 +22,7 @@ const router = express.Router();
 router.post(
   "/",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   crearSeguimiento
 );
 
@@ -31,6 +34,7 @@ router.post(
 router.get(
   "/:id_paciente",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   obtenerSeguimiento
 );
 

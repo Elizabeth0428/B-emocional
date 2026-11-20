@@ -23,6 +23,77 @@ export default function SeguimientoView() {
   const [sesionesAbiertas, setSesionesAbiertas] = useState({});
   const [reportesAbiertos, setReportesAbiertos] = useState({});
 
+  // =====================================================
+  // IDENTIFICAR CLEAVER
+  // =====================================================
+
+  const esCleaver = (resultado) => {
+    return (
+      Number(resultado?.id_prueba) === 4 ||
+      String(resultado?.tipo || "").toLowerCase().includes("cleaver") ||
+      String(
+        resultado?.prueba ||
+        resultado?.nombre_prueba ||
+        resultado?.nombre ||
+        ""
+      )
+        .toLowerCase()
+        .includes("cleaver")
+    );
+  };
+
+  // =====================================================
+  // CARGAR DETALLE CLEAVER
+  // =====================================================
+
+  const cargarDetalleCleaver = async (resultado, headers) => {
+    if (!esCleaver(resultado) || !resultado?.id_habilitacion) {
+      return resultado;
+    }
+
+    try {
+      const res = await fetch(
+        `https://www.reflejoyalma.com/api/cleaver/resultado/${resultado.id_habilitacion}`,
+        { headers }
+      );
+
+      if (!res.ok) {
+        console.warn(
+          "⚠️ No se pudo cargar detalle Cleaver:",
+          resultado.id_habilitacion,
+          res.status
+        );
+
+        return {
+          ...resultado,
+          cleaver: null
+        };
+      }
+
+      const detalle = await res.json();
+
+      console.log(
+        "📊 Detalle Cleaver para historial:",
+        detalle
+      );
+
+      return {
+        ...resultado,
+        cleaver: detalle
+      };
+    } catch (err) {
+      console.error(
+        "❌ Error cargando detalle Cleaver para historial:",
+        err
+      );
+
+      return {
+        ...resultado,
+        cleaver: null
+      };
+    }
+  };
+
   const [nuevo, setNuevo] = useState({
     diagnostico: "",
     tratamiento: "",
@@ -43,7 +114,7 @@ export default function SeguimientoView() {
       try {
 
         const res = await fetch(
-          `https://reflejoyalma.com/api/seguimiento/${idPaciente}`,
+          `https://www.reflejoyalma.com/api/seguimiento/${idPaciente}`,
           {
             headers: {
               Authorization: `Bearer ${getToken()}`
@@ -100,7 +171,7 @@ export default function SeguimientoView() {
 
       try {
         const res = await fetch(
-          `https://reflejoyalma.com/api/reportes/paciente/${idPaciente}`,
+          `https://www.reflejoyalma.com/api/reportes/paciente/${idPaciente}`,
           {
             headers: {
               Authorization: `Bearer ${getToken()}`
@@ -143,9 +214,9 @@ export default function SeguimientoView() {
         const headers = { Authorization: `Bearer ${getToken()}` };
 
         const [resSesiones, resReportes, resResultados] = await Promise.all([
-          fetch(`https://reflejoyalma.com/api/sesiones/paciente/${idPaciente}`, { headers }),
-          fetch(`https://reflejoyalma.com/api/reportes/paciente/${idPaciente}`, { headers }),
-          fetch(`https://reflejoyalma.com/api/evaluation/resultados/${idPaciente}`, { headers })
+          fetch(`https://www.reflejoyalma.com/api/sesiones/paciente/${idPaciente}`, { headers }),
+          fetch(`https://www.reflejoyalma.com/api/reportes/paciente/${idPaciente}`, { headers }),
+          fetch(`https://www.reflejoyalma.com/api/evaluation/resultados/${idPaciente}`, { headers })
         ]);
 
         const dataSesiones = resSesiones.ok ? await resSesiones.json() : [];
@@ -153,15 +224,27 @@ export default function SeguimientoView() {
         const dataResultados = resResultados.ok ? await resResultados.json() : [];
 
         const listaSesiones = Array.isArray(dataSesiones) ? dataSesiones : [];
+        const listaResultados = Array.isArray(dataResultados) ? dataResultados : [];
+
+        const resultadosCompletos = await Promise.all(
+          listaResultados.map(async (resultado) => {
+            if (esCleaver(resultado)) {
+              return await cargarDetalleCleaver(resultado, headers);
+            }
+
+            return resultado;
+          })
+        );
+
         setSesiones(listaSesiones);
         setReportesIA(Array.isArray(dataReportes) ? dataReportes : []);
-        setResultadosPruebas(Array.isArray(dataResultados) ? dataResultados : []);
+        setResultadosPruebas(resultadosCompletos);
 
         const pares = await Promise.all(
           listaSesiones.map(async (sesion) => {
             try {
               const res = await fetch(
-                `https://reflejoyalma.com/api/archivos/sesion/${sesion.id_sesion}`,
+                `https://www.reflejoyalma.com/api/archivos/sesion/${sesion.id_sesion}`,
                 { headers }
               );
               const data = res.ok ? await res.json() : [];
@@ -178,7 +261,7 @@ export default function SeguimientoView() {
           listaSesiones.map(async (sesion) => {
             try {
               const res = await fetch(
-                `https://reflejoyalma.com/api/notas/ia/${sesion.id_sesion}`,
+                `https://www.reflejoyalma.com/api/notas/ia/${sesion.id_sesion}`,
                 { headers }
               );
               if (!res.ok) {
@@ -236,7 +319,7 @@ export default function SeguimientoView() {
     resultadosPruebas.filter((r) => Number(r.id_sesion) === Number(id));
 
   const abrirPDFReporte = (idReporte) => {
-    window.open(`https://reflejoyalma.com/api/reportes/${idReporte}/pdf`, "_blank");
+    window.open(`https://www.reflejoyalma.com/api/reportes/${idReporte}/pdf`, "_blank");
   };
 
   const formatearFecha = (fecha) => {
@@ -296,7 +379,7 @@ export default function SeguimientoView() {
       setGuardando(true);
 
       const res = await fetch(
-        "https://reflejoyalma.com/api/seguimiento",
+        "https://www.reflejoyalma.com/api/seguimiento",
         {
           method: "POST",
           headers: {
@@ -319,7 +402,7 @@ export default function SeguimientoView() {
 
       if (modoCierre) {
         const resFinalizar = await fetch(
-          `https://reflejoyalma.com/api/sesiones/${idSesion}/finalizar`,
+          `https://www.reflejoyalma.com/api/sesiones/${idSesion}/finalizar`,
           {
             method: "PUT",
             headers: {
@@ -708,6 +791,8 @@ export default function SeguimientoView() {
                   .sort((a, b) => new Date(b.fecha || 0) - new Date(a.fecha || 0))
                   .map((sesion) => {
                     const id = sesion.id_sesion;
+                    const numeroSesion = Number(sesion.numero_sesion) || id;
+
                     const abierta = Boolean(sesionesAbiertas[id]);
                     const seguimiento = obtenerSeguimientoSesion(id);
                     const reporte = obtenerReporteSesion(id);
@@ -729,7 +814,7 @@ export default function SeguimientoView() {
                           style={sessionHeaderButton}
                         >
                           <div style={sessionHeaderLeft}>
-                            <div style={sessionNumber}>🧠 Sesión #{id}</div>
+                            <div style={sessionNumber}>🧠 Sesión #{numeroSesion}</div>
                             <div style={sessionMeta}>
                               📅 {formatearFecha(sesion.fecha)}
                               {formatearHora(sesion.fecha) ? ` · ${formatearHora(sesion.fecha)}` : ""}
@@ -783,14 +868,91 @@ export default function SeguimientoView() {
                             <ClinicalSection icon="🧪" title="Pruebas y resultados">
                               {pruebas.length ? (
                                 <div style={itemsGrid}>
-                                  {pruebas.map((prueba, index) => (
-                                    <div key={prueba.id_resultado || `${id}-${index}`} style={resultCard}>
-                                      <strong>{prueba.prueba || prueba.nombre_prueba || prueba.nombre || `Prueba #${prueba.id_prueba || index + 1}`}</strong>
-                                      <span>Puntaje: {prueba.puntaje_total ?? prueba.puntaje ?? "No registrado"}</span>
-                                      <span>Interpretación: {prueba.interpretacion || "No registrada"}</span>
-                                      {prueba.fecha && <small>Aplicada: {formatearFecha(prueba.fecha)}</small>}
-                                    </div>
-                                  ))}
+                                  {pruebas.map((prueba, index) => {
+                                    const nombrePrueba =
+                                      prueba.prueba ||
+                                      prueba.nombre_prueba ||
+                                      prueba.nombre ||
+                                      `Prueba #${prueba.id_prueba || index + 1}`;
+
+                                    const esPruebaCleaver = esCleaver(prueba);
+                                    const detalleCleaver = prueba.cleaver || null;
+
+                                    if (esPruebaCleaver) {
+                                      return (
+                                        <div
+                                          key={prueba.id_resultado || `${id}-${index}`}
+                                          style={resultCard}
+                                        >
+                                          <strong>{nombrePrueba}</strong>
+
+                                          {detalleCleaver?.perfil_principal ? (
+                                            <span>
+                                              <strong>Perfil principal:</strong>{" "}
+                                              {detalleCleaver.perfil_principal}
+                                            </span>
+                                          ) : (
+                                            <span>Perfil principal: No registrado</span>
+                                          )}
+
+                                          {detalleCleaver?.interpretacion ? (
+                                            <span style={{ lineHeight: "1.6" }}>
+                                              <strong>Interpretación:</strong>{" "}
+                                              {detalleCleaver.interpretacion}
+                                            </span>
+                                          ) : (
+                                            <span>Interpretación: No registrada</span>
+                                          )}
+
+                                          {detalleCleaver?.bruto?.T && (
+                                            <span>
+                                              <strong>Perfil D/I/S/C:</strong>{" "}
+                                              D {detalleCleaver.bruto.T.D}
+                                              {" · "}
+                                              I {detalleCleaver.bruto.T.I}
+                                              {" · "}
+                                              S {detalleCleaver.bruto.T.S}
+                                              {" · "}
+                                              C {detalleCleaver.bruto.T.C}
+                                            </span>
+                                          )}
+
+                                          {(detalleCleaver?.fecha || prueba.fecha) && (
+                                            <small>
+                                              Aplicada:{" "}
+                                              {formatearFecha(
+                                                detalleCleaver?.fecha || prueba.fecha
+                                              )}
+                                            </small>
+                                          )}
+                                        </div>
+                                      );
+                                    }
+
+                                    return (
+                                      <div
+                                        key={prueba.id_resultado || `${id}-${index}`}
+                                        style={resultCard}
+                                      >
+                                        <strong>{nombrePrueba}</strong>
+                                        <span>
+                                          Puntaje:{" "}
+                                          {prueba.puntaje_total ??
+                                            prueba.puntaje ??
+                                            "No registrado"}
+                                        </span>
+                                        <span>
+                                          Interpretación:{" "}
+                                          {prueba.interpretacion || "No registrada"}
+                                        </span>
+                                        {prueba.fecha && (
+                                          <small>
+                                            Aplicada: {formatearFecha(prueba.fecha)}
+                                          </small>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
                                 </div>
                               ) : (
                                 <EmptyDetail text="No se registraron resultados de pruebas en esta sesión." />
@@ -803,7 +965,7 @@ export default function SeguimientoView() {
                                   {archivos.map((archivo) => {
                                     const url = archivo.ruta_video?.startsWith("http")
                                       ? archivo.ruta_video
-                                      : `https://reflejoyalma.com${archivo.ruta_video || ""}`;
+                                      : `https://www.reflejoyalma.com${archivo.ruta_video || ""}`;
                                     return (
                                       <div key={archivo.id_video} style={mediaCard}>
                                         <div>
@@ -865,7 +1027,7 @@ export default function SeguimientoView() {
                                 <div style={aiHistoryCard}>
                                   <div style={aiHistoryTop}>
                                     <div>
-                                      <strong>Preanálisis IA — Sesión #{id}</strong>
+                                      <strong>Preanálisis IA — Sesión #{numeroSesion}</strong>
                                       <div style={mutedText}>
                                         Generado: {formatearFecha(reporte.fecha)}
                                       </div>

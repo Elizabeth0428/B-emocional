@@ -12,7 +12,8 @@ import {
 } from "../controllers/archivosEntrevistaRHController.js";
 
 import {
-  verifyToken
+  verifyToken,
+  verificarSuscripcionOrganizacion
 } from "../middlewares/authMiddleware.js";
 
 import {
@@ -33,6 +34,7 @@ const router =
 router.post(
   "/prospecto/:idProspecto/entrevista/:idEntrevista",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   uploadMultimedia.single("file"),
   subirArchivoEntrevistaRH
 );
@@ -47,6 +49,7 @@ router.post(
 router.get(
   "/prospecto/:idProspecto/entrevista/:idEntrevista",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   obtenerArchivosEntrevistaRH
 );
 
@@ -60,6 +63,7 @@ router.get(
 router.post(
   "/:id/transcribir",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   transcribirArchivoEntrevistaRH
 );
 
@@ -73,6 +77,7 @@ router.post(
 router.delete(
   "/:id",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   eliminarArchivoEntrevistaRH
 );
 

@@ -20,6 +20,7 @@ function VideoRecorder({
 
   // CLÍNICA
   idSesion = null,
+  numeroSesion = null,
 
   // RH
   idProspecto = null,
@@ -42,7 +43,9 @@ function VideoRecorder({
   // API
   // ==================================================
 
-  const API_URL = import.meta.env.VITE_API_URL || (window.location.protocol === 'https:' ? 'https://reflejoyalma.com' : `http://${window.location.hostname}:5000`);
+  const API_URL =
+    import.meta.env.VITE_API_URL ||
+    `http://${window.location.hostname}:5000`;
 
   const esRH =
     contexto === "rh";
@@ -69,6 +72,12 @@ function VideoRecorder({
   // MIME realmente usado por MediaRecorder
   const mimeRef =
     useRef("");
+
+  // Duración REAL de la grabación.
+  // Se usa ref porque onstop conserva el estado
+  // del momento en que se creó el MediaRecorder.
+  const timeRef =
+    useRef(0);
 
   // ==================================================
   // ESTADOS
@@ -113,9 +122,10 @@ function VideoRecorder({
         setInterval(
           () => {
 
+            timeRef.current += 1;
+
             setTime(
-              previous =>
-                previous + 1
+              timeRef.current
             );
 
           },
@@ -127,9 +137,11 @@ function VideoRecorder({
     return () => {
 
       if (interval) {
+
         clearInterval(
           interval
         );
+
       }
 
     };
@@ -171,6 +183,7 @@ function VideoRecorder({
         .catch(
           () => {}
         );
+
     }
 
   }, [
@@ -205,7 +218,9 @@ function VideoRecorder({
             "❌ Error al detener grabador:",
             cleanupError
           );
+
         }
+
       }
 
       // Solo detenemos el stream si este componente
@@ -228,6 +243,7 @@ function VideoRecorder({
 
         ownsStreamRef.current =
           false;
+
       }
 
     };
@@ -251,9 +267,11 @@ function VideoRecorder({
           throw new Error(
             "Falta identificar el prospecto o la entrevista RH."
           );
+
         }
 
         return;
+
       }
 
       if (!idSesion) {
@@ -261,7 +279,9 @@ function VideoRecorder({
         throw new Error(
           "Falta identificar la sesión clínica."
         );
+
       }
+
     };
 
   // ==================================================
@@ -275,19 +295,23 @@ function VideoRecorder({
         navigator.mediaDevices &&
         navigator.mediaDevices.getUserMedia
       ) {
+
         return;
+
       }
 
       if (!window.isSecureContext) {
 
         throw new Error(
-          "El micrófono y la cámara requieren una conexión segura HTTPS. Durante el desarrollo abre MirrorSoul desde http://localhost:5175."
+          "El micrófono y la cámara requieren una conexión segura HTTPS. Durante el desarrollo abre MirrorSoul desde https://www.reflejoyalma.com."
         );
+
       }
 
       throw new Error(
         "El navegador no permite acceder al micrófono o cámara. Revisa los permisos del sitio."
       );
+
     };
 
   // ==================================================
@@ -301,7 +325,9 @@ function VideoRecorder({
         typeof MediaRecorder ===
         "undefined"
       ) {
+
         return "";
+
       }
 
       const candidatos =
@@ -331,10 +357,13 @@ function VideoRecorder({
         ) {
 
           return mime;
+
         }
+
       }
 
       return "";
+
     };
 
   // ==================================================
@@ -355,7 +384,9 @@ function VideoRecorder({
           "ogg"
         )
       ) {
+
         return "ogg";
+
       }
 
       if (
@@ -363,10 +394,13 @@ function VideoRecorder({
           "mp4"
         )
       ) {
+
         return "mp4";
+
       }
 
       return "webm";
+
     };
 
   // ==================================================
@@ -389,6 +423,7 @@ function VideoRecorder({
         throw new Error(
           "Tu sesión no es válida. Inicia sesión nuevamente."
         );
+
       }
 
       const formData =
@@ -447,11 +482,13 @@ function VideoRecorder({
 
         url =
           `${API_URL}/api/archivos`;
+
       }
 
       console.log(
         "📤 Subiendo grabación:",
         {
+
           contexto:
             esRH
               ? "rh"
@@ -486,6 +523,7 @@ function VideoRecorder({
           duracion,
 
           url
+
         }
       );
 
@@ -493,16 +531,20 @@ function VideoRecorder({
         await fetch(
           url,
           {
+
             method:
               "POST",
 
             headers: {
+
               Authorization:
                 `Bearer ${token}`
+
             },
 
             body:
               formData
+
           }
         );
 
@@ -520,9 +562,11 @@ function VideoRecorder({
           data.error ||
           "Error al subir la grabación"
         );
+
       }
 
       return data;
+
     };
 
   // ==================================================
@@ -564,7 +608,9 @@ function VideoRecorder({
           const constraints =
             tipo === "audio"
               ? {
+
                   audio: {
+
                     echoCancellation:
                       true,
 
@@ -573,16 +619,20 @@ function VideoRecorder({
 
                     autoGainControl:
                       true
+
                   },
 
                   video:
                     false
+
                 }
               : {
+
                   video:
                     true,
 
                   audio: {
+
                     echoCancellation:
                       true,
 
@@ -591,7 +641,9 @@ function VideoRecorder({
 
                     autoGainControl:
                       true
+
                   }
+
                 };
 
           recordingStream =
@@ -620,7 +672,9 @@ function VideoRecorder({
               .catch(
                 () => {}
               );
+
           }
+
         }
 
         // ==================================================
@@ -632,6 +686,7 @@ function VideoRecorder({
           throw new Error(
             "No existe un stream disponible para grabar."
           );
+
         }
 
         const tracks =
@@ -643,6 +698,7 @@ function VideoRecorder({
           throw new Error(
             "El stream no contiene pistas de audio o video."
           );
+
         }
 
         if (
@@ -660,13 +716,36 @@ function VideoRecorder({
             throw new Error(
               "No se encontró una pista de audio disponible."
             );
+
           }
+
+        }
+
+        if (
+          tipo === "video"
+        ) {
+
+          const videoTracks =
+            recordingStream
+              .getVideoTracks();
+
+          if (
+            !videoTracks.length
+          ) {
+
+            throw new Error(
+              "No se encontró una pista de video disponible."
+            );
+
+          }
+
         }
 
         console.log(
           "🎥 Stream utilizado para grabación:",
           tracks.map(
             track => ({
+
               kind:
                 track.kind,
 
@@ -678,6 +757,7 @@ function VideoRecorder({
 
               label:
                 track.label
+
             })
           )
         );
@@ -731,7 +811,12 @@ function VideoRecorder({
         chunksRef.current =
           [];
 
-        setTime(0);
+        timeRef.current =
+          0;
+
+        setTime(
+          0
+        );
 
         // ==================================================
         // CHUNKS
@@ -742,14 +827,26 @@ function VideoRecorder({
 
             if (
               event.data &&
-              event.data.size >
-                0
+              event.data.size > 0
             ) {
+
+              console.log(
+                "📦 Chunk recibido:",
+                {
+                  size:
+                    event.data.size,
+
+                  type:
+                    event.data.type
+                }
+              );
 
               chunksRef.current.push(
                 event.data
               );
+
             }
+
           };
 
         // ==================================================
@@ -767,6 +864,11 @@ function VideoRecorder({
 
               console.log(
                 "🛑 Grabación detenida. Procesando archivo..."
+              );
+
+              console.log(
+                "📦 Chunks acumulados:",
+                chunksRef.current.length
               );
 
               const mimeFinal =
@@ -791,14 +893,28 @@ function VideoRecorder({
                 [];
 
               if (
-                blob.size ===
-                0
+                blob.size === 0
               ) {
 
                 throw new Error(
                   "La grabación quedó vacía."
                 );
+
               }
+
+              const duracionFinal =
+                Math.max(
+                  1,
+                  Number(
+                    timeRef.current ||
+                    0
+                  )
+                );
+
+              console.log(
+                "⏱️ Duración final de grabación:",
+                duracionFinal
+              );
 
               const extension =
                 obtenerExtension(
@@ -822,6 +938,7 @@ function VideoRecorder({
               console.log(
                 "📦 Archivo generado:",
                 {
+
                   nombre:
                     file.name,
 
@@ -829,7 +946,11 @@ function VideoRecorder({
                     file.size,
 
                   type:
-                    file.type
+                    file.type,
+
+                  duracion:
+                    duracionFinal
+
                 }
               );
 
@@ -840,7 +961,7 @@ function VideoRecorder({
               const data =
                 await subirArchivo(
                   file,
-                  time
+                  duracionFinal
                 );
 
               setLastSaved(
@@ -852,11 +973,19 @@ function VideoRecorder({
                 data
               );
 
+              // ==================================================
+              // CALLBACK
+              //
+              // SalaVideollamadaRH usa este callback para
+              // iniciar automáticamente la transcripción.
+              // ==================================================
+
               if (onSaved) {
 
                 await onSaved(
                   data
                 );
+
               }
 
               alert(
@@ -870,6 +999,9 @@ function VideoRecorder({
                     : "de sesión"
                 } guardado correctamente`
               );
+
+              timeRef.current =
+                0;
 
               setTime(
                 0
@@ -899,7 +1031,9 @@ function VideoRecorder({
               setGuardando(
                 false
               );
+
             }
+
           };
 
         // ==================================================
@@ -921,10 +1055,13 @@ function VideoRecorder({
             setError(
               "Ocurrió un error durante la grabación."
             );
+
           };
 
         // ==================================================
         // INICIAR
+        //
+        // 1000 = genera un fragmento cada segundo.
         // ==================================================
 
         mediaRecorder.start(
@@ -939,6 +1076,7 @@ function VideoRecorder({
           "🔴 Grabación iniciada:",
           esRH
             ? {
+
                 contexto:
                   "rh",
 
@@ -950,8 +1088,10 @@ function VideoRecorder({
 
                 mime:
                   mimeRef.current
+
               }
             : {
+
                 contexto:
                   "clinica",
 
@@ -961,6 +1101,7 @@ function VideoRecorder({
 
                 mime:
                   mimeRef.current
+
               }
         );
 
@@ -982,61 +1123,148 @@ function VideoRecorder({
           startError.message ||
           "No se pudo iniciar la grabación."
         );
+
       }
+
     };
 
   // ==================================================
   // DETENER GRABACIÓN
   //
-  // No apagamos la cámara de SalaVideollamada
-  // ni de SalaVideollamadaRH.
+  // IMPORTANTE:
+  //
+  // 1. Pedimos el último fragmento pendiente.
+  // 2. Después detenemos MediaRecorder.
+  // 3. NO apagamos cámaras de SalaVideollamadaRH.
   // ==================================================
 
   const stopRecording =
     () => {
 
-      if (
-        !mediaRecorderRef.current
-      ) {
+      const recorder =
+        mediaRecorderRef.current;
+
+      if (!recorder) {
 
         return;
+
       }
 
       if (
-        mediaRecorderRef.current.state ===
+        recorder.state !==
         "recording"
       ) {
 
-        console.log(
-          "⏹️ Deteniendo grabación..."
+        return;
+
+      }
+
+      console.log(
+        "⏹️ Deteniendo grabación...",
+        {
+
+          duracion:
+            timeRef.current,
+
+          estado:
+            recorder.state,
+
+          chunks:
+            chunksRef.current.length
+
+        }
+      );
+
+      setRecording(
+        false
+      );
+
+      // ==================================================
+      // PEDIR ÚLTIMO CHUNK
+      // ==================================================
+
+      try {
+
+        recorder.requestData();
+
+      } catch (
+        requestError
+      ) {
+
+        console.warn(
+          "⚠️ No fue posible solicitar el último bloque:",
+          requestError
         );
 
-        setRecording(
-          false
-        );
+      }
 
-        mediaRecorderRef.current
-          .stop();
+      // ==================================================
+      // DAR TIEMPO AL ÚLTIMO CHUNK PARA LLEGAR
+      // ==================================================
 
-        if (
-          ownsStreamRef.current &&
-          streamRef.current
-        ) {
+      setTimeout(
+        () => {
 
-          streamRef.current
-            .getTracks()
-            .forEach(
-              track =>
-                track.stop()
+          try {
+
+            if (
+              recorder.state !==
+              "inactive"
+            ) {
+
+              recorder.stop();
+
+            }
+
+          } catch (
+            stopError
+          ) {
+
+            console.error(
+              "❌ Error deteniendo MediaRecorder:",
+              stopError
             );
 
-          streamRef.current =
-            null;
+          }
 
-          ownsStreamRef.current =
-            false;
-        }
+        },
+        150
+      );
+
+      // ==================================================
+      // SOLO DETENER STREAM PROPIO
+      //
+      // Si el stream viene de SalaVideollamadaRH,
+      // NO se toca.
+      // ==================================================
+
+      if (
+        ownsStreamRef.current &&
+        streamRef.current
+      ) {
+
+        setTimeout(
+          () => {
+
+            streamRef.current
+              ?.getTracks()
+              .forEach(
+                track =>
+                  track.stop()
+              );
+
+            streamRef.current =
+              null;
+
+            ownsStreamRef.current =
+              false;
+
+          },
+          250
+        );
+
       }
+
     };
 
   // ==================================================
@@ -1062,6 +1290,7 @@ function VideoRecorder({
           "0"
         )}`
       );
+
     };
 
   // ==================================================
@@ -1079,9 +1308,11 @@ function VideoRecorder({
       <div style={header}>
 
         <div style={icon}>
+
           {tipo === "audio"
             ? "🎙️"
             : "🎥"}
+
         </div>
 
         <div>
@@ -1098,7 +1329,7 @@ function VideoRecorder({
 
             {esRH
               ? `Prospecto #${idProspecto || "—"} · Entrevista #${idEntrevista || "—"}`
-              : `Sesión clínica #${idSesion || "—"}`}
+              : `Sesión clínica #${numeroSesion || idSesion || "—"}`}
 
           </div>
 

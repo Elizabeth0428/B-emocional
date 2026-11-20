@@ -12,6 +12,7 @@ import {
 
 import {
   verifyToken,
+  verificarSuscripcionOrganizacion
 } from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
@@ -27,6 +28,7 @@ const router = express.Router();
 router.post(
   "/",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   registrarUsuarioRH
 );
 
@@ -41,6 +43,7 @@ router.post(
 router.get(
   "/",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   listarUsuariosRH
 );
 
@@ -55,6 +58,7 @@ router.get(
 router.get(
   "/:id",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   obtenerUsuarioRH
 );
 
@@ -69,6 +73,7 @@ router.get(
 router.put(
   "/:id",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   actualizarUsuarioRH
 );
 

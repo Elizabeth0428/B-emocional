@@ -18,6 +18,106 @@ const __filename =
 const __dirname =
   path.dirname(__filename);
 
+// ==================================================
+// NORMALIZAR MIME DE GRABACIÓN
+//
+// Evita casos como:
+// .webm -> text/plain
+//
+// Ejemplos correctos:
+// video/webm
+// audio/webm
+// audio/ogg
+// video/mp4
+// ==================================================
+
+const normalizarMimeGrabacion = ({
+  mime = "",
+  nombreArchivo = "",
+  tipo = "video"
+}) => {
+  const tipoNormalizado =
+    String(
+      tipo || ""
+    )
+      .trim()
+      .toLowerCase() === "audio"
+      ? "audio"
+      : "video";
+
+  const mimeRecibido =
+    String(
+      mime || ""
+    )
+      .trim()
+      .toLowerCase();
+
+  const nombre =
+    String(
+      nombreArchivo || ""
+    )
+      .trim()
+      .toLowerCase();
+
+  // ==================================================
+  // WEBM
+  // ==================================================
+
+  if (
+    nombre.endsWith(".webm")
+  ) {
+    return tipoNormalizado ===
+      "audio"
+      ? "audio/webm"
+      : "video/webm";
+  }
+
+  // ==================================================
+  // OGG
+  // ==================================================
+
+  if (
+    nombre.endsWith(".ogg")
+  ) {
+    return "audio/ogg";
+  }
+
+  // ==================================================
+  // MP4
+  // ==================================================
+
+  if (
+    nombre.endsWith(".mp4")
+  ) {
+    return tipoNormalizado ===
+      "audio"
+      ? "audio/mp4"
+      : "video/mp4";
+  }
+
+  // ==================================================
+  // MIME INVÁLIDO / GENÉRICO
+  // ==================================================
+
+  if (
+    !mimeRecibido ||
+    mimeRecibido ===
+      "text/plain" ||
+    mimeRecibido ===
+      "application/octet-stream"
+  ) {
+    return tipoNormalizado ===
+      "audio"
+      ? "audio/webm"
+      : "video/webm";
+  }
+
+  // ==================================================
+  // MIME VÁLIDO RECIBIDO
+  // ==================================================
+
+  return mimeRecibido;
+};
 
 // ==================================================
 // VALIDAR ACCESO A ENTREVISTA RH
@@ -29,51 +129,131 @@ const validarAccesoEntrevistaRH =
     idEntrevista,
     user
   ) => {
-
     const idUsuario =
-      user?.id_usuario;
-
-    const tipoAdmin =
-      user?.tipo_admin
-        ? String(user.tipo_admin)
-            .trim()
-            .toLowerCase()
-        : null;
-
-    const area =
-      user?.area
-        ? String(user.area)
-            .trim()
-            .toLowerCase()
-        : null;
-
+      Number(user?.id_usuario) || null;
 
     if (!idUsuario) {
-
       return {
         ok: false,
         status: 401,
         message:
           "No se pudo identificar al usuario"
       };
-
     }
 
+    // ==================================================
+    // CONTEXTO REAL DEL USUARIO RH
+    // ==================================================
 
-    if (
-      tipoAdmin !== "master" &&
-      area !== "rh"
-    ) {
+    const [usuarios] =
+      await pool.query(
+        `
+          SELECT
+            u.id_usuario,
+            u.tipo_admin,
+            u.area,
+            u.rol,
+            u.id_admin_padre,
+            u.id_organizacion,
+            o.tipo AS tipo_organizacion,
+            o.perfil_independiente,
+            o.estado AS estado_organizacion
+          FROM usuarios u
+          LEFT JOIN organizaciones o
+            ON o.id_organizacion =
+               u.id_organizacion
+          WHERE u.id_usuario = ?
+          LIMIT 1
+        `,
+        [
+          idUsuario
+        ]
+      );
 
+    if (!usuarios.length) {
+      return {
+        ok: false,
+        status: 401,
+        message:
+          "No se pudo identificar al usuario"
+      };
+    }
+
+    const usuario =
+      usuarios[0];
+
+    const tipoAdmin =
+      String(
+        usuario.tipo_admin || ""
+      )
+        .trim()
+        .toLowerCase();
+
+    const area =
+      String(
+        usuario.area || ""
+      )
+        .trim()
+        .toLowerCase();
+
+    const rol =
+      String(
+        usuario.rol || ""
+      )
+        .trim()
+        .toLowerCase();
+
+    const perfilIndependiente =
+      String(
+        usuario.perfil_independiente ||
+        ""
+      )
+        .trim()
+        .toLowerCase();
+
+    const estadoOrganizacion =
+      String(
+        usuario.estado_organizacion ||
+        ""
+      )
+        .trim()
+        .toLowerCase();
+
+    const esMaster =
+      tipoAdmin === "master";
+
+    const esAdminRH =
+      tipoAdmin === "normal" &&
+      area === "rh";
+
+    const esUsuarioRH =
+      rol === "rh" &&
+      area === "rh";
+
+    const esIndependienteRH =
+      rol === "independiente" &&
+      area === "independiente" &&
+      perfilIndependiente === "rh" &&
+      estadoOrganizacion === "activa";
+
+    const tienePermiso =
+      esMaster ||
+      esAdminRH ||
+      esUsuarioRH ||
+      esIndependienteRH;
+
+    if (!tienePermiso) {
       return {
         ok: false,
         status: 403,
         message:
           "No tienes permiso para acceder a archivos de entrevistas RH"
       };
-
     }
 
+    // ==================================================
+    // VALIDAR ENTREVISTA Y PROPIEDAD DEL PROSPECTO
+    // ==================================================
 
     let query = `
       SELECT
@@ -99,17 +279,12 @@ const validarAccesoEntrevistaRH =
         AND ep.id_entrevista = ?
     `;
 
-
     const params = [
       idProspecto,
       idEntrevista
     ];
 
-
-    if (
-      tipoAdmin !== "master"
-    ) {
-
+    if (!esMaster) {
       query += `
         AND p.id_admin_padre = ?
       `;
@@ -117,14 +292,11 @@ const validarAccesoEntrevistaRH =
       params.push(
         idUsuario
       );
-
     }
-
 
     query += `
       LIMIT 1
     `;
-
 
     const [rows] =
       await pool.query(
@@ -132,27 +304,41 @@ const validarAccesoEntrevistaRH =
         params
       );
 
-
     if (!rows.length) {
-
       return {
         ok: false,
         status: 404,
         message:
           "Entrevista no encontrada o no tienes permiso para acceder a ella"
       };
-
     }
-
 
     return {
       ok: true,
+
       entrevista:
-        rows[0]
+        rows[0],
+
+      contexto: {
+        idUsuario,
+        tipoAdmin,
+        area,
+        rol,
+
+        idOrganizacion:
+          Number(
+            usuario.id_organizacion
+          ) || null,
+
+        perfilIndependiente,
+
+        esMaster,
+        esAdminRH,
+        esUsuarioRH,
+        esIndependienteRH
+      }
     };
-
   };
-
 
 // ==================================================
 // SUBIR GRABACIÓN RH
@@ -165,9 +351,7 @@ export async function subirArchivoEntrevistaRH(
   req,
   res
 ) {
-
   try {
-
     const idProspecto =
       Number(
         req.params.idProspecto
@@ -178,22 +362,33 @@ export async function subirArchivoEntrevistaRH(
         req.params.idEntrevista
       );
 
+    // ==================================================
+    // VALIDAR IDS
+    // ==================================================
 
     if (
-      !Number.isInteger(idProspecto) ||
+      !Number.isInteger(
+        idProspecto
+      ) ||
       idProspecto <= 0 ||
-      !Number.isInteger(idEntrevista) ||
+      !Number.isInteger(
+        idEntrevista
+      ) ||
       idEntrevista <= 0
     ) {
+      return res
+        .status(400)
+        .json({
+          success: false,
 
-      return res.status(400).json({
-        success: false,
-        message:
-          "Identificador de prospecto o entrevista inválido"
-      });
-
+          message:
+            "Identificador de prospecto o entrevista inválido"
+        });
     }
 
+    // ==================================================
+    // VALIDAR ACCESO
+    // ==================================================
 
     const acceso =
       await validarAccesoEntrevistaRH(
@@ -202,32 +397,37 @@ export async function subirArchivoEntrevistaRH(
         req.user
       );
 
-
     if (!acceso.ok) {
-
       return res
         .status(
           acceso.status
         )
         .json({
           success: false,
+
           message:
             acceso.message
         });
-
     }
 
+    // ==================================================
+    // VALIDAR ARCHIVO
+    // ==================================================
 
     if (!req.file) {
+      return res
+        .status(400)
+        .json({
+          success: false,
 
-      return res.status(400).json({
-        success: false,
-        message:
-          "No se recibió archivo"
-      });
-
+          message:
+            "No se recibió archivo"
+        });
     }
 
+    // ==================================================
+    // DATOS
+    // ==================================================
 
     const {
       tipo,
@@ -235,21 +435,87 @@ export async function subirArchivoEntrevistaRH(
       duracion
     } = req.body;
 
+    const tipoFinal =
+      String(
+        tipo || ""
+      )
+        .trim()
+        .toLowerCase() ===
+      "audio"
+        ? "audio"
+        : "video";
 
     const ruta =
       "/uploads/multimedia/" +
       req.file.filename;
 
+    // ==================================================
+    // NORMALIZAR MIME
+    // ==================================================
 
     const formato =
-      req.file.mimetype;
+      normalizarMimeGrabacion({
+        mime:
+          req.file?.mimetype,
 
+        nombreArchivo:
+          req.file?.filename ||
+          req.file?.originalname,
 
-    const tipoFinal =
-      tipo === "audio"
-        ? "audio"
-        : "video";
+        tipo:
+          tipoFinal
+      });
 
+    console.log(
+      "📦 MIME RH normalizado:",
+      {
+        recibido:
+          req.file?.mimetype,
+
+        guardado:
+          formato,
+
+        tipo:
+          tipoFinal,
+
+        archivo:
+          req.file?.filename
+      }
+    );
+
+    // ==================================================
+    // DURACIÓN
+    // ==================================================
+
+    const duracionNumero =
+      Number(
+        duracion
+      );
+
+    const duracionFinal =
+      Number.isFinite(
+        duracionNumero
+      ) &&
+      duracionNumero > 0
+        ? Math.round(
+            duracionNumero
+          )
+        : null;
+
+    console.log(
+      "⏱️ Duración RH recibida:",
+      {
+        original:
+          duracion,
+
+        guardada:
+          duracionFinal
+      }
+    );
+
+    // ==================================================
+    // INSERTAR GRABACIÓN
+    // ==================================================
 
     const [result] =
       await pool.query(
@@ -299,18 +565,14 @@ export async function subirArchivoEntrevistaRH(
           descripcion ||
             "Grabación de entrevista RH",
 
-          duracion ||
-            null,
+          duracionFinal,
 
           formato
         ]
       );
 
-
     // ==================================================
     // GUARDAR GRABACIÓN PRINCIPAL EN ENTREVISTA
-    //
-    // EntrevistasProspecto ya sabe mostrar este campo.
     // ==================================================
 
     await pool.query(
@@ -331,68 +593,91 @@ export async function subirArchivoEntrevistaRH(
       ]
     );
 
+    console.log(
+      "✅ Grabación RH guardada:",
+      {
+        id_video_rh:
+          result.insertId,
 
-    return res.status(201).json({
+        tipo:
+          tipoFinal,
 
-      success:
-        true,
+        formato,
 
-      message:
-        "✅ Grabación RH guardada correctamente",
+        duracion:
+          duracionFinal,
 
-      id_video:
-        result.insertId,
+        ruta
+      }
+    );
 
-      id_video_rh:
-        result.insertId,
+    // ==================================================
+    // RESPUESTA
+    // ==================================================
 
-      id_prospecto:
-        idProspecto,
+    return res
+      .status(201)
+      .json({
+        success:
+          true,
 
-      id_entrevista:
-        idEntrevista,
+        message:
+          "✅ Grabación RH guardada correctamente",
 
-      ruta,
+        id_video:
+          result.insertId,
 
-      grabacion_url:
+        id_video_rh:
+          result.insertId,
+
+        id_prospecto:
+          idProspecto,
+
+        id_entrevista:
+          idEntrevista,
+
         ruta,
 
-      tipo:
-        tipoFinal,
+        grabacion_url:
+          ruta,
 
-      formato
+        tipo:
+          tipoFinal,
 
-    });
+        formato,
 
+        duracion:
+          duracionFinal,
 
+        duracion_segundos:
+          duracionFinal,
+
+        transcripcion_estado:
+          "pendiente"
+      });
   } catch (err) {
-
     console.error(
       "❌ Error al subir grabación RH:",
       err
     );
 
+    return res
+      .status(500)
+      .json({
+        success:
+          false,
 
-    return res.status(500).json({
+        message:
+          "Error al subir la grabación de la entrevista RH",
 
-      success:
-        false,
-
-      message:
-        "Error al subir la grabación de la entrevista RH",
-
-      error:
-        process.env.NODE_ENV ===
-        "development"
-          ? err.message
-          : undefined
-
-    });
-
+        error:
+          process.env.NODE_ENV ===
+          "development"
+            ? err.message
+            : undefined
+      });
   }
-
 }
-
 
 // ==================================================
 // OBTENER GRABACIONES DE ENTREVISTA
@@ -405,9 +690,7 @@ export async function obtenerArchivosEntrevistaRH(
   req,
   res
 ) {
-
   try {
-
     const idProspecto =
       Number(
         req.params.idProspecto
@@ -418,22 +701,33 @@ export async function obtenerArchivosEntrevistaRH(
         req.params.idEntrevista
       );
 
+    // ==================================================
+    // VALIDAR IDS
+    // ==================================================
 
     if (
-      !Number.isInteger(idProspecto) ||
+      !Number.isInteger(
+        idProspecto
+      ) ||
       idProspecto <= 0 ||
-      !Number.isInteger(idEntrevista) ||
+      !Number.isInteger(
+        idEntrevista
+      ) ||
       idEntrevista <= 0
     ) {
+      return res
+        .status(400)
+        .json({
+          success: false,
 
-      return res.status(400).json({
-        success: false,
-        message:
-          "Identificador inválido"
-      });
-
+          message:
+            "Identificador inválido"
+        });
     }
 
+    // ==================================================
+    // VALIDAR ACCESO
+    // ==================================================
 
     const acceso =
       await validarAccesoEntrevistaRH(
@@ -442,21 +736,22 @@ export async function obtenerArchivosEntrevistaRH(
         req.user
       );
 
-
     if (!acceso.ok) {
-
       return res
         .status(
           acceso.status
         )
         .json({
           success: false,
+
           message:
             acceso.message
         });
-
     }
 
+    // ==================================================
+    // OBTENER ARCHIVOS
+    // ==================================================
 
     const [rows] =
       await pool.query(
@@ -495,14 +790,11 @@ export async function obtenerArchivosEntrevistaRH(
         ]
       );
 
-
     return res.json({
-
       success:
         true,
 
       prospecto: {
-
         id_prospecto:
           idProspecto,
 
@@ -511,7 +803,6 @@ export async function obtenerArchivosEntrevistaRH(
 
         id_mirror:
           acceso.entrevista.id_mirror
-
       },
 
       entrevista:
@@ -519,38 +810,30 @@ export async function obtenerArchivosEntrevistaRH(
 
       archivos:
         rows || []
-
     });
-
-
   } catch (err) {
-
     console.error(
       "❌ Error al obtener grabaciones RH:",
       err
     );
 
+    return res
+      .status(500)
+      .json({
+        success:
+          false,
 
-    return res.status(500).json({
+        message:
+          "Error al obtener las grabaciones de la entrevista RH",
 
-      success:
-        false,
-
-      message:
-        "Error al obtener las grabaciones de la entrevista RH",
-
-      error:
-        process.env.NODE_ENV ===
-        "development"
-          ? err.message
-          : undefined
-
-    });
-
+        error:
+          process.env.NODE_ENV ===
+          "development"
+            ? err.message
+            : undefined
+      });
   }
-
 }
-
 
 // ==================================================
 // TRANSCRIBIR GRABACIÓN RH
@@ -563,29 +846,28 @@ export async function transcribirArchivoEntrevistaRH(
   req,
   res
 ) {
-
   const idVideo =
     Number(
       req.params.id
     );
 
-
   if (
-    !Number.isInteger(idVideo) ||
+    !Number.isInteger(
+      idVideo
+    ) ||
     idVideo <= 0
   ) {
+    return res
+      .status(400)
+      .json({
+        success: false,
 
-    return res.status(400).json({
-      success: false,
-      message:
-        "ID de archivo inválido"
-    });
-
+        message:
+          "ID de archivo inválido"
+      });
   }
 
-
   try {
-
     // ==================================================
     // OBTENER ARCHIVO RH
     // ==================================================
@@ -614,21 +896,19 @@ export async function transcribirArchivoEntrevistaRH(
         ]
       );
 
-
     if (!rows.length) {
+      return res
+        .status(404)
+        .json({
+          success: false,
 
-      return res.status(404).json({
-        success: false,
-        message:
-          "Grabación RH no encontrada"
-      });
-
+          message:
+            "Grabación RH no encontrada"
+        });
     }
-
 
     const archivo =
       rows[0];
-
 
     // ==================================================
     // VALIDAR ACCESO
@@ -641,59 +921,76 @@ export async function transcribirArchivoEntrevistaRH(
         req.user
       );
 
-
     if (!acceso.ok) {
-
       return res
         .status(
           acceso.status
         )
         .json({
           success: false,
+
           message:
             acceso.message
         });
-
     }
 
+    // ==================================================
+    // NORMALIZAR TIPO
+    // ==================================================
 
-    // ==================================================
-    // VALIDAR TIPO
-    // ==================================================
+    const tipoArchivo =
+      String(
+        archivo.tipo ||
+        ""
+      )
+        .trim()
+        .toLowerCase();
 
     const esAudio =
-      archivo.tipo === "audio" ||
-      String(
-        archivo.formato ||
-        ""
-      ).startsWith(
-        "audio/"
+      tipoArchivo ===
+        "audio" ||
+      (
+        tipoArchivo !==
+          "video" &&
+        String(
+          archivo.formato ||
+          ""
+        )
+          .toLowerCase()
+          .startsWith(
+            "audio/"
+          )
       );
-
 
     const esVideo =
-      archivo.tipo === "video" ||
-      String(
-        archivo.formato ||
-        ""
-      ).startsWith(
-        "video/"
+      tipoArchivo ===
+        "video" ||
+      (
+        tipoArchivo !==
+          "audio" &&
+        String(
+          archivo.formato ||
+          ""
+        )
+          .toLowerCase()
+          .startsWith(
+            "video/"
+          )
       );
-
 
     if (
       !esAudio &&
       !esVideo
     ) {
+      return res
+        .status(400)
+        .json({
+          success: false,
 
-      return res.status(400).json({
-        success: false,
-        message:
-          "Este archivo no es una grabación de audio o video"
-      });
-
+          message:
+            "Este archivo no es una grabación de audio o video"
+        });
     }
-
 
     // ==================================================
     // YA TRANSCRITO
@@ -705,9 +1002,7 @@ export async function transcribirArchivoEntrevistaRH(
         archivo.transcripcion
       ).trim()
     ) {
-
       return res.json({
-
         success:
           true,
 
@@ -728,11 +1023,116 @@ export async function transcribirArchivoEntrevistaRH(
 
         transcripcion:
           archivo.transcripcion
-
       });
-
     }
 
+    // ==================================================
+    // RUTA FÍSICA
+    // ==================================================
+
+    const rutaRelativa =
+      String(
+        archivo.ruta_video ||
+        ""
+      ).replace(
+        /^\/+/,
+        ""
+      );
+
+    if (!rutaRelativa) {
+      throw new Error(
+        "La grabación RH no tiene una ruta de archivo válida"
+      );
+    }
+
+    const rutaFisica =
+      path.resolve(
+        __dirname,
+        "..",
+        rutaRelativa
+      );
+
+    console.log(
+      "🎙️ Grabación RH a transcribir:",
+      rutaFisica
+    );
+
+    // ==================================================
+    // NORMALIZAR MIME TAMBIÉN AL TRANSCRIBIR
+    // ==================================================
+
+    const mimeType =
+      normalizarMimeGrabacion({
+        mime:
+          archivo.formato,
+
+        nombreArchivo:
+          archivo.ruta_video,
+
+        tipo:
+          esAudio
+            ? "audio"
+            : "video"
+      });
+
+    console.log(
+      "📦 MIME RH preparado para IA:",
+      {
+        original:
+          archivo.formato,
+
+        normalizado:
+          mimeType,
+
+        tipo:
+          archivo.tipo,
+
+        archivo:
+          archivo.ruta_video
+      }
+    );
+
+    // ==================================================
+    // ACTUALIZAR FORMATO SI ESTABA MAL
+    // ==================================================
+
+    if (
+      mimeType !==
+      String(
+        archivo.formato ||
+        ""
+      )
+        .trim()
+        .toLowerCase()
+    ) {
+      await pool.query(
+        `
+          UPDATE videos_entrevista_rh
+
+          SET formato = ?
+
+          WHERE id_video_rh = ?
+        `,
+        [
+          mimeType,
+          idVideo
+        ]
+      );
+
+      console.log(
+        "🔧 MIME RH corregido en BD:",
+        {
+          id_video_rh:
+            idVideo,
+
+          anterior:
+            archivo.formato,
+
+          nuevo:
+            mimeType
+        }
+      );
+    }
 
     // ==================================================
     // MARCAR PROCESANDO
@@ -752,75 +1152,58 @@ export async function transcribirArchivoEntrevistaRH(
       ]
     );
 
-
-    // ==================================================
-    // RUTA FÍSICA
-    // ==================================================
-
-    const rutaRelativa =
-      String(
-        archivo.ruta_video ||
-        ""
-      ).replace(
-        /^\/+/,
-        ""
-      );
-
-
-    const rutaFisica =
-      path.resolve(
-        __dirname,
-        "..",
-        rutaRelativa
-      );
-
-
-    console.log(
-      "🎙️ Grabación RH a transcribir:",
-      rutaFisica
-    );
-
-
     // ==================================================
     // TRANSCRIBIR
     // ==================================================
 
     let resultado;
 
-
     if (esAudio) {
+      console.log(
+        "🎙️ Enviando audio RH a transcripción..."
+      );
 
       resultado =
         await transcribirAudio(
           rutaFisica
         );
-
     } else {
-
-      const mimeType =
-        archivo.formato ||
-        "video/webm";
-
+      console.log(
+        "🎥 Enviando videollamada RH a transcripción...",
+        {
+          mimeType
+        }
+      );
 
       resultado =
         await transcribirMultimedia(
           rutaFisica,
           mimeType
         );
-
     }
 
+    // ==================================================
+    // VALIDAR RESPUESTA
+    // ==================================================
 
     if (
       !resultado?.texto
     ) {
-
       throw new Error(
         "El servicio de transcripción no devolvió texto"
       );
-
     }
 
+    const transcripcion =
+      String(
+        resultado.texto
+      ).trim();
+
+    if (!transcripcion) {
+      throw new Error(
+        "La transcripción recibida está vacía"
+      );
+    }
 
     // ==================================================
     // GUARDAR EN ARCHIVO RH
@@ -836,26 +1219,25 @@ export async function transcribirArchivoEntrevistaRH(
             'completada',
           transcripcion_fecha =
             NOW(),
-          transcripcion_modelo = ?
+          transcripcion_modelo = ?,
+          formato = ?
 
         WHERE id_video_rh = ?
       `,
       [
-        resultado.texto,
+        transcripcion,
 
         resultado.modelo ||
           null,
+
+        mimeType,
 
         idVideo
       ]
     );
 
-
     // ==================================================
     // GUARDAR TAMBIÉN EN LA ENTREVISTA
-    //
-    // Así aparece directamente en
-    // EntrevistasProspecto.
     // ==================================================
 
     await pool.query(
@@ -870,7 +1252,7 @@ export async function transcribirArchivoEntrevistaRH(
           AND id_prospecto = ?
       `,
       [
-        resultado.texto,
+        transcripcion,
 
         archivo.id_entrevista,
 
@@ -878,9 +1260,29 @@ export async function transcribirArchivoEntrevistaRH(
       ]
     );
 
+    console.log(
+      "✅ Transcripción RH completada:",
+      {
+        id_video_rh:
+          idVideo,
+
+        caracteres:
+          transcripcion.length,
+
+        modelo:
+          resultado.modelo ||
+          null,
+
+        formato:
+          mimeType
+      }
+    );
+
+    // ==================================================
+    // RESPUESTA
+    // ==================================================
 
     return res.json({
-
       success:
         true,
 
@@ -905,28 +1307,25 @@ export async function transcribirArchivoEntrevistaRH(
         archivo.tipo,
 
       formato:
-        archivo.formato,
+        mimeType,
 
-      transcripcion:
-        resultado.texto,
+      transcripcion,
 
       modelo:
         resultado.modelo ||
         null
-
     });
-
-
   } catch (err) {
-
     console.error(
       "❌ Error al transcribir grabación RH:",
       err
     );
 
+    // ==================================================
+    // MARCAR ERROR
+    // ==================================================
 
     try {
-
       await pool.query(
         `
           UPDATE videos_entrevista_rh
@@ -940,60 +1339,119 @@ export async function transcribirArchivoEntrevistaRH(
           idVideo
         ]
       );
+    } catch (
+      errorActualizandoEstado
+    ) {
+      console.error(
+        "❌ No se pudo marcar transcripción RH como error:",
+        errorActualizandoEstado
+      );
+    }
 
-    } catch {}
+    // ==================================================
+    // GEMINI 429
+    // ==================================================
 
+    const esLimiteIA =
+      Number(
+        err?.status
+      ) === 429 ||
+      String(
+        err?.message ||
+        ""
+      ).includes(
+        "429"
+      ) ||
+      String(
+        err?.message ||
+        ""
+      )
+        .toLowerCase()
+        .includes(
+          "quota"
+        );
 
-    return res.status(500).json({
+    if (esLimiteIA) {
+      return res
+        .status(429)
+        .json({
+          success:
+            false,
 
-      success:
-        false,
+          code:
+            "AI_QUOTA_LIMIT",
 
-      message:
-        "Error al transcribir la grabación RH",
+          message:
+            "El servicio de IA alcanzó temporalmente su límite de uso. La grabación quedó guardada correctamente y podrás intentar transcribirla nuevamente.",
 
-      error:
-        err.message
+          id_video_rh:
+            idVideo,
 
-    });
+          error:
+            process.env.NODE_ENV ===
+            "development"
+              ? err.message
+              : undefined
+        });
+    }
 
+    return res
+      .status(500)
+      .json({
+        success:
+          false,
+
+        message:
+          "Error al transcribir la grabación RH",
+
+        id_video_rh:
+          idVideo,
+
+        error:
+          process.env.NODE_ENV ===
+          "development"
+            ? err.message
+            : undefined
+      });
   }
-
 }
-
 
 // ==================================================
 // ELIMINAR GRABACIÓN RH
 //
-// DELETE /api/archivos-rh/:id
+// DELETE
+// /api/archivos-rh/:id
 // ==================================================
 
 export async function eliminarArchivoEntrevistaRH(
   req,
   res
 ) {
-
   const idVideo =
     Number(
       req.params.id
     );
 
-
   if (
-    !Number.isInteger(idVideo) ||
+    !Number.isInteger(
+      idVideo
+    ) ||
     idVideo <= 0
   ) {
+    return res
+      .status(400)
+      .json({
+        success: false,
 
-    return res.status(400).json({
-      success: false,
-      message:
-        "ID de archivo inválido"
-    });
-
+        message:
+          "ID de archivo inválido"
+      });
   }
 
-
   try {
+    // ==================================================
+    // OBTENER ARCHIVO
+    // ==================================================
 
     const [rows] =
       await pool.query(
@@ -1015,21 +1473,23 @@ export async function eliminarArchivoEntrevistaRH(
         ]
       );
 
-
     if (!rows.length) {
+      return res
+        .status(404)
+        .json({
+          success: false,
 
-      return res.status(404).json({
-        success: false,
-        message:
-          "Grabación RH no encontrada"
-      });
-
+          message:
+            "Grabación RH no encontrada"
+        });
     }
-
 
     const archivo =
       rows[0];
 
+    // ==================================================
+    // VALIDAR ACCESO
+    // ==================================================
 
     const acceso =
       await validarAccesoEntrevistaRH(
@@ -1038,21 +1498,22 @@ export async function eliminarArchivoEntrevistaRH(
         req.user
       );
 
-
     if (!acceso.ok) {
-
       return res
         .status(
           acceso.status
         )
         .json({
           success: false,
+
           message:
             acceso.message
         });
-
     }
 
+    // ==================================================
+    // ELIMINAR REGISTRO
+    // ==================================================
 
     await pool.query(
       `
@@ -1065,7 +1526,6 @@ export async function eliminarArchivoEntrevistaRH(
         idVideo
       ]
     );
-
 
     // ==================================================
     // BUSCAR GRABACIÓN ANTERIOR
@@ -1095,11 +1555,13 @@ export async function eliminarArchivoEntrevistaRH(
         ]
       );
 
-
     const siguiente =
       restantes[0] ||
       null;
 
+    // ==================================================
+    // ACTUALIZAR ENTREVISTA
+    // ==================================================
 
     await pool.query(
       `
@@ -1126,38 +1588,33 @@ export async function eliminarArchivoEntrevistaRH(
       ]
     );
 
-
     return res.json({
-      success: true,
+      success:
+        true,
+
       message:
         "✅ Grabación RH eliminada correctamente"
     });
-
-
   } catch (err) {
-
     console.error(
       "❌ Error al eliminar grabación RH:",
       err
     );
 
+    return res
+      .status(500)
+      .json({
+        success:
+          false,
 
-    return res.status(500).json({
+        message:
+          "Error al eliminar la grabación RH",
 
-      success:
-        false,
-
-      message:
-        "Error al eliminar la grabación RH",
-
-      error:
-        process.env.NODE_ENV ===
-        "development"
-          ? err.message
-          : undefined
-
-    });
-
+        error:
+          process.env.NODE_ENV ===
+          "development"
+            ? err.message
+            : undefined
+      });
   }
-
 }

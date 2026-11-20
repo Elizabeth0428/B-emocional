@@ -14,7 +14,9 @@ import {
   useParams
 } from "react-router-dom";
 
-const API_URL = import.meta.env.VITE_API_URL || (window.location.protocol === 'https:' ? 'https://reflejoyalma.com' : `http://${window.location.hostname}:5000`);
+const API_URL =
+  import.meta.env.VITE_API_URL ||
+  `http://${window.location.hostname}:5000`;
 
 const PruebasProspecto = () => {
   const { idProspecto } = useParams();
@@ -380,17 +382,21 @@ const PruebasProspecto = () => {
 
         <div style={styles.header}>
 
-          <button
-            type="button"
-            style={styles.backButton}
-            onClick={() =>
-              navigate(
-                `/prospecto/${idProspecto}`
-              )
-            }
-          >
-            ← Regresar al expediente
-          </button>
+          <div style={styles.backButtonRow}>
+            <button
+              type="button"
+              style={styles.backButton}
+              onClick={() =>
+                navigate(
+                  `/prospecto/${idProspecto}`
+                )
+              }
+            >
+              <span style={styles.backButtonText}>
+                ← Volver al expediente
+              </span>
+            </button>
+          </div>
 
           <h1 style={styles.title}>
             🧠 Pruebas psicométricas
@@ -815,19 +821,51 @@ const styles = {
   // BOTÓN REGRESAR
   // ==================================================
 
+  backButtonRow: {
+    position: "relative",
+    zIndex: 9999,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "flex-start",
+    width: "100%",
+    pointerEvents: "auto"
+  },
+
   backButton: {
+    appearance: "none",
+    WebkitAppearance: "none",
+    position: "relative",
+    zIndex: 10000,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: "240px",
+    minHeight: "46px",
+    padding: "12px 24px",
+    margin: 0,
     border: "none",
-    background:
-      "linear-gradient(135deg,#66C8F5,#8BD9FF)",
-    color: "#073B57",
-    padding: "11px 20px",
     borderRadius: "999px",
+    background:
+      "linear-gradient(135deg,#64B5F6,#1976D2)",
+    color: "#ffffff",
     cursor: "pointer",
-    fontWeight: "800",
-    fontSize: "14px",
+    fontWeight: "700",
+    fontSize: "16px",
+    lineHeight: 1.2,
     boxShadow:
-      "0 5px 14px rgba(75,160,210,.25)",
+      "0 5px 14px rgba(25,118,210,.25)",
+    pointerEvents: "auto",
+    userSelect: "none",
+    WebkitUserSelect: "none",
+    touchAction: "manipulation",
     whiteSpace: "nowrap"
+  },
+
+  backButtonText: {
+    display: "block",
+    width: "100%",
+    textAlign: "center",
+    pointerEvents: "none"
   },
 
   // ==================================================

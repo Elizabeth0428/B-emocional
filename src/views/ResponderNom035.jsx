@@ -7,6 +7,10 @@ import React, {
 import axios from "axios";
 import { useParams } from "react-router-dom";
 
+const API_URL =
+  import.meta.env.VITE_API_URL ||
+  `http://${window.location.hostname}:5000`;
+
 
 const ResponderNom035 = () => {
 
@@ -39,6 +43,12 @@ const ResponderNom035 = () => {
   const [mensaje, setMensaje] =
     useState("");
 
+  const [atiendeClientes, setAtiendeClientes] =
+    useState(null);
+
+  const [tienePersonalCargo, setTienePersonalCargo] =
+    useState(null);
+
 
   // ==================================================
   // PREGUNTAS
@@ -56,15 +66,53 @@ const ResponderNom035 = () => {
 
 
   // ==================================================
-  // GUÍA I
+  // GUÍAS
   // ==================================================
 
-  const esGuiaI =
+  const guiaActual =
     String(
       aplicacion?.cuestionario?.guia ||
       ""
-    ) === "I";
+    );
 
+  const esGuiaI =
+    guiaActual === "I";
+
+  const esGuiaII =
+    guiaActual === "II";
+
+  const esGuiaIII =
+    guiaActual === "III";
+
+  const usaPreguntasCondicionales =
+    esGuiaII ||
+    esGuiaIII;
+
+  const limiteBase =
+    esGuiaII
+      ? 40
+      : esGuiaIII
+      ? 64
+      : null;
+
+  const rangoClientes =
+    esGuiaII
+      ? [41, 43]
+      : esGuiaIII
+      ? [65, 68]
+      : null;
+
+  const rangoPersonal =
+    esGuiaII
+      ? [44, 46]
+      : esGuiaIII
+      ? [69, 72]
+      : null;
+
+
+  // ==================================================
+  // GUÍA I
+  // ==================================================
 
   const preguntasSeccionI =
     useMemo(
@@ -160,13 +208,34 @@ const ResponderNom035 = () => {
     useMemo(
       () => {
 
-        if (!esGuiaI) {
+        if (esGuiaI) {
+
+          if (
+            !seccionICompleta ||
+            guiaITerminaEnSeccionI
+          ) {
+            return preguntas.filter(
+              pregunta => {
+
+                const orden =
+                  Number(
+                    pregunta.orden
+                  );
+
+                return (
+                  orden >= 1 &&
+                  orden <= 6
+                );
+              }
+            );
+          }
+
           return preguntas;
         }
 
         if (
-          !seccionICompleta ||
-          guiaITerminaEnSeccionI
+          esGuiaII ||
+          esGuiaIII
         ) {
           return preguntas.filter(
             pregunta => {
@@ -176,10 +245,33 @@ const ResponderNom035 = () => {
                   pregunta.orden
                 );
 
-              return (
-                orden >= 1 &&
-                orden <= 6
-              );
+              if (
+                orden <= limiteBase
+              ) {
+                return true;
+              }
+
+              if (
+                rangoClientes &&
+                orden >= rangoClientes[0] &&
+                orden <= rangoClientes[1]
+              ) {
+                return (
+                  atiendeClientes === true
+                );
+              }
+
+              if (
+                rangoPersonal &&
+                orden >= rangoPersonal[0] &&
+                orden <= rangoPersonal[1]
+              ) {
+                return (
+                  tienePersonalCargo === true
+                );
+              }
+
+              return false;
             }
           );
         }
@@ -190,10 +282,111 @@ const ResponderNom035 = () => {
       [
         preguntas,
         esGuiaI,
+        esGuiaII,
+        esGuiaIII,
         seccionICompleta,
-        guiaITerminaEnSeccionI
+        guiaITerminaEnSeccionI,
+        limiteBase,
+        rangoClientes,
+        rangoPersonal,
+        atiendeClientes,
+        tienePersonalCargo
       ]
     );
+
+
+  const filtrosCondicionalesCompletos =
+    !usaPreguntasCondicionales ||
+    (
+      atiendeClientes !== null &&
+      tienePersonalCargo !== null
+    );
+
+
+  // ==================================================
+  // CAMBIAR RESPUESTAS CONDICIONALES
+  // ==================================================
+
+  const limpiarRespuestasRango =
+    (
+      desde,
+      hasta
+    ) => {
+
+      setRespuestas(
+        prev => {
+
+          const copia = {
+            ...prev
+          };
+
+          for (
+            const pregunta
+            of preguntas
+          ) {
+            const orden =
+              Number(
+                pregunta.orden
+              );
+
+            if (
+              orden >= desde &&
+              orden <= hasta
+            ) {
+              delete copia[
+                pregunta.id_pregunta
+              ];
+            }
+          }
+
+          return copia;
+        }
+      );
+    };
+
+
+  const cambiarAtiendeClientes =
+    valor => {
+
+      setAtiendeClientes(
+        valor
+      );
+
+      if (
+        valor === false &&
+        rangoClientes
+      ) {
+        limpiarRespuestasRango(
+          rangoClientes[0],
+          rangoClientes[1]
+        );
+      }
+
+      setError("");
+      setMensaje("");
+    };
+
+
+  const cambiarPersonalCargo =
+    valor => {
+
+      setTienePersonalCargo(
+        valor
+      );
+
+      if (
+        valor === false &&
+        rangoPersonal
+      ) {
+        limpiarRespuestasRango(
+          rangoPersonal[0],
+          rangoPersonal[1]
+        );
+      }
+
+      setError("");
+      setMensaje("");
+    };
 
 
   // ==================================================
@@ -212,7 +405,7 @@ const ResponderNom035 = () => {
 
             const respuesta =
               await axios.get(
-                `/api/empleados/nom035-publica/${token}`
+                `${API_URL}/api/empleados/nom035-publica/${token}`
               );
 
             const datos =
@@ -220,6 +413,77 @@ const ResponderNom035 = () => {
               null;
 
             setAplicacion(datos);
+
+            const guiaCargada =
+              String(
+                datos?.cuestionario?.guia ||
+                ""
+              );
+
+            if (
+              guiaCargada === "II" ||
+              guiaCargada === "III"
+            ) {
+              const rangoClientesCargado =
+                guiaCargada === "II"
+                  ? [41, 43]
+                  : [65, 68];
+
+              const rangoPersonalCargado =
+                guiaCargada === "II"
+                  ? [44, 46]
+                  : [69, 72];
+
+              const tieneRespuestaEnRango =
+                (
+                  desde,
+                  hasta
+                ) =>
+                  Array.isArray(
+                    datos?.preguntas
+                  ) &&
+                  datos.preguntas.some(
+                    pregunta => {
+
+                      const orden =
+                        Number(
+                          pregunta.orden
+                        );
+
+                      return (
+                        orden >= desde &&
+                        orden <= hasta &&
+                        Boolean(
+                          pregunta
+                            .respuesta_actual
+                            ?.id_opcion
+                        )
+                      );
+                    }
+                  );
+
+              if (
+                tieneRespuestaEnRango(
+                  rangoClientesCargado[0],
+                  rangoClientesCargado[1]
+                )
+              ) {
+                setAtiendeClientes(
+                  true
+                );
+              }
+
+              if (
+                tieneRespuestaEnRango(
+                  rangoPersonalCargado[0],
+                  rangoPersonalCargado[1]
+                )
+              ) {
+                setTienePersonalCargo(
+                  true
+                );
+              }
+            }
 
 
             // ==========================================
@@ -359,6 +623,12 @@ const ResponderNom035 = () => {
         return false;
       }
 
+      if (
+        !filtrosCondicionalesCompletos
+      ) {
+        return false;
+      }
+
       for (
         const pregunta
         of preguntasVisibles
@@ -419,9 +689,19 @@ const ResponderNom035 = () => {
         setError("");
 
         await axios.post(
-          `/api/empleados/nom035-publica/${token}/respuestas`,
+          `${API_URL}/api/empleados/nom035-publica/${token}/respuestas`,
           {
-            respuestas: lista
+            respuestas: lista,
+
+            atiende_clientes:
+              usaPreguntasCondicionales
+                ? atiendeClientes
+                : null,
+
+            tiene_personal_cargo:
+              usaPreguntasCondicionales
+                ? tienePersonalCargo
+                : null
           }
         );
 
@@ -495,7 +775,18 @@ const ResponderNom035 = () => {
 
         const respuesta =
           await axios.post(
-            `/api/empleados/nom035-publica/${token}/finalizar`
+            `${API_URL}/api/empleados/nom035-publica/${token}/finalizar`,
+            {
+              atiende_clientes:
+                usaPreguntasCondicionales
+                  ? atiendeClientes
+                  : null,
+
+              tiene_personal_cargo:
+                usaPreguntasCondicionales
+                  ? tienePersonalCargo
+                  : null
+            }
           );
 
         setResultado(
@@ -883,6 +1174,135 @@ const ResponderNom035 = () => {
         {error && (
           <div style={styles.error}>
             ❌ {error}
+          </div>
+        )}
+
+
+        {/* PREGUNTAS CONDICIONALES GUÍA II / III */}
+
+        {usaPreguntasCondicionales && (
+
+          <div style={styles.filterCard}>
+
+            <div style={styles.filterHeader}>
+              <strong>
+                Antes de continuar
+              </strong>
+
+              <p style={styles.filterText}>
+                Estas dos respuestas determinan si
+                algunas preguntas adicionales de la
+                NOM-035 aplican a tu puesto.
+              </p>
+            </div>
+
+
+            <div style={styles.filterQuestion}>
+
+              <div style={styles.filterQuestionText}>
+                ¿En tu trabajo atiendes directamente
+                clientes, usuarios, pacientes, alumnos
+                u otras personas externas?
+              </div>
+
+              <div style={styles.filterOptions}>
+
+                <button
+                  type="button"
+                  style={{
+                    ...styles.filterButton,
+                    ...(atiendeClientes === true
+                      ? styles.filterButtonSelected
+                      : {})
+                  }}
+                  onClick={() =>
+                    cambiarAtiendeClientes(
+                      true
+                    )
+                  }
+                >
+                  Sí
+                </button>
+
+                <button
+                  type="button"
+                  style={{
+                    ...styles.filterButton,
+                    ...(atiendeClientes === false
+                      ? styles.filterButtonSelected
+                      : {})
+                  }}
+                  onClick={() =>
+                    cambiarAtiendeClientes(
+                      false
+                    )
+                  }
+                >
+                  No
+                </button>
+
+              </div>
+
+            </div>
+
+
+            <div style={styles.filterQuestion}>
+
+              <div style={styles.filterQuestionText}>
+                ¿Tienes personal a tu cargo o
+                supervisas directamente a otros
+                trabajadores?
+              </div>
+
+              <div style={styles.filterOptions}>
+
+                <button
+                  type="button"
+                  style={{
+                    ...styles.filterButton,
+                    ...(tienePersonalCargo === true
+                      ? styles.filterButtonSelected
+                      : {})
+                  }}
+                  onClick={() =>
+                    cambiarPersonalCargo(
+                      true
+                    )
+                  }
+                >
+                  Sí
+                </button>
+
+                <button
+                  type="button"
+                  style={{
+                    ...styles.filterButton,
+                    ...(tienePersonalCargo === false
+                      ? styles.filterButtonSelected
+                      : {})
+                  }}
+                  onClick={() =>
+                    cambiarPersonalCargo(
+                      false
+                    )
+                  }
+                >
+                  No
+                </button>
+
+              </div>
+
+            </div>
+
+
+            {!filtrosCondicionalesCompletos && (
+              <div style={styles.filterPending}>
+                Selecciona una respuesta en ambas
+                preguntas para poder finalizar el
+                cuestionario.
+              </div>
+            )}
+
           </div>
         )}
 
@@ -1343,6 +1763,69 @@ const styles = {
     padding: "13px",
     borderRadius: "10px",
     marginBottom: "16px"
+  },
+
+  filterCard: {
+    background: "#ffffff",
+    borderRadius: "15px",
+    padding: "20px",
+    marginBottom: "18px",
+    boxShadow:
+      "0 3px 14px rgba(0,0,0,.04)"
+  },
+
+  filterHeader: {
+    marginBottom: "16px"
+  },
+
+  filterText: {
+    margin: "6px 0 0",
+    color: "#667085",
+    lineHeight: 1.5
+  },
+
+  filterQuestion: {
+    padding: "15px 0",
+    borderTop:
+      "1px solid #eaecf0"
+  },
+
+  filterQuestionText: {
+    fontWeight: "700",
+    color: "#344054",
+    lineHeight: 1.5,
+    marginBottom: "11px"
+  },
+
+  filterOptions: {
+    display: "flex",
+    gap: "10px",
+    flexWrap: "wrap"
+  },
+
+  filterButton: {
+    minWidth: "90px",
+    border: "1px solid #d0d5dd",
+    background: "#ffffff",
+    borderRadius: "10px",
+    padding: "10px 16px",
+    cursor: "pointer",
+    fontWeight: "700"
+  },
+
+  filterButtonSelected: {
+    background: "#eff6ff",
+    border: "2px solid #2563eb",
+    color: "#1d4ed8"
+  },
+
+  filterPending: {
+    marginTop: "10px",
+    padding: "11px",
+    borderRadius: "9px",
+    background: "#fff7ed",
+    color: "#9a3412",
+    fontSize: "13px"
   },
 
   guideFinishedNotice: {

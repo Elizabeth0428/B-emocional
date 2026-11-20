@@ -9,7 +9,9 @@ import {
   transcribirArchivo
 } from "../controllers/archivosController.js";
 
-import { verifyToken } from "../middlewares/authMiddleware.js";
+import { verifyToken,
+  verificarSuscripcionOrganizacion
+} from "../middlewares/authMiddleware.js";
 import { uploadMultimedia } from "../config/multer.js";
 
 const router = express.Router();
@@ -20,6 +22,7 @@ const router = express.Router();
 router.post(
   "/",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   uploadMultimedia.single("file"),
   subirArchivo
 );
@@ -30,6 +33,7 @@ router.post(
 router.get(
   "/sesion/:id_sesion",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   obtenerArchivosSesion
 );
 
@@ -39,6 +43,7 @@ router.get(
 router.post(
   "/:id/transcribir",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   transcribirArchivo
 );
 
@@ -48,6 +53,7 @@ router.post(
 router.delete(
   "/:id",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   eliminarArchivo
 );
 

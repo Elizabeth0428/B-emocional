@@ -15,57 +15,132 @@ const validarAccesoProspecto = async (
 ) => {
 
   const idUsuario =
-    user?.id_usuario;
-
-  const tipoAdmin =
-    user?.tipo_admin
-      ? String(user.tipo_admin)
-          .trim()
-          .toLowerCase()
-      : null;
-
-  const area =
-    user?.area
-      ? String(user.area)
-          .trim()
-          .toLowerCase()
-      : null;
-
+    Number(user?.id_usuario) || null;
 
   if (!idUsuario) {
-
     return {
       ok: false,
       status: 401,
       message:
         "No se pudo identificar al usuario",
     };
-
   }
 
+  // ==================================================
+  // CONTEXTO REAL DEL USUARIO RH
+  //
+  // Permite:
+  // - Master
+  // - Admin RH
+  // - Usuario RH
+  // - Independiente con perfil RH
+  // ==================================================
 
-  if (
-    tipoAdmin !== "master" &&
-    area !== "rh"
-  ) {
+  const [usuarios] =
+    await pool.query(
+      `
+        SELECT
+          u.id_usuario,
+          u.tipo_admin,
+          u.area,
+          u.rol,
+          u.id_admin_padre,
+          u.id_organizacion,
+          o.tipo AS tipo_organizacion,
+          o.perfil_independiente,
+          o.estado AS estado_organizacion
+        FROM usuarios u
+        LEFT JOIN organizaciones o
+          ON o.id_organizacion =
+             u.id_organizacion
+        WHERE u.id_usuario = ?
+        LIMIT 1
+      `,
+      [idUsuario]
+    );
 
+  if (!usuarios.length) {
+    return {
+      ok: false,
+      status: 401,
+      message:
+        "No se pudo identificar al usuario",
+    };
+  }
+
+  const usuario =
+    usuarios[0];
+
+  const tipoAdmin =
+    String(
+      usuario.tipo_admin || ""
+    )
+      .trim()
+      .toLowerCase();
+
+  const area =
+    String(
+      usuario.area || ""
+    )
+      .trim()
+      .toLowerCase();
+
+  const rol =
+    String(
+      usuario.rol || ""
+    )
+      .trim()
+      .toLowerCase();
+
+  const perfilIndependiente =
+    String(
+      usuario.perfil_independiente || ""
+    )
+      .trim()
+      .toLowerCase();
+
+  const estadoOrganizacion =
+    String(
+      usuario.estado_organizacion || ""
+    )
+      .trim()
+      .toLowerCase();
+
+  const esMaster =
+    tipoAdmin === "master";
+
+  const esAdminRH =
+    tipoAdmin === "normal" &&
+    area === "rh";
+
+  const esUsuarioRH =
+    rol === "rh" &&
+    area === "rh";
+
+  const esIndependienteRH =
+    rol === "independiente" &&
+    area === "independiente" &&
+    perfilIndependiente === "rh" &&
+    estadoOrganizacion === "activa";
+
+  const tienePermiso =
+    esMaster ||
+    esAdminRH ||
+    esUsuarioRH ||
+    esIndependienteRH;
+
+  if (!tienePermiso) {
     return {
       ok: false,
       status: 403,
       message:
         "No tienes permiso para acceder al seguimiento de prospectos",
     };
-
   }
-
 
   let query = `
     SELECT
-      id_prospecto,
-      id_mirror,
-      nombre,
-      estatus,
-      id_admin_padre
+      *
     FROM prospectos
     WHERE id_prospecto = ?
   `;
@@ -74,11 +149,10 @@ const validarAccesoProspecto = async (
     idProspecto
   ];
 
-
-  if (
-    tipoAdmin !== "master"
-  ) {
-
+  // Todo usuario RH no-master,
+  // incluido Independiente RH,
+  // solo puede acceder a sus propios prospectos.
+  if (!esMaster) {
     query += `
       AND id_admin_padre = ?
     `;
@@ -86,43 +160,50 @@ const validarAccesoProspecto = async (
     params.push(
       idUsuario
     );
-
   }
-
 
   query += `
     LIMIT 1
   `;
 
-
-  const [resultados] =
+  const [rows] =
     await pool.query(
       query,
       params
     );
 
-
-  if (
-    resultados.length === 0
-  ) {
-
+  if (!rows.length) {
     return {
       ok: false,
       status: 404,
       message:
         "Prospecto no encontrado o no tienes permiso para acceder a él",
     };
-
   }
-
 
   return {
     ok: true,
     prospecto:
-      resultados[0],
+      rows[0],
+    contexto: {
+      idUsuario,
+      tipoAdmin,
+      area,
+      rol,
+      idOrganizacion:
+        Number(
+          usuario.id_organizacion
+        ) || null,
+      perfilIndependiente,
+      esMaster,
+      esAdminRH,
+      esUsuarioRH,
+      esIndependienteRH,
+    },
   };
-
 };
+
+
 
 
 // ==================================================

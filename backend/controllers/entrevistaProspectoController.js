@@ -4,7 +4,6 @@
 
 import pool from "../config/database.js";
 
-
 // ==================================================
 // AUXILIAR: VALIDAR ACCESO AL PROSPECTO
 // ==================================================
@@ -13,51 +12,140 @@ const validarAccesoProspecto = async (
   idProspecto,
   user
 ) => {
-
   const idUsuario =
-    user?.id_usuario;
-
-  const tipoAdmin =
-    user?.tipo_admin
-      ? String(user.tipo_admin)
-          .trim()
-          .toLowerCase()
-      : null;
-
-  const area =
-    user?.area
-      ? String(user.area)
-          .trim()
-          .toLowerCase()
-      : null;
-
+    Number(user?.id_usuario) || null;
 
   if (!idUsuario) {
-
     return {
       ok: false,
       status: 401,
       message:
         "No se pudo identificar al usuario",
     };
-
   }
 
+  // ==================================================
+  // CONTEXTO REAL DEL USUARIO RH
+  //
+  // Permite:
+  // - Master
+  // - Admin RH
+  // - Usuario RH
+  // - Independiente con perfil RH
+  // ==================================================
 
-  if (
-    tipoAdmin !== "master" &&
-    area !== "rh"
-  ) {
+  const [usuarios] =
+    await pool.query(
+      `
+        SELECT
+          u.id_usuario,
+          u.tipo_admin,
+          u.area,
+          u.rol,
+          u.id_admin_padre,
+          u.id_organizacion,
+          o.tipo AS tipo_organizacion,
+          o.perfil_independiente,
+          o.estado AS estado_organizacion
+        FROM usuarios u
+        LEFT JOIN organizaciones o
+          ON o.id_organizacion =
+             u.id_organizacion
+        WHERE u.id_usuario = ?
+        LIMIT 1
+      `,
+      [idUsuario]
+    );
 
+  if (usuarios.length === 0) {
+    return {
+      ok: false,
+      status: 401,
+      message:
+        "No se pudo identificar al usuario",
+    };
+  }
+
+  const usuario =
+    usuarios[0];
+
+  const tipoAdmin =
+    usuario.tipo_admin
+      ? String(usuario.tipo_admin)
+          .trim()
+          .toLowerCase()
+      : "";
+
+  const area =
+    usuario.area
+      ? String(usuario.area)
+          .trim()
+          .toLowerCase()
+      : "";
+
+  const rol =
+    usuario.rol
+      ? String(usuario.rol)
+          .trim()
+          .toLowerCase()
+      : "";
+
+  const perfilIndependiente =
+    usuario.perfil_independiente
+      ? String(
+          usuario.perfil_independiente
+        )
+          .trim()
+          .toLowerCase()
+      : "";
+
+  const estadoOrganizacion =
+    usuario.estado_organizacion
+      ? String(
+          usuario.estado_organizacion
+        )
+          .trim()
+          .toLowerCase()
+      : "";
+
+  const esMaster =
+    tipoAdmin === "master";
+
+  const esAdminRH =
+    tipoAdmin === "normal" &&
+    area === "rh";
+
+  const esUsuarioRH =
+    rol === "rh" &&
+    area === "rh";
+
+  const esIndependienteRH =
+    rol === "independiente" &&
+    area === "independiente" &&
+    perfilIndependiente === "rh" &&
+    estadoOrganizacion === "activa";
+
+  const tienePermiso =
+    esMaster ||
+    esAdminRH ||
+    esUsuarioRH ||
+    esIndependienteRH;
+
+  if (!tienePermiso) {
     return {
       ok: false,
       status: 403,
       message:
         "No tienes permiso para acceder a entrevistas de prospectos",
     };
-
   }
 
+  // ==================================================
+  // VALIDAR PROPIEDAD DEL PROSPECTO
+  //
+  // Master puede consultar cualquier prospecto.
+  // Los demás solo los registrados por su usuario.
+  // ==================================================
 
   let query = `
     SELECT
@@ -74,11 +162,7 @@ const validarAccesoProspecto = async (
     idProspecto
   ];
 
-
-  if (
-    tipoAdmin !== "master"
-  ) {
-
+  if (!esMaster) {
     query += `
       AND id_admin_padre = ?
     `;
@@ -86,14 +170,11 @@ const validarAccesoProspecto = async (
     params.push(
       idUsuario
     );
-
   }
-
 
   query += `
     LIMIT 1
   `;
-
 
   const [resultados] =
     await pool.query(
@@ -101,29 +182,40 @@ const validarAccesoProspecto = async (
       params
     );
 
-
   if (
     resultados.length === 0
   ) {
-
     return {
       ok: false,
       status: 404,
       message:
         "Prospecto no encontrado o no tienes permiso para acceder a él",
     };
-
   }
-
 
   return {
     ok: true,
+
     prospecto:
       resultados[0],
+
+    contexto: {
+      idUsuario,
+      tipoAdmin,
+      area,
+      rol,
+      idOrganizacion:
+        Number(
+          usuario.id_organizacion
+        ) || null,
+      perfilIndependiente,
+      esMaster,
+      esAdminRH,
+      esUsuarioRH,
+      esIndependienteRH,
+    },
   };
-
 };
-
 
 // ==================================================
 // REGISTRAR ENTREVISTA
@@ -135,14 +227,11 @@ export const registrarEntrevistaProspecto =
     req,
     res
   ) => {
-
     try {
-
       const idProspecto =
         Number(
           req.params.id
         );
-
 
       if (
         !Number.isInteger(
@@ -150,15 +239,12 @@ export const registrarEntrevistaProspecto =
         ) ||
         idProspecto <= 0
       ) {
-
         return res.status(400).json({
           success: false,
           message:
             "ID de prospecto inválido",
         });
-
       }
-
 
       const acceso =
         await validarAccesoProspecto(
@@ -166,9 +252,7 @@ export const registrarEntrevistaProspecto =
           req.user
         );
 
-
       if (!acceso.ok) {
-
         return res
           .status(
             acceso.status
@@ -178,9 +262,7 @@ export const registrarEntrevistaProspecto =
             message:
               acceso.message,
           });
-
       }
-
 
       const {
         tipo_entrevista,
@@ -195,21 +277,17 @@ export const registrarEntrevistaProspecto =
         estatus,
       } = req.body;
 
-
       // ==================================================
       // VALIDAR FECHA
       // ==================================================
 
       if (!fecha_entrevista) {
-
         return res.status(400).json({
           success: false,
           message:
             "La fecha de la entrevista es obligatoria",
         });
-
       }
-
 
       // ==================================================
       // MODALIDAD
@@ -223,27 +301,22 @@ export const registrarEntrevistaProspecto =
           .trim()
           .toLowerCase();
 
-
       const modalidadesPermitidas = [
         "presencial",
         "videollamada",
       ];
-
 
       if (
         !modalidadesPermitidas.includes(
           modalidadNormalizada
         )
       ) {
-
         return res.status(400).json({
           success: false,
           message:
             "Modalidad de entrevista inválida",
         });
-
       }
-
 
       // ==================================================
       // RESULTADO
@@ -257,7 +330,6 @@ export const registrarEntrevistaProspecto =
           .trim()
           .toLowerCase();
 
-
       const resultadosPermitidos = [
         "pendiente",
         "continua",
@@ -267,21 +339,17 @@ export const registrarEntrevistaProspecto =
         "no_continua",
       ];
 
-
       if (
         !resultadosPermitidos.includes(
           resultadoNormalizado
         )
       ) {
-
         return res.status(400).json({
           success: false,
           message:
             "Resultado de entrevista inválido",
         });
-
       }
-
 
       // ==================================================
       // ESTATUS
@@ -295,28 +363,23 @@ export const registrarEntrevistaProspecto =
           .trim()
           .toLowerCase();
 
-
       const estatusPermitidos = [
         "programada",
         "realizada",
         "cancelada",
       ];
 
-
       if (
         !estatusPermitidos.includes(
           estatusNormalizado
         )
       ) {
-
         return res.status(400).json({
           success: false,
           message:
             "Estatus de entrevista inválido",
         });
-
       }
-
 
       // ==================================================
       // INSERTAR
@@ -425,7 +488,6 @@ export const registrarEntrevistaProspecto =
           ]
         );
 
-
       // ==================================================
       // ACTUALIZAR ESTATUS DEL PROSPECTO
       // ==================================================
@@ -433,55 +495,41 @@ export const registrarEntrevistaProspecto =
       let nuevoEstatus =
         null;
 
-
       if (
         estatusNormalizado ===
         "realizada"
       ) {
-
         nuevoEstatus =
           "en_proceso";
-
       }
-
 
       if (
         resultadoNormalizado ===
         "pruebas"
       ) {
-
         nuevoEstatus =
           "evaluacion";
-
       }
-
 
       if (
         resultadoNormalizado ===
         "aprobado"
       ) {
-
         nuevoEstatus =
           "aprobado";
-
       }
-
 
       if (
         resultadoNormalizado ===
         "no_continua"
       ) {
-
         nuevoEstatus =
           "no_contratado";
-
       }
-
 
       if (
         nuevoEstatus
       ) {
-
         await pool.query(
           `
             UPDATE prospectos
@@ -493,9 +541,7 @@ export const registrarEntrevistaProspecto =
             idProspecto,
           ]
         );
-
       }
-
 
       return res.status(201).json({
         success: true,
@@ -509,15 +555,11 @@ export const registrarEntrevistaProspecto =
         nuevo_estatus:
           nuevoEstatus,
       });
-
-
     } catch (error) {
-
       console.error(
         "❌ Error al registrar entrevista:",
         error
       );
-
 
       return res.status(500).json({
         success: false,
@@ -531,11 +573,8 @@ export const registrarEntrevistaProspecto =
             ? error.message
             : undefined,
       });
-
     }
-
   };
-
 
 // ==================================================
 // LISTAR ENTREVISTAS
@@ -547,14 +586,11 @@ export const listarEntrevistasProspecto =
     req,
     res
   ) => {
-
     try {
-
       const idProspecto =
         Number(
           req.params.id
         );
-
 
       if (
         !Number.isInteger(
@@ -562,15 +598,12 @@ export const listarEntrevistasProspecto =
         ) ||
         idProspecto <= 0
       ) {
-
         return res.status(400).json({
           success: false,
           message:
             "ID de prospecto inválido",
         });
-
       }
-
 
       const acceso =
         await validarAccesoProspecto(
@@ -578,9 +611,7 @@ export const listarEntrevistasProspecto =
           req.user
         );
 
-
       if (!acceso.ok) {
-
         return res
           .status(
             acceso.status
@@ -590,9 +621,7 @@ export const listarEntrevistasProspecto =
             message:
               acceso.message,
           });
-
       }
-
 
       const [entrevistas] =
         await pool.query(
@@ -633,7 +662,6 @@ export const listarEntrevistasProspecto =
           ]
         );
 
-
       return res.json({
         success: true,
 
@@ -642,15 +670,11 @@ export const listarEntrevistasProspecto =
 
         entrevistas,
       });
-
-
     } catch (error) {
-
       console.error(
         "❌ Error al obtener entrevistas:",
         error
       );
-
 
       return res.status(500).json({
         success: false,
@@ -664,11 +688,8 @@ export const listarEntrevistasProspecto =
             ? error.message
             : undefined,
       });
-
     }
-
   };
-
 
 // ==================================================
 // ACTUALIZAR ENTREVISTA
@@ -680,9 +701,7 @@ export const actualizarEntrevistaProspecto =
     req,
     res
   ) => {
-
     try {
-
       const idProspecto =
         Number(
           req.params.id
@@ -692,7 +711,6 @@ export const actualizarEntrevistaProspecto =
         Number(
           req.params.idEntrevista
         );
-
 
       if (
         !Number.isInteger(
@@ -704,15 +722,12 @@ export const actualizarEntrevistaProspecto =
         ) ||
         idEntrevista <= 0
       ) {
-
         return res.status(400).json({
           success: false,
           message:
             "Identificador inválido",
         });
-
       }
-
 
       const acceso =
         await validarAccesoProspecto(
@@ -720,9 +735,7 @@ export const actualizarEntrevistaProspecto =
           req.user
         );
 
-
       if (!acceso.ok) {
-
         return res
           .status(
             acceso.status
@@ -732,9 +745,7 @@ export const actualizarEntrevistaProspecto =
             message:
               acceso.message,
           });
-
       }
-
 
       const [existente] =
         await pool.query(
@@ -751,23 +762,18 @@ export const actualizarEntrevistaProspecto =
           ]
         );
 
-
       if (
         existente.length === 0
       ) {
-
         return res.status(404).json({
           success: false,
           message:
             "Entrevista no encontrada",
         });
-
       }
-
 
       const actual =
         existente[0];
-
 
       const {
         tipo_entrevista,
@@ -782,7 +788,6 @@ export const actualizarEntrevistaProspecto =
         estatus,
       } = req.body;
 
-
       const modalidadFinal =
         String(
           modalidad ??
@@ -790,7 +795,6 @@ export const actualizarEntrevistaProspecto =
         )
           .trim()
           .toLowerCase();
-
 
       if (
         ![
@@ -800,15 +804,12 @@ export const actualizarEntrevistaProspecto =
           modalidadFinal
         )
       ) {
-
         return res.status(400).json({
           success: false,
           message:
             "Modalidad de entrevista inválida",
         });
-
       }
-
 
       const resultadoFinal =
         String(
@@ -817,7 +818,6 @@ export const actualizarEntrevistaProspecto =
         )
           .trim()
           .toLowerCase();
-
 
       if (
         ![
@@ -831,15 +831,12 @@ export const actualizarEntrevistaProspecto =
           resultadoFinal
         )
       ) {
-
         return res.status(400).json({
           success: false,
           message:
             "Resultado de entrevista inválido",
         });
-
       }
-
 
       const estatusFinal =
         String(
@@ -848,7 +845,6 @@ export const actualizarEntrevistaProspecto =
         )
           .trim()
           .toLowerCase();
-
 
       if (
         ![
@@ -859,15 +855,12 @@ export const actualizarEntrevistaProspecto =
           estatusFinal
         )
       ) {
-
         return res.status(400).json({
           success: false,
           message:
             "Estatus de entrevista inválido",
         });
-
       }
-
 
       await pool.query(
         `
@@ -982,7 +975,6 @@ export const actualizarEntrevistaProspecto =
         ]
       );
 
-
       // ==================================================
       // ACTUALIZAR ESTATUS DEL PROSPECTO
       // ==================================================
@@ -990,55 +982,41 @@ export const actualizarEntrevistaProspecto =
       let nuevoEstatus =
         null;
 
-
       if (
         estatusFinal ===
         "realizada"
       ) {
-
         nuevoEstatus =
           "en_proceso";
-
       }
-
 
       if (
         resultadoFinal ===
         "pruebas"
       ) {
-
         nuevoEstatus =
           "evaluacion";
-
       }
-
 
       if (
         resultadoFinal ===
         "aprobado"
       ) {
-
         nuevoEstatus =
           "aprobado";
-
       }
-
 
       if (
         resultadoFinal ===
         "no_continua"
       ) {
-
         nuevoEstatus =
           "no_contratado";
-
       }
-
 
       if (
         nuevoEstatus
       ) {
-
         await pool.query(
           `
             UPDATE prospectos
@@ -1050,9 +1028,7 @@ export const actualizarEntrevistaProspecto =
             idProspecto,
           ]
         );
-
       }
-
 
       return res.json({
         success: true,
@@ -1063,15 +1039,11 @@ export const actualizarEntrevistaProspecto =
         nuevo_estatus:
           nuevoEstatus,
       });
-
-
     } catch (error) {
-
       console.error(
         "❌ Error al actualizar entrevista:",
         error
       );
-
 
       return res.status(500).json({
         success: false,
@@ -1085,11 +1057,8 @@ export const actualizarEntrevistaProspecto =
             ? error.message
             : undefined,
       });
-
     }
-
   };
-
 
 // ==================================================
 // CREAR / REUTILIZAR VIDEOLLAMADA RH
@@ -1105,9 +1074,7 @@ export const crearVideollamadaEntrevistaProspecto =
     req,
     res
   ) => {
-
     try {
-
       const idProspecto =
         Number(
           req.params.id
@@ -1117,7 +1084,6 @@ export const crearVideollamadaEntrevistaProspecto =
         Number(
           req.params.idEntrevista
         );
-
 
       if (
         !Number.isInteger(
@@ -1129,15 +1095,12 @@ export const crearVideollamadaEntrevistaProspecto =
         ) ||
         idEntrevista <= 0
       ) {
-
         return res.status(400).json({
           success: false,
           message:
             "Identificador inválido",
         });
-
       }
-
 
       const acceso =
         await validarAccesoProspecto(
@@ -1145,9 +1108,7 @@ export const crearVideollamadaEntrevistaProspecto =
           req.user
         );
 
-
       if (!acceso.ok) {
-
         return res
           .status(
             acceso.status
@@ -1157,9 +1118,7 @@ export const crearVideollamadaEntrevistaProspecto =
             message:
               acceso.message,
           });
-
       }
-
 
       const [entrevistas] =
         await pool.query(
@@ -1181,23 +1140,18 @@ export const crearVideollamadaEntrevistaProspecto =
           ]
         );
 
-
       if (
         entrevistas.length === 0
       ) {
-
         return res.status(404).json({
           success: false,
           message:
             "Entrevista no encontrada",
         });
-
       }
-
 
       const entrevista =
         entrevistas[0];
-
 
       if (
         String(
@@ -1207,15 +1161,12 @@ export const crearVideollamadaEntrevistaProspecto =
           .toLowerCase() !==
         "videollamada"
       ) {
-
         return res.status(400).json({
           success: false,
           message:
             "La entrevista no está configurada como videollamada",
         });
-
       }
-
 
       // ==================================================
       // REUTILIZAR SALA EXISTENTE
@@ -1229,7 +1180,6 @@ export const crearVideollamadaEntrevistaProspecto =
           "/SalaVideollamadaRH/"
         )
       ) {
-
         const enlaceExistente =
           String(
             entrevista.enlace_videollamada
@@ -1242,9 +1192,9 @@ export const crearVideollamadaEntrevistaProspecto =
             )[1] ||
           null;
 
-
         return res.json({
           success: true,
+
           message:
             "Videollamada RH existente",
 
@@ -1262,9 +1212,7 @@ export const crearVideollamadaEntrevistaProspecto =
               ? `/SalaVideollamadaRH/${salaExistente}`
               : null,
         });
-
       }
-
 
       // ==================================================
       // GENERAR SALA RH
@@ -1273,10 +1221,8 @@ export const crearVideollamadaEntrevistaProspecto =
       const sala =
         `rh-${idProspecto}-${idEntrevista}-${Date.now()}`;
 
-
       const ruta =
         `/SalaVideollamadaRH/${sala}`;
-
 
       // ==================================================
       // URL DEL FRONTEND
@@ -1293,7 +1239,6 @@ export const crearVideollamadaEntrevistaProspecto =
             ""
           );
 
-
       const frontendBase =
         originRequest ||
         String(
@@ -1306,10 +1251,8 @@ export const crearVideollamadaEntrevistaProspecto =
             ""
           );
 
-
       const enlaceVideollamada =
         `${frontendBase}${ruta}`;
-
 
       // ==================================================
       // GUARDAR SALA EN LA ENTREVISTA
@@ -1330,7 +1273,6 @@ export const crearVideollamadaEntrevistaProspecto =
           idProspecto,
         ]
       );
-
 
       // ==================================================
       // RESPUESTA
@@ -1358,15 +1300,11 @@ export const crearVideollamadaEntrevistaProspecto =
         id_entrevista:
           idEntrevista,
       });
-
-
     } catch (error) {
-
       console.error(
         "❌ Error al crear videollamada RH:",
         error
       );
-
 
       return res.status(500).json({
         success: false,
@@ -1380,7 +1318,5 @@ export const crearVideollamadaEntrevistaProspecto =
             ? error.message
             : undefined,
       });
-
     }
-
   };

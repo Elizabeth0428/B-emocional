@@ -12,7 +12,8 @@ import {
 } from "../controllers/citaController.js";
 
 import {
-  verifyToken
+  verifyToken,
+  verificarSuscripcionOrganizacion
 } from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
@@ -27,6 +28,7 @@ const router = express.Router();
 router.get(
   "/",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   listarCitas
 );
 
@@ -40,6 +42,7 @@ router.get(
 router.post(
   "/",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   crearCita
 );
 
@@ -56,6 +59,7 @@ router.post(
 router.patch(
   "/:id/estado",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   cambiarEstadoCita
 );
 
@@ -69,6 +73,7 @@ router.patch(
 router.get(
   "/:id",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   obtenerCita
 );
 
@@ -82,6 +87,7 @@ router.get(
 router.put(
   "/:id",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   actualizarCita
 );
 
@@ -95,6 +101,7 @@ router.put(
 router.delete(
   "/:id",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   eliminarCita
 );
 

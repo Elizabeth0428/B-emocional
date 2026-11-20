@@ -13,140 +13,227 @@ import {
 // AUXILIAR: VALIDAR ACCESO AL PROSPECTO
 // ==================================================
 
-const validarAccesoProspecto =
-  async (
-    idProspecto,
-    user
-  ) => {
+const validarAccesoProspecto = async (
+  idProspecto,
+  user
+) => {
 
-    const idUsuario =
-      user?.id_usuario;
+  const idUsuario =
+    Number(user?.id_usuario) || null;
 
-
-    const tipoAdmin =
-      user?.tipo_admin
-        ? String(
-            user.tipo_admin
-          )
-            .trim()
-            .toLowerCase()
-        : null;
+  if (!idUsuario) {
+    return {
+      ok: false,
+      status: 401,
+      message:
+        "No se pudo identificar al usuario",
+    };
+  }
 
 
-    const area =
-      user?.area
-        ? String(
-            user.area
-          )
-            .trim()
-            .toLowerCase()
-        : null;
+  // ==================================================
+  // CONTEXTO REAL DEL USUARIO RH
+  //
+  // Permite:
+  // - Master
+  // - Admin RH
+  // - Usuario RH
+  // - Independiente con perfil RH
+  // ==================================================
+
+  const [usuarios] =
+    await pool.query(
+      `
+        SELECT
+          u.id_usuario,
+          u.tipo_admin,
+          u.area,
+          u.rol,
+          u.id_admin_padre,
+          u.id_organizacion,
+          o.tipo AS tipo_organizacion,
+          o.perfil_independiente,
+          o.estado AS estado_organizacion
+        FROM usuarios u
+        LEFT JOIN organizaciones o
+          ON o.id_organizacion =
+             u.id_organizacion
+        WHERE u.id_usuario = ?
+        LIMIT 1
+      `,
+      [idUsuario]
+    );
 
 
-    if (!idUsuario) {
-
-      return {
-        ok:
-          false,
-        status:
-          401,
-        message:
-          "No se pudo identificar al usuario"
-      };
-
-    }
+  if (!usuarios.length) {
+    return {
+      ok: false,
+      status: 401,
+      message:
+        "No se pudo identificar al usuario",
+    };
+  }
 
 
-    if (
-      tipoAdmin !== "master" &&
-      area !== "rh"
-    ) {
-
-      return {
-        ok:
-          false,
-        status:
-          403,
-        message:
-          "No tienes permiso para generar reportes RH"
-      };
-
-    }
+  const usuario =
+    usuarios[0];
 
 
-    let query = `
-      SELECT
-        id_prospecto,
-        id_mirror,
-        nombre,
-        edad,
-        sexo,
-        correo,
-        telefono,
-        puesto,
-        direccion,
-        estatus,
-        id_admin_padre
-      FROM prospectos
-      WHERE id_prospecto = ?
-    `;
+  const tipoAdmin =
+    String(
+      usuario.tipo_admin || ""
+    )
+      .trim()
+      .toLowerCase();
 
 
-    const params = [
-      idProspecto
-    ];
+  const area =
+    String(
+      usuario.area || ""
+    )
+      .trim()
+      .toLowerCase();
 
 
-    if (
-      tipoAdmin !== "master"
-    ) {
+  const rol =
+    String(
+      usuario.rol || ""
+    )
+      .trim()
+      .toLowerCase();
 
-      query += `
-        AND id_admin_padre = ?
-      `;
+
+  const perfilIndependiente =
+    String(
+      usuario.perfil_independiente || ""
+    )
+      .trim()
+      .toLowerCase();
 
 
-      params.push(
-        idUsuario
-      );
+  const estadoOrganizacion =
+    String(
+      usuario.estado_organizacion || ""
+    )
+      .trim()
+      .toLowerCase();
 
-    }
 
+  const esMaster =
+    tipoAdmin === "master";
+
+
+  const esAdminRH =
+    tipoAdmin === "normal" &&
+    area === "rh";
+
+
+  const esUsuarioRH =
+    rol === "rh" &&
+    area === "rh";
+
+
+  const esIndependienteRH =
+    rol === "independiente" &&
+    area === "independiente" &&
+    perfilIndependiente === "rh" &&
+    estadoOrganizacion === "activa";
+
+
+  const tienePermiso =
+    esMaster ||
+    esAdminRH ||
+    esUsuarioRH ||
+    esIndependienteRH;
+
+
+  if (!tienePermiso) {
+    return {
+      ok: false,
+      status: 403,
+      message:
+        "No tienes permiso para generar reportes RH",
+    };
+  }
+
+
+  let query = `
+    SELECT
+      *
+    FROM prospectos
+    WHERE id_prospecto = ?
+  `;
+
+
+  const params = [
+    idProspecto
+  ];
+
+
+  // Todo usuario RH no-master,
+  // incluido Independiente RH,
+  // solo puede acceder a sus propios prospectos.
+
+  if (!esMaster) {
 
     query += `
-      LIMIT 1
+      AND id_admin_padre = ?
     `;
 
-
-    const [rows] =
-      await pool.query(
-        query,
-        params
-      );
+    params.push(
+      idUsuario
+    );
+  }
 
 
-    if (!rows.length) {
-
-      return {
-        ok:
-          false,
-        status:
-          404,
-        message:
-          "Prospecto no encontrado o no tienes permiso para acceder a él"
-      };
-
-    }
+  query += `
+    LIMIT 1
+  `;
 
 
+  const [rows] =
+    await pool.query(
+      query,
+      params
+    );
+
+
+  if (!rows.length) {
     return {
-      ok:
-        true,
-      prospecto:
-        rows[0]
+      ok: false,
+      status: 404,
+      message:
+        "Prospecto no encontrado o no tienes permiso para acceder a él",
     };
+  }
 
+
+  return {
+    ok: true,
+
+    prospecto:
+      rows[0],
+
+    contexto: {
+      idUsuario,
+      tipoAdmin,
+      area,
+      rol,
+
+      idOrganizacion:
+        Number(
+          usuario.id_organizacion
+        ) || null,
+
+      perfilIndependiente,
+
+      esMaster,
+      esAdminRH,
+      esUsuarioRH,
+      esIndependienteRH,
+    },
   };
+};
 
 
 // ==================================================
@@ -158,10 +245,11 @@ const limitarTexto = (
   limite = 12000
 ) => {
 
-  if (!texto) {
-
+  if (
+    texto === undefined ||
+    texto === null
+  ) {
     return "";
-
   }
 
 
@@ -171,12 +259,15 @@ const limitarTexto = (
     ).trim();
 
 
+  if (!limpio) {
+    return "";
+  }
+
+
   if (
     limpio.length <= limite
   ) {
-
     return limpio;
-
   }
 
 
@@ -187,7 +278,6 @@ const limitarTexto = (
     ) +
     "\n[Contenido recortado por longitud]"
   );
-
 };
 
 
@@ -362,10 +452,6 @@ const obtenerContextoProspecto =
 
     // ==================================================
     // DOCUMENTOS
-    //
-    // IMPORTANTE:
-    // La IA conoce que existen, tipo y descripción.
-    // NO afirmamos que haya leído el contenido.
     // ==================================================
 
     const [documentos] =
@@ -808,12 +894,13 @@ const construirPromptIA =
 
     return `
 
-Genera un PREANÁLISIS LABORAL de apoyo para
-Recursos Humanos utilizando EXCLUSIVAMENTE
-la información incluida al final de este mensaje.
+Genera un PREANÁLISIS LABORAL EJECUTIVO para Recursos Humanos
+utilizando EXCLUSIVAMENTE la información proporcionada.
 
-El prospecto participa en un proceso de selección
-para el puesto:
+Debe ser breve, claro, profesional y realmente útil
+para que RH entienda qué significan los resultados.
+
+Puesto solicitado:
 
 ${prospecto.puesto || "No especificado"}
 
@@ -823,86 +910,88 @@ REGLAS OBLIGATORIAS
 1. No inventes datos.
 2. No inventes experiencia laboral.
 3. No inventes competencias.
-4. No inventes resultados de pruebas.
-5. No modifiques puntajes psicométricos.
+4. No inventes resultados psicométricos.
+5. No modifiques puntajes ni clasificaciones.
 6. No realices diagnósticos médicos ni psicológicos.
-7. No utilices criterios relacionados con sexo,
-   edad u otras características personales para
-   recomendar contratar o rechazar.
-8. No decidas si la persona debe ser contratada.
-9. No clasifiques al prospecto como bueno o malo.
-10. No afirmes haber escuchado audio o visto video.
-11. Cuando exista una transcripción, trátala
-    únicamente como información textual disponible.
-12. No afirmes haber leído CV, identificaciones,
-    certificados u otros archivos. Solamente conoces
-    su nombre, tipo y descripción.
-13. Si falta información para una conclusión,
-    indícalo claramente.
-14. Distingue datos registrados por RH de
-    observaciones generadas por IA.
-15. La decisión final siempre corresponde al
-    responsable humano de Recursos Humanos.
-
-
-OBJETIVO
-
-Integra la información disponible y ayuda a RH
-a comprender el proceso sin repetir mecánicamente
-todos los datos.
+7. No utilices sexo, edad u otras características personales
+   para recomendar contratar o rechazar.
+8. No afirmes que una persona miente, manipula, es irresponsable,
+   no se toma nada en serio o tiene determinada personalidad,
+   salvo que exista evidencia específica y válida en una prueba
+   diseñada para evaluar ese aspecto.
+9. Si una prueba cuenta con escalas de validez, consistencia,
+   sinceridad o respuesta aleatoria, explica únicamente lo que
+   esas escalas permitan concluir.
+10. Si existen resultados contradictorios entre pruebas,
+    explica claramente la diferencia.
+11. Cuando existan resultados distintos, puedes señalar causas
+    prudentes que convenga verificar, por ejemplo:
+    atención, comprensión de instrucciones, velocidad de respuesta,
+    cansancio o variabilidad del desempeño.
+12. No presentes esas posibles causas como hechos confirmados.
+13. No afirmes haber escuchado audios o visto videos.
+14. Si existe transcripción, úsala únicamente como texto.
+15. No afirmes haber leído documentos. Solo conoces
+    nombre, tipo y descripción.
+16. Distingue hechos registrados de interpretación de la IA.
+17. La decisión definitiva de contratación corresponde a RH.
+18. Sí puedes emitir una RECOMENDACIÓN DE CONTINUIDAD:
+    - Continuar
+    - Continuar con reservas
+    - No recomendable continuar por ahora
+    - Información insuficiente
+19. La recomendación debe estar justificada exclusivamente
+    con los datos disponibles.
+20. No escribas únicamente "contrastar", "revisar" o "analizar".
+    Realiza tú el contraste y explica brevemente qué significa.
+21. Resume cada prueba en UNA sola línea:
+    nombre + resultado + significado laboral breve.
+22. No expliques ampliamente la teoría de las pruebas.
+23. No repitas el mismo resultado en varias secciones.
+24. Máximo 2 fortalezas.
+25. Máximo 2 debilidades o aspectos de atención.
+26. La recomendación RH debe ser concreta y accionable.
+27. El reporte debe tener IDEALMENTE entre 8 y 10 líneas
+    de contenido.
+28. NUNCA debe superar 12 líneas de contenido.
+29. NUNCA debe superar 160 palabras.
+30. Usa frases cortas.
+31. No escribas párrafos largos.
+32. Cada línea debe aportar información nueva.
+33. Si hay más pruebas de las que caben en 12 líneas,
+    agrupa resultados similares sin omitir hallazgos importantes.
 
 
 FORMATO OBLIGATORIO
 
 PREANÁLISIS LABORAL — MIRRORSOUL
+Prospecto: ${prospecto.nombre || "No registrado"} | Puesto: ${prospecto.puesto || "No especificado"}
 
-1. RESUMEN DEL PROCESO DE SELECCIÓN
-Resume el avance general y la información disponible.
+PRUEBAS:
+• [Nombre]: [resultado] — [qué significa laboralmente].
+• [Nombre]: [resultado] — [qué significa laboralmente].
 
-2. PERFIL GENERAL OBSERVADO
-Describe únicamente características laborales o
-conductuales respaldadas por entrevistas,
-observaciones, seguimiento o pruebas.
+CONTRASTE:
+• [Explica en una sola línea si los resultados son consistentes
+  o si existe alguna diferencia importante y qué conviene verificar].
 
-3. INFORMACIÓN RELEVANTE DE ENTREVISTAS
-Integra los puntos importantes de entrevistas y
-transcripciones disponibles.
+FORTALEZAS:
+• [Máximo 2 fortalezas respaldadas].
 
-4. RESULTADOS PSICOMÉTRICOS
-Resume resultados registrados sin alterar puntajes
-ni convertirlos en diagnósticos.
+ASPECTOS DE ATENCIÓN:
+• [Máximo 2 debilidades, riesgos o puntos por confirmar].
 
-5. SEGUIMIENTO Y EVOLUCIÓN DEL PROCESO
-Resume actividades, avances, pendientes y cambios
-observables durante el proceso.
+CONTINUIDAD:
+[Continuar / Continuar con reservas / No recomendable continuar por ahora / Información insuficiente] — [motivo breve].
 
-6. DOCUMENTACIÓN DISPONIBLE
-Indica qué documentos están registrados.
-No afirmes haber leído su contenido.
+RECOMENDACIÓN RH:
+[Una sola acción concreta para el siguiente paso].
 
-7. FORTALEZAS OBSERVADAS
-Incluye únicamente fortalezas respaldadas por
-evidencia disponible.
-
-8. ASPECTOS QUE REQUIEREN VALORACIÓN
-Menciona inconsistencias, faltantes, pendientes o
-puntos que RH debería revisar.
-
-9. CORRESPONDENCIA OBSERVADA CON EL PUESTO
-Relaciona la información disponible con el puesto,
-pero sin emitir una decisión de contratación.
-
-10. PUNTOS QUE RH DEBE REVISAR
-Incluye verificaciones concretas antes de cerrar
-el proceso.
-
-11. SÍNTESIS FINAL
-Genera una síntesis profesional breve, equilibrada
-y basada exclusivamente en los datos disponibles.
-
-Finaliza exactamente con:
-
-"Este preanálisis es una herramienta de apoyo para Recursos Humanos. La valoración y decisión final corresponden al responsable humano del proceso de selección."
+IMPORTANTE:
+No agregues introducciones.
+No agregues conclusión adicional.
+No repitas el nombre del prospecto varias veces.
+No excedas 12 líneas ni 160 palabras.
 
 
 ==================================================
@@ -1059,12 +1148,24 @@ export const generarReporteIAProspecto =
 Eres un asistente especializado en apoyo a
 procesos profesionales de Recursos Humanos.
 
-Tu función es organizar, relacionar y resumir
-evidencia disponible de un proceso de selección.
+Tu función es resumir evidencia de procesos
+de selección de manera EJECUTIVA.
+
+Tus respuestas deben ser extremadamente breves,
+claras, prácticas y fáciles de leer.
+
+Prioriza resultados, significado laboral,
+fortalezas, aspectos de atención y siguiente acción.
+
+No repitas información.
 
 No realizas diagnóstico clínico.
 
-No decides quién debe ser contratado.
+No decides definitivamente quién debe ser contratado.
+
+Puedes recomendar si conviene continuar,
+continuar con reservas, no continuar por ahora
+o indicar información insuficiente.
 
 No inventas información.
 
@@ -1072,9 +1173,14 @@ No debes utilizar características personales
 como sexo o edad para recomendar contratar
 o rechazar a una persona.
 
-Tus respuestas deben ser profesionales,
-prudentes, claras y basadas exclusivamente
-en la información proporcionada por RH.
+No atribuyas mentira, manipulación, desinterés,
+irresponsabilidad o falta de seriedad sin evidencia
+específica de una prueba válida para ese aspecto.
+
+Respeta estrictamente el formato solicitado.
+
+La respuesta debe tener idealmente 8 a 10 líneas,
+nunca más de 12 líneas y nunca más de 160 palabras.
       `.trim();
 
 
@@ -1082,16 +1188,22 @@ en la información proporcionada por RH.
         "🤖 Generando preanálisis laboral REAL con IA:",
         {
           idProspecto,
+
           seguimientos:
             contexto.seguimientos.length,
+
           entrevistas:
             contexto.entrevistas.length,
+
           grabaciones:
             contexto.grabaciones.length,
+
           pruebas:
             contexto.pruebas.length,
+
           documentos:
             contexto.documentos.length,
+
           observaciones:
             contexto.observaciones.length
         }
@@ -1105,7 +1217,7 @@ en la información proporcionada por RH.
       const resultadoIA =
         await generarReporteIAConMeta(
           prompt,
-          2200,
+          700,
           systemPrompt
         );
 
@@ -1225,8 +1337,10 @@ en la información proporcionada por RH.
         {
           id_reporte:
             result.insertId,
+
           proveedor:
             resultadoIA.proveedor,
+
           modelo:
             resultadoIA.modelo
         }

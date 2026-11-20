@@ -1,16 +1,13 @@
-
 // src/views/UsuariosRH.jsx
 
 import React, { useEffect, useState } from "react";
-import { getCurrentUser } from "../services/AuthService";
+import { getCurrentUser, getToken } from "../services/AuthService";
 
 const API_URL =
   import.meta.env.VITE_API_URL ||
-  "https://reflejoyalma.com";
-
+  `http://${window.location.hostname}:5000`;
 
 const UsuariosRH = ({ onBack }) => {
-
   const user = getCurrentUser();
 
   const [usuarios, setUsuarios] = useState([]);
@@ -24,21 +21,17 @@ const UsuariosRH = ({ onBack }) => {
   const [modo, setModo] =
     useState(null);
 
-
   // =====================================================
   // CARGAR USUARIOS
   // =====================================================
 
   const cargarUsuarios = async () => {
-
     try {
-
       setLoading(true);
       setError("");
 
       const token =
-        localStorage.getItem("token");
-
+        getToken();
 
       const response = await fetch(
         `${API_URL}/api/usuario-rh`,
@@ -55,20 +48,15 @@ const UsuariosRH = ({ onBack }) => {
         }
       );
 
-
       const data =
         await response.json();
 
-
       if (!response.ok) {
-
         throw new Error(
           data.message ||
           "Error al obtener usuarios RH"
         );
-
       }
-
 
       setUsuarios(
         Array.isArray(data)
@@ -76,9 +64,7 @@ const UsuariosRH = ({ onBack }) => {
           : data.usuarios || []
       );
 
-
     } catch (err) {
-
       console.error(
         "Error usuarios RH:",
         err
@@ -90,24 +76,17 @@ const UsuariosRH = ({ onBack }) => {
       );
 
     } finally {
-
       setLoading(false);
-
     }
-
   };
-
 
   // =====================================================
   // CARGAR AL ENTRAR
   // =====================================================
 
   useEffect(() => {
-
     cargarUsuarios();
-
   }, []);
-
 
   // =====================================================
   // BUSCADOR
@@ -115,20 +94,16 @@ const UsuariosRH = ({ onBack }) => {
 
   const usuariosFiltrados =
     usuarios.filter((usuario) => {
-
       const texto =
         busqueda
           .toLowerCase()
           .trim();
 
-
       if (!texto) {
         return true;
       }
 
-
       return (
-
         String(
           usuario.nombre || ""
         )
@@ -158,23 +133,17 @@ const UsuariosRH = ({ onBack }) => {
         )
           .toLowerCase()
           .includes(texto)
-
       );
-
     });
-
 
   // =====================================================
   // VER FICHA
   // =====================================================
 
   const verFicha = async (usuario) => {
-
     try {
-
       const token =
-        localStorage.getItem("token");
-
+        getToken();
 
       const response = await fetch(
         `${API_URL}/api/usuario-rh/${usuario.id_usuario}`,
@@ -191,20 +160,15 @@ const UsuariosRH = ({ onBack }) => {
         }
       );
 
-
       const data =
         await response.json();
 
-
       if (!response.ok) {
-
         throw new Error(
           data.message ||
           "No se pudo obtener la ficha"
         );
-
       }
-
 
       setUsuarioSeleccionado(
         data.usuario
@@ -212,9 +176,7 @@ const UsuariosRH = ({ onBack }) => {
 
       setModo("ver");
 
-
     } catch (err) {
-
       console.error(
         "Error al obtener ficha:",
         err
@@ -224,23 +186,17 @@ const UsuariosRH = ({ onBack }) => {
         err.message ||
         "No se pudo obtener la ficha"
       );
-
     }
-
   };
-
 
   // =====================================================
   // EDITAR
   // =====================================================
 
   const editarUsuario = async (usuario) => {
-
     try {
-
       const token =
-        localStorage.getItem("token");
-
+        getToken();
 
       const response = await fetch(
         `${API_URL}/api/usuario-rh/${usuario.id_usuario}`,
@@ -257,20 +213,15 @@ const UsuariosRH = ({ onBack }) => {
         }
       );
 
-
       const data =
         await response.json();
 
-
       if (!response.ok) {
-
         throw new Error(
           data.message ||
           "No se pudo obtener la ficha"
         );
-
       }
-
 
       setUsuarioSeleccionado(
         data.usuario
@@ -278,9 +229,7 @@ const UsuariosRH = ({ onBack }) => {
 
       setModo("editar");
 
-
     } catch (err) {
-
       console.error(
         "Error al editar usuario:",
         err
@@ -290,23 +239,17 @@ const UsuariosRH = ({ onBack }) => {
         err.message ||
         "No se pudo abrir la ficha"
       );
-
     }
-
   };
-
 
   // =====================================================
   // CERRAR FICHA
   // =====================================================
 
   const cerrarFicha = () => {
-
     setUsuarioSeleccionado(null);
     setModo(null);
-
   };
-
 
   // =====================================================
   // SI HAY FICHA ABIERTA
@@ -316,15 +259,12 @@ const UsuariosRH = ({ onBack }) => {
     usuarioSeleccionado &&
     modo
   ) {
-
     return (
-
       <FichaUsuarioRH
         usuario={usuarioSeleccionado}
         modo={modo}
         onClose={cerrarFicha}
         onGuardado={(usuarioActualizado) => {
-
           setUsuarios((prev) =>
             prev.map((u) =>
               u.id_usuario ===
@@ -339,21 +279,16 @@ const UsuariosRH = ({ onBack }) => {
           );
 
           setModo("ver");
-
         }}
       />
-
     );
-
   }
-
 
   // =====================================================
   // RETURN PRINCIPAL
   // =====================================================
 
   return (
-
     <div style={container}>
 
       {/* =================================================
@@ -361,7 +296,6 @@ const UsuariosRH = ({ onBack }) => {
       ================================================= */}
 
       <div style={header}>
-
         <button
           type="button"
           onClick={onBack}
@@ -370,63 +304,48 @@ const UsuariosRH = ({ onBack }) => {
           ← Volver
         </button>
 
-
         <div>
-
           <h2 style={title}>
             👥 Usuarios de Recursos Humanos
           </h2>
-
 
           <p style={subtitle}>
             Consulta y administra los usuarios RH
             bajo tu administración.
           </p>
-
         </div>
-
       </div>
-
 
       {/* =================================================
           ADMINISTRADOR
       ================================================= */}
 
       <div style={adminBox}>
-
         <div style={adminIcon}>
           🛡️
         </div>
 
-
         <div>
-
           <strong style={adminTitle}>
             Administrador
           </strong>
-
 
           <div style={adminName}>
             {user?.nombre ||
               "Administrador"}
           </div>
 
-
           <small style={adminArea}>
             Área: Recursos Humanos
           </small>
-
         </div>
-
       </div>
-
 
       {/* =================================================
           BUSCADOR
       ================================================= */}
 
       <div style={searchBox}>
-
         <input
           type="text"
           value={busqueda}
@@ -436,16 +355,13 @@ const UsuariosRH = ({ onBack }) => {
           placeholder="🔎 Buscar por nombre, correo, puesto o teléfono..."
           style={searchInput}
         />
-
       </div>
-
 
       {/* =================================================
           CONTADOR
       ================================================= */}
 
       <div style={counter}>
-
         Mostrando{" "}
 
         <strong>
@@ -459,31 +375,24 @@ const UsuariosRH = ({ onBack }) => {
         </strong>{" "}
 
         usuarios RH
-
       </div>
-
 
       {/* =================================================
           CARGANDO
       ================================================= */}
 
       {loading && (
-
         <div style={empty}>
           ⏳ Cargando usuarios...
         </div>
-
       )}
-
 
       {/* =================================================
           ERROR
       ================================================= */}
 
       {error && (
-
         <div style={errorBox}>
-
           ❌ {error}
 
           <button
@@ -495,11 +404,8 @@ const UsuariosRH = ({ onBack }) => {
           >
             ×
           </button>
-
         </div>
-
       )}
-
 
       {/* =================================================
           SIN RESULTADOS
@@ -510,19 +416,12 @@ const UsuariosRH = ({ onBack }) => {
         usuariosFiltrados.length === 0 && (
 
           <div style={empty}>
-
             {busqueda
-
               ? "🔎 No se encontraron usuarios con esa búsqueda."
-
               : "👥 No hay usuarios RH registrados."
-
             }
-
           </div>
-
         )}
-
 
       {/* =================================================
           LISTA
@@ -533,7 +432,6 @@ const UsuariosRH = ({ onBack }) => {
         usuariosFiltrados.length > 0 && (
 
           <div style={grid}>
-
             {usuariosFiltrados.map(
               (usuario) => (
 
@@ -549,68 +447,44 @@ const UsuariosRH = ({ onBack }) => {
                     👤
                   </div>
 
-
                   <h3 style={userName}>
-
                     {usuario.nombre ||
                       "Usuario sin nombre"}
-
                   </h3>
 
-
                   <div style={userData}>
-
                     📧{" "}
-
                     {usuario.correo ||
                       "Sin correo"}
-
                   </div>
 
-
                   <div style={userData}>
-
                     💼{" "}
-
                     {usuario.puesto ||
                       "Sin puesto registrado"}
-
                   </div>
 
-
                   <div style={userData}>
-
                     📞{" "}
-
                     {usuario.telefono ||
                       "Sin teléfono"}
-
                   </div>
-
 
                   <div style={userData}>
-
                     📍{" "}
-
                     {usuario.direccion ||
                       "Sin dirección"}
-
                   </div>
-
 
                   <div style={badge}>
-
                     👥 Recursos Humanos
-
                   </div>
-
 
                   {/* =================================================
                       ACCIONES
                   ================================================= */}
 
                   <div style={actions}>
-
                     <button
                       type="button"
                       onClick={() =>
@@ -621,7 +495,6 @@ const UsuariosRH = ({ onBack }) => {
                       👁️ Ver ficha
                     </button>
 
-
                     <button
                       type="button"
                       onClick={() =>
@@ -631,24 +504,15 @@ const UsuariosRH = ({ onBack }) => {
                     >
                       ✏️ Editar
                     </button>
-
                   </div>
-
                 </div>
-
               )
             )}
-
           </div>
-
         )}
-
     </div>
-
   );
-
 };
-
 
 // ============================================================
 // FICHA DEL USUARIO RH
@@ -662,7 +526,6 @@ const FichaUsuarioRH = ({
 }) => {
 
   const [form, setForm] = useState({
-
     nombre:
       usuario.nombre || "",
 
@@ -679,54 +542,41 @@ const FichaUsuarioRH = ({
       usuario.direccion || "",
 
     password: "",
-
   });
-
 
   const [loading, setLoading] =
     useState(false);
 
-
   const [message, setMessage] =
     useState("");
 
-
   const handleChange = (e) => {
-
     const {
       name,
       value,
     } = e.target;
 
-
     setForm((prev) => ({
       ...prev,
       [name]: value,
     }));
-
   };
-
 
   // =====================================================
   // GUARDAR
   // =====================================================
 
   const guardarCambios = async (e) => {
-
     e.preventDefault();
 
     setLoading(true);
     setMessage("");
 
-
     try {
-
       const token =
-        localStorage.getItem("token");
-
+        getToken();
 
       const body = {
-
         nombre:
           form.nombre,
 
@@ -741,20 +591,15 @@ const FichaUsuarioRH = ({
 
         direccion:
           form.direccion,
-
       };
-
 
       if (
         form.password &&
         form.password.trim()
       ) {
-
         body.password =
           form.password;
-
       }
-
 
       const response =
         await fetch(
@@ -775,69 +620,50 @@ const FichaUsuarioRH = ({
           }
         );
 
-
       const data =
         await response.json();
 
-
       if (!response.ok) {
-
         throw new Error(
           data.message ||
           "No se pudieron guardar los cambios"
         );
-
       }
-
 
       setMessage(
         "✅ Cambios guardados correctamente"
       );
 
-
       setTimeout(() => {
-
         onGuardado(
           data.usuario
         );
-
       }, 700);
 
-
     } catch (error) {
-
       console.error(
         "Error al actualizar usuario RH:",
         error
       );
 
-
       setMessage(
         `❌ ${error.message}`
       );
 
-
     } finally {
-
       setLoading(false);
-
     }
-
   };
-
 
   // =====================================================
   // MODO VER
   // =====================================================
 
   if (modo === "ver") {
-
     return (
-
       <div style={container}>
 
         <div style={header}>
-
           <button
             type="button"
             onClick={onClose}
@@ -846,9 +672,7 @@ const FichaUsuarioRH = ({
             ← Volver
           </button>
 
-
           <div>
-
             <h2 style={title}>
               👤 Ficha del usuario
             </h2>
@@ -857,11 +681,8 @@ const FichaUsuarioRH = ({
               Información completa del usuario de
               Recursos Humanos.
             </p>
-
           </div>
-
         </div>
-
 
         <div style={profileCard}>
 
@@ -869,16 +690,13 @@ const FichaUsuarioRH = ({
             👤
           </div>
 
-
           <h2 style={profileName}>
             {usuario.nombre}
           </h2>
 
-
           <div style={profileBadge}>
             👥 Recursos Humanos
           </div>
-
 
           <div style={detailsGrid}>
 
@@ -887,7 +705,6 @@ const FichaUsuarioRH = ({
               label="Correo electrónico"
               value={usuario.correo}
             />
-
 
             <InfoItem
               icon="📞"
@@ -898,7 +715,6 @@ const FichaUsuarioRH = ({
               }
             />
 
-
             <InfoItem
               icon="💼"
               label="Puesto"
@@ -907,7 +723,6 @@ const FichaUsuarioRH = ({
                 "No registrado"
               }
             />
-
 
             <InfoItem
               icon="📍"
@@ -918,13 +733,11 @@ const FichaUsuarioRH = ({
               }
             />
 
-
             <InfoItem
               icon="👥"
               label="Área"
               value="Recursos Humanos"
             />
-
 
             <InfoItem
               icon="🔐"
@@ -933,7 +746,6 @@ const FichaUsuarioRH = ({
             />
 
           </div>
-
 
           <div style={profileActions}>
 
@@ -946,7 +758,6 @@ const FichaUsuarioRH = ({
             >
               Cerrar
             </button>
-
 
             <button
               type="button"
@@ -964,18 +775,14 @@ const FichaUsuarioRH = ({
         </div>
 
       </div>
-
     );
-
   }
-
 
   // =====================================================
   // MODO EDITAR
   // =====================================================
 
   return (
-
     <div style={container}>
 
       <div style={header}>
@@ -988,22 +795,17 @@ const FichaUsuarioRH = ({
           ← Volver
         </button>
 
-
         <div>
-
           <h2 style={title}>
             ✏️ Editar usuario RH
           </h2>
 
-
           <p style={subtitle}>
             Modifica la información del usuario.
           </p>
-
         </div>
 
       </div>
-
 
       <form
         onSubmit={guardarCambios}
@@ -1013,7 +815,6 @@ const FichaUsuarioRH = ({
         <h3 style={sectionTitle}>
           👤 Datos personales
         </h3>
-
 
         <label style={label}>
           Nombre completo
@@ -1028,7 +829,6 @@ const FichaUsuarioRH = ({
           required
         />
 
-
         <label style={label}>
           Correo electrónico
         </label>
@@ -1042,7 +842,6 @@ const FichaUsuarioRH = ({
           required
         />
 
-
         <label style={label}>
           Puesto
         </label>
@@ -1054,7 +853,6 @@ const FichaUsuarioRH = ({
           onChange={handleChange}
           style={input}
         />
-
 
         <label style={label}>
           Teléfono
@@ -1068,7 +866,6 @@ const FichaUsuarioRH = ({
           style={input}
         />
 
-
         <label style={label}>
           Dirección
         </label>
@@ -1081,7 +878,6 @@ const FichaUsuarioRH = ({
           style={input}
         />
 
-
         <div style={passwordBox}>
 
           <h4 style={passwordTitle}>
@@ -1092,7 +888,6 @@ const FichaUsuarioRH = ({
             Déjalo vacío si no deseas cambiar
             la contraseña.
           </p>
-
 
           <input
             type="password"
@@ -1105,7 +900,6 @@ const FichaUsuarioRH = ({
           />
 
         </div>
-
 
         {message && (
 
@@ -1122,16 +916,12 @@ const FichaUsuarioRH = ({
                 message.startsWith("✅")
                   ? "#ECF9EF"
                   : "#FFF1F1",
-
             }}
           >
-
             {message}
-
           </div>
 
         )}
-
 
         <div style={profileActions}>
 
@@ -1143,17 +933,14 @@ const FichaUsuarioRH = ({
             Cancelar
           </button>
 
-
           <button
             type="submit"
             disabled={loading}
             style={submitButton}
           >
-
             {loading
               ? "Guardando..."
               : "💾 Guardar cambios"}
-
           </button>
 
         </div>
@@ -1161,11 +948,8 @@ const FichaUsuarioRH = ({
       </form>
 
     </div>
-
   );
-
 };
-
 
 // ============================================================
 // COMPONENTE INFO
@@ -1176,7 +960,6 @@ const InfoItem = ({
   label,
   value,
 }) => (
-
   <div style={infoItem}>
 
     <div style={infoIcon}>
@@ -1196,9 +979,7 @@ const InfoItem = ({
     </div>
 
   </div>
-
 );
-
 
 // ============================================================
 // ESTILOS
@@ -1549,10 +1330,8 @@ const submitButton = {
   fontWeight: "700",
 };
 
-
 // ============================================================
 // EXPORT
 // ============================================================
 
 export default UsuariosRH;
-

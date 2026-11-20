@@ -49,7 +49,7 @@ export default function Pacientes({ onBack }) {
 
 
         const res = await axios.get(
-          "https://reflejoyalma.com/api/pacientes",
+          "https://www.reflejoyalma.com/api/pacientes",
           {
             headers: {
               Authorization: `Bearer ${token}`,

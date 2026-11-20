@@ -1,47 +1,33 @@
+// ============================================================
 // backend/controllers/pacienteController.js
+// ============================================================
 
 import pool from "../config/database.js";
 
 
-/* ==================================================
-   GENERAR ID MIRRORSOUL
+// ============================================================
+// NORMALIZAR TEXTO
+// ============================================================
 
-   Formato:
+function normalizar(valor) {
 
-   MS-2026-18-FE-001
+  return valor
+    ? String(valor)
+        .trim()
+        .toLowerCase()
+    : "";
+}
 
-   MS   = MirrorSoul
-   2026 = año de registro
-   18   = edad
-   FE   = sexo femenino
-   MA   = sexo masculino
-   XX   = sexo no especificado
-   001  = CONSECUTIVO GLOBAL
 
-   IMPORTANTE:
-
-   El consecutivo NO se obtiene de pacientes.
-
-   Se obtiene de la tabla:
-
-   mirror_ids
-
-   Esto permite que el consecutivo sea global
-   entre:
-
-   - pacientes
-   - prospectos
-   - empleados
-   - estudiantes
-
-   Y NO se utiliza para:
-
-   - psicólogos
-   - administradores
-   - RH
-   - educativo
-   - otros usuarios
-================================================== */
+// ============================================================
+// GENERAR ID MIRRORSOUL
+//
+// Formato:
+//
+// MS-2026-18-FE-001
+//
+// El consecutivo es GLOBAL y se obtiene de mirror_ids.
+// ============================================================
 
 async function generarIdMirror(
   edad,
@@ -54,13 +40,17 @@ async function generarIdMirror(
 
 
   const edadNormalizada =
-    Number.isFinite(Number(edad))
+    Number.isFinite(
+      Number(edad)
+    )
       ? Number(edad)
       : 0;
 
 
   const sexoNormalizado =
-    String(sexo || "")
+    String(
+      sexo || ""
+    )
       .toUpperCase()
       .trim();
 
@@ -73,36 +63,34 @@ async function generarIdMirror(
         : "XX";
 
 
-  /* ==================================================
-     BUSCAR SIGUIENTE CONSECUTIVO GLOBAL
-
-     FOR UPDATE evita que dos registros reciban
-     el mismo consecutivo al mismo tiempo.
-
-     IMPORTANTE:
-     Esta función debe ejecutarse dentro de una
-     transacción.
-  ================================================== */
-
   const [
     rows
-  ] = await connection.query(
-    `
-    SELECT
-      consecutivo
-    FROM mirror_ids
-    WHERE año = ?
-    ORDER BY consecutivo DESC
-    LIMIT 1
-    FOR UPDATE
-    `,
-    [
-      añoActual
-    ]
-  );
+  ] =
+    await connection.query(
+      `
+        SELECT
+          consecutivo
+
+        FROM mirror_ids
+
+        WHERE
+          año = ?
+
+        ORDER BY
+          consecutivo DESC
+
+        LIMIT 1
+
+        FOR UPDATE
+      `,
+      [
+        añoActual
+      ]
+    );
 
 
-  let consecutivo = 1;
+  let consecutivo =
+    1;
 
 
   if (
@@ -119,8 +107,13 @@ async function generarIdMirror(
 
 
   const numero =
-    String(consecutivo)
-      .padStart(3, "0");
+    String(
+      consecutivo
+    )
+      .padStart(
+        3,
+        "0"
+      );
 
 
   const id_mirror =
@@ -128,19 +121,26 @@ async function generarIdMirror(
 
 
   return {
+
     id_mirror,
+
     consecutivo,
-    año: añoActual
+
+    año:
+      añoActual
+
   };
 
 }
 
 
-/* ==================================================
-   OBTENER DATOS DEL ADMINISTRADOR
-================================================== */
+// ============================================================
+// DATOS DEL ADMINISTRADOR
+// ============================================================
 
-function obtenerDatosAdmin(req) {
+function obtenerDatosAdmin(
+  req
+) {
 
   const tipoAdmin =
     req.user?.tipo_admin
@@ -153,7 +153,9 @@ function obtenerDatosAdmin(req) {
 
 
   const idAdmin =
-    req.user?.id_usuario || null;
+    Number(
+      req.user?.id_usuario
+    ) || null;
 
 
   const areaAdmin =
@@ -167,33 +169,168 @@ function obtenerDatosAdmin(req) {
 
 
   return {
+
     tipoAdmin,
+
     idAdmin,
+
     areaAdmin
+
   };
 
 }
 
 
-/* ==================================================
-   LISTAR PACIENTES
+// ============================================================
+// OBTENER ID PSICÓLOGO DE LA SESIÓN
+//
+// PERMITE:
+//
+// 1. Psicólogo tradicional.
+//
+// 2. Independiente Clínica:
+//
+//    rol = independiente
+//    area = independiente
+//    perfil_independiente = clinica
+//
+// El Independiente NO cambia de rol.
+// Se obtiene su id_psicologo desde la tabla psicologos.
+// ============================================================
 
-   PSICÓLOGO:
-   - Solo sus propios pacientes.
+async function obtenerIdPsicologoSesion(
+  req,
+  connection = pool
+) {
 
-   ADMIN MASTER:
-   - Todos los pacientes.
+  if (
+    !req.user ||
+    Number(
+      req.user.role
+    ) !== 2
+  ) {
 
-   ADMIN NORMAL:
-   - Pacientes de los psicólogos que él creó.
-   - Solo de su propia área.
+    return null;
 
-   Esto aplica para:
-   - clínica
-   - RH
-   - educativo
-   - independiente
-================================================== */
+  }
+
+
+  const rol =
+    normalizar(
+      req.user?.rol
+    );
+
+
+  const perfilIndependiente =
+    normalizar(
+      req.user
+        ?.perfil_independiente
+    );
+
+
+  const esPsicologo =
+    rol ===
+    "psicologo";
+
+
+  const esIndependienteClinica =
+    rol ===
+      "independiente" &&
+
+    perfilIndependiente ===
+      "clinica";
+
+
+  if (
+    !esPsicologo &&
+    !esIndependienteClinica
+  ) {
+
+    return null;
+
+  }
+
+
+  const idPsicologoToken =
+    Number(
+      req.user
+        ?.id_psicologo
+    );
+
+
+  if (
+    esPsicologo &&
+    Number.isInteger(
+      idPsicologoToken
+    ) &&
+    idPsicologoToken > 0
+  ) {
+
+    return idPsicologoToken;
+
+  }
+
+
+  const idUsuario =
+    Number(
+      req.user
+        ?.id_usuario
+    );
+
+
+  if (
+    !Number.isInteger(
+      idUsuario
+    ) ||
+    idUsuario <= 0
+  ) {
+
+    return null;
+
+  }
+
+
+  const [
+    rows
+  ] =
+    await connection.query(
+      `
+        SELECT
+          p.id_psicologo
+
+        FROM psicologos p
+
+        WHERE
+          p.id_usuario = ?
+
+        LIMIT 1
+      `,
+      [
+        idUsuario
+      ]
+    );
+
+
+  if (
+    !rows.length
+  ) {
+
+    return null;
+
+  }
+
+
+  return Number(
+    rows[0]
+      .id_psicologo
+  ) || null;
+
+}
+
+
+// ============================================================
+// LISTAR PACIENTES
+// ============================================================
 
 export async function listarPacientes(
   req,
@@ -202,68 +339,80 @@ export async function listarPacientes(
 
   try {
 
-    /* ==================================================
-       VALIDAR SESIÓN
-    ================================================== */
+    if (
+      !req.user
+    ) {
 
-    if (!req.user) {
+      return res
+        .status(401)
+        .json({
 
-      return res.status(401).json({
-        message:
-          "Sesión no válida"
-      });
+          message:
+            "Sesión no válida"
+
+        });
 
     }
 
 
-    /* ==================================================
-       PSICÓLOGO
-    ================================================== */
-
     if (
-      req.user.role === 2
+      Number(
+        req.user.role
+      ) === 2
     ) {
 
+      const idPsicologoSesion =
+        await obtenerIdPsicologoSesion(
+          req
+        );
+
+
       if (
-        !req.user.id_psicologo
+        !idPsicologoSesion
       ) {
 
-        return res.status(403).json({
-          message:
-            "El usuario no tiene configurado su psicólogo"
-        });
+        return res
+          .status(403)
+          .json({
+
+            message:
+              "Tu cuenta no tiene configurado un perfil clínico válido. Completa primero Mi perfil profesional."
+
+          });
 
       }
 
 
       const [
         rows
-      ] = await pool.query(
-        `
-        SELECT
-          p.id_paciente,
-          p.id_mirror,
-          p.nombre,
-          p.sexo,
-          p.fecha_nacimiento,
-          p.edad,
-          p.correo,
-          p.telefono,
-          p.direccion,
-          p.antecedentes
+      ] =
+        await pool.query(
+          `
+            SELECT
 
-        FROM pacientes p
+              p.id_paciente,
+              p.id_mirror,
+              p.nombre,
+              p.sexo,
+              p.fecha_nacimiento,
+              p.edad,
+              p.correo,
+              p.telefono,
+              p.direccion,
+              p.antecedentes
 
-        WHERE
-          p.id_psicologo = ?
+            FROM pacientes p
 
-        ORDER BY
-          p.id_paciente DESC
-        `,
-        [
-          req.user.id_psicologo
-        ]
-      );
+            WHERE
+              p.id_psicologo = ?
+
+            ORDER BY
+              p.id_paciente DESC
+          `,
+          [
+            idPsicologoSesion
+          ]
+        );
 
 
       return res.json(
@@ -273,70 +422,86 @@ export async function listarPacientes(
     }
 
 
-    /* ==================================================
-       ADMINISTRADORES
-    ================================================== */
-
     if (
-      req.user.role === 1
+      Number(
+        req.user.role
+      ) === 1
     ) {
 
       const {
+
         tipoAdmin,
+
         idAdmin,
+
         areaAdmin
+
       } =
-        obtenerDatosAdmin(req);
+        obtenerDatosAdmin(
+          req
+        );
 
-
-      /* ================================================
-         ADMIN MASTER
-      ================================================ */
 
       if (
-        tipoAdmin === "master"
+        tipoAdmin ===
+        "master"
       ) {
 
         const [
           rows
-        ] = await pool.query(
-          `
-          SELECT
-            p.id_paciente,
-            p.id_mirror,
-            p.nombre,
-            p.sexo,
-            p.fecha_nacimiento,
-            p.edad,
-            p.correo,
-            p.telefono,
-            p.direccion,
-            p.antecedentes,
+        ] =
+          await pool.query(
+            `
+              SELECT
 
-            ps.id_psicologo,
+                p.id_paciente,
+                p.id_mirror,
+                p.nombre,
+                p.sexo,
+                p.fecha_nacimiento,
+                p.edad,
+                p.correo,
+                p.telefono,
+                p.direccion,
+                p.antecedentes,
 
-            u.id_usuario AS id_usuario_psicologo,
-            u.nombre AS nombre_psicologo,
-            u.correo AS correo_psicologo,
-            u.area AS area_psicologo
+                ps.id_psicologo,
 
-          FROM pacientes p
+                u.id_usuario
+                  AS id_usuario_psicologo,
 
-          INNER JOIN psicologos ps
-            ON p.id_psicologo =
-               ps.id_psicologo
+                u.nombre
+                  AS nombre_psicologo,
 
-          INNER JOIN usuarios u
-            ON ps.id_usuario =
-               u.id_usuario
+                u.correo
+                  AS correo_psicologo,
 
-          WHERE
-            u.rol = 'psicologo'
+                u.area
+                  AS area_psicologo,
 
-          ORDER BY
-            p.id_paciente DESC
-          `
-        );
+                u.rol
+                  AS rol_profesional,
+
+                o.perfil_independiente
+
+              FROM pacientes p
+
+              INNER JOIN psicologos ps
+                ON ps.id_psicologo =
+                   p.id_psicologo
+
+              INNER JOIN usuarios u
+                ON u.id_usuario =
+                   ps.id_usuario
+
+              LEFT JOIN organizaciones o
+                ON o.id_organizacion =
+                   u.id_organizacion
+
+              ORDER BY
+                p.id_paciente DESC
+            `
+          );
 
 
         return res.json(
@@ -346,12 +511,9 @@ export async function listarPacientes(
       }
 
 
-      /* ================================================
-         ADMIN NORMAL
-      ================================================ */
-
       if (
-        tipoAdmin === "normal"
+        tipoAdmin ===
+        "normal"
       ) {
 
         if (
@@ -359,64 +521,85 @@ export async function listarPacientes(
           !areaAdmin
         ) {
 
-          return res.status(403).json({
-            message:
-              "El administrador no tiene configurados correctamente su ID o área"
-          });
+          return res
+            .status(403)
+            .json({
+
+              message:
+                "El administrador no tiene configurados correctamente su ID o área"
+
+            });
 
         }
 
 
         const [
           rows
-        ] = await pool.query(
-          `
-          SELECT
-            p.id_paciente,
-            p.id_mirror,
-            p.nombre,
-            p.sexo,
-            p.fecha_nacimiento,
-            p.edad,
-            p.correo,
-            p.telefono,
-            p.direccion,
-            p.antecedentes,
+        ] =
+          await pool.query(
+            `
+              SELECT
 
-            ps.id_psicologo,
+                p.id_paciente,
+                p.id_mirror,
+                p.nombre,
+                p.sexo,
+                p.fecha_nacimiento,
+                p.edad,
+                p.correo,
+                p.telefono,
+                p.direccion,
+                p.antecedentes,
 
-            u.id_usuario AS id_usuario_psicologo,
-            u.nombre AS nombre_psicologo,
-            u.correo AS correo_psicologo,
-            u.area AS area_psicologo
+                ps.id_psicologo,
 
-          FROM pacientes p
+                u.id_usuario
+                  AS id_usuario_psicologo,
 
-          INNER JOIN psicologos ps
-            ON p.id_psicologo =
-               ps.id_psicologo
+                u.nombre
+                  AS nombre_psicologo,
 
-          INNER JOIN usuarios u
-            ON ps.id_usuario =
-               u.id_usuario
+                u.correo
+                  AS correo_psicologo,
 
-          WHERE
-            u.rol = 'psicologo'
+                u.area
+                  AS area_psicologo
 
-            AND u.id_admin_padre = ?
+              FROM pacientes p
 
-            AND LOWER(
-              TRIM(u.area)
-            ) = ?
+              INNER JOIN psicologos ps
+                ON ps.id_psicologo =
+                   p.id_psicologo
 
-          ORDER BY
-            p.id_paciente DESC
-          `,
-          [
-            idAdmin,
-            areaAdmin
-          ]
-        );
+              INNER JOIN usuarios u
+                ON u.id_usuario =
+                   ps.id_usuario
+
+              WHERE
+
+                u.rol =
+                  'psicologo'
+
+                AND
+
+                u.id_admin_padre = ?
+
+                AND
+
+                LOWER(
+                  TRIM(
+                    u.area
+                  )
+                ) = ?
+
+              ORDER BY
+                p.id_paciente DESC
+            `,
+            [
+              idAdmin,
+              areaAdmin
+            ]
+          );
 
 
         return res.json(
@@ -426,29 +609,31 @@ export async function listarPacientes(
       }
 
 
-      /* ================================================
-         TIPO DE ADMINISTRADOR INVÁLIDO
-      ================================================ */
+      return res
+        .status(403)
+        .json({
 
-      return res.status(403).json({
-        message:
-          "Tipo de administrador inválido"
-      });
+          message:
+            "Tipo de administrador inválido"
+
+        });
 
     }
 
 
-    /* ==================================================
-       OTROS ROLES
-    ================================================== */
+    return res
+      .status(403)
+      .json({
 
-    return res.status(403).json({
-      message:
-        "Acceso denegado"
-    });
+        message:
+          "Acceso denegado"
+
+      });
 
 
-  } catch (err) {
+  } catch (
+    err
+  ) {
 
     console.error(
       "❌ Error al obtener pacientes:",
@@ -456,28 +641,23 @@ export async function listarPacientes(
     );
 
 
-    return res.status(500).json({
-      message:
-        "Error al obtener pacientes"
-    });
+    return res
+      .status(500)
+      .json({
+
+        message:
+          "Error al obtener pacientes"
+
+      });
 
   }
 
 }
 
 
-/* ==================================================
-   OBTENER PACIENTE POR ID
-
-   PSICÓLOGO:
-   - Solo sus pacientes.
-
-   ADMIN MASTER:
-   - Cualquier paciente.
-
-   ADMIN NORMAL:
-   - Pacientes de sus psicólogos.
-================================================== */
+// ============================================================
+// OBTENER PACIENTE POR ID
+// ============================================================
 
 export async function obtenerPaciente(
   req,
@@ -486,63 +666,85 @@ export async function obtenerPaciente(
 
   const {
     id
-  } = req.params;
+  } =
+    req.params;
 
 
   try {
 
     const [
       rows
-    ] = await pool.query(
-      `
-      SELECT
-        p.id_paciente,
-        p.id_mirror,
-        p.nombre,
-        p.sexo,
-        p.fecha_nacimiento,
-        p.edad,
-        p.correo,
-        p.telefono,
-        p.direccion,
-        p.antecedentes,
+    ] =
+      await pool.query(
+        `
+          SELECT
 
-        ps.id_psicologo,
+            p.id_paciente,
+            p.id_mirror,
+            p.nombre,
+            p.sexo,
+            p.fecha_nacimiento,
+            p.edad,
+            p.correo,
+            p.telefono,
+            p.direccion,
+            p.antecedentes,
 
-        u.id_usuario AS id_usuario_psicologo,
-        u.nombre AS nombre_psicologo,
-        u.area AS area_psicologo,
-        u.id_admin_padre
+            ps.id_psicologo,
 
-      FROM pacientes p
+            u.id_usuario
+              AS id_usuario_psicologo,
 
-      INNER JOIN psicologos ps
-        ON p.id_psicologo =
-           ps.id_psicologo
+            u.nombre
+              AS nombre_psicologo,
 
-      INNER JOIN usuarios u
-        ON ps.id_usuario =
-           u.id_usuario
+            u.area
+              AS area_psicologo,
 
-      WHERE
-        p.id_paciente = ?
+            u.rol
+              AS rol_profesional,
 
-      LIMIT 1
-      `,
-      [
-        id
-      ]
-    );
+            u.id_admin_padre,
+
+            o.perfil_independiente
+
+          FROM pacientes p
+
+          INNER JOIN psicologos ps
+            ON ps.id_psicologo =
+               p.id_psicologo
+
+          INNER JOIN usuarios u
+            ON u.id_usuario =
+               ps.id_usuario
+
+          LEFT JOIN organizaciones o
+            ON o.id_organizacion =
+               u.id_organizacion
+
+          WHERE
+            p.id_paciente = ?
+
+          LIMIT 1
+        `,
+        [
+          id
+        ]
+      );
 
 
     if (
       !rows.length
     ) {
 
-      return res.status(404).json({
-        message:
-          "Paciente no encontrado"
-      });
+      return res
+        .status(404)
+        .json({
+
+          message:
+            "Paciente no encontrado"
+
+        });
 
     }
 
@@ -551,27 +753,37 @@ export async function obtenerPaciente(
       rows[0];
 
 
-    /* ==================================================
-       PSICÓLOGO
-    ================================================== */
-
     if (
-      req.user?.role === 2
+      Number(
+        req.user?.role
+      ) === 2
     ) {
 
+      const idPsicologoSesion =
+        await obtenerIdPsicologoSesion(
+          req
+        );
+
+
       if (
+        !idPsicologoSesion ||
+
         Number(
-          req.user.id_psicologo
+          idPsicologoSesion
         ) !==
         Number(
           paciente.id_psicologo
         )
       ) {
 
-        return res.status(403).json({
-          message:
-            "No tienes acceso a este paciente"
-        });
+        return res
+          .status(403)
+          .json({
+
+            message:
+              "No tienes acceso a este paciente"
+
+          });
 
       }
 
@@ -583,17 +795,15 @@ export async function obtenerPaciente(
     }
 
 
-    /* ==================================================
-       ADMIN MASTER
-    ================================================== */
-
     if (
-      req.user?.role === 1 &&
-      String(
-        req.user?.tipo_admin || ""
-      )
-        .trim()
-        .toLowerCase() ===
+      Number(
+        req.user?.role
+      ) === 1 &&
+
+      normalizar(
+        req.user
+          ?.tipo_admin
+      ) ===
         "master"
     ) {
 
@@ -604,42 +814,37 @@ export async function obtenerPaciente(
     }
 
 
-    /* ==================================================
-       ADMIN NORMAL
-    ================================================== */
-
     if (
-      req.user?.role === 1 &&
-      String(
-        req.user?.tipo_admin || ""
-      )
-        .trim()
-        .toLowerCase() ===
+      Number(
+        req.user?.role
+      ) === 1 &&
+
+      normalizar(
+        req.user
+          ?.tipo_admin
+      ) ===
         "normal"
     ) {
 
       const idAdmin =
-        req.user?.id_usuario;
+        Number(
+          req.user
+            ?.id_usuario
+        );
 
 
       const areaAdmin =
-        req.user?.area
-          ? String(
-              req.user.area
-            )
-              .trim()
-              .toLowerCase()
-          : null;
+        normalizar(
+          req.user
+            ?.area
+        );
 
 
       const areaPaciente =
-        paciente.area_psicologo
-          ? String(
-              paciente.area_psicologo
-            )
-              .trim()
-              .toLowerCase()
-          : null;
+        normalizar(
+          paciente
+            .area_psicologo
+        );
 
 
       if (
@@ -647,27 +852,34 @@ export async function obtenerPaciente(
         !areaAdmin
       ) {
 
-        return res.status(403).json({
-          message:
-            "El administrador no tiene configurados correctamente su ID o área"
-        });
+        return res
+          .status(403)
+          .json({
+
+            message:
+              "El administrador no tiene configurados correctamente su ID o área"
+
+          });
 
       }
 
 
       if (
         Number(
-          paciente.id_admin_padre
+          paciente
+            .id_admin_padre
         ) !==
-        Number(
-          idAdmin
-        )
+        idAdmin
       ) {
 
-        return res.status(403).json({
-          message:
-            "No tienes acceso a este paciente"
-        });
+        return res
+          .status(403)
+          .json({
+
+            message:
+              "No tienes acceso a este paciente"
+
+          });
 
       }
 
@@ -677,10 +889,14 @@ export async function obtenerPaciente(
         areaAdmin
       ) {
 
-        return res.status(403).json({
-          message:
-            "No tienes acceso a pacientes de otra área"
-        });
+        return res
+          .status(403)
+          .json({
+
+            message:
+              "No tienes acceso a pacientes de otra área"
+
+          });
 
       }
 
@@ -692,13 +908,19 @@ export async function obtenerPaciente(
     }
 
 
-    return res.status(403).json({
-      message:
-        "Acceso denegado"
-    });
+    return res
+      .status(403)
+      .json({
+
+        message:
+          "Acceso denegado"
+
+      });
 
 
-  } catch (err) {
+  } catch (
+    err
+  ) {
 
     console.error(
       "❌ Error al obtener paciente:",
@@ -706,30 +928,26 @@ export async function obtenerPaciente(
     );
 
 
-    return res.status(500).json({
-      message:
-        "Error al obtener paciente"
-    });
+    return res
+      .status(500)
+      .json({
+
+        message:
+          "Error al obtener paciente"
+
+      });
 
   }
 
 }
 
 
-/* ==================================================
-   REGISTRAR PACIENTE
-
-   PSICÓLOGO:
-   - Puede registrar pacientes.
-
-   ADMIN:
-   - Puede registrar pacientes para un psicólogo
-     de su propia área.
-
-   GENERACIÓN DE ID:
-   - Usa consecutivo GLOBAL.
-   - Se registra en mirror_ids.
-================================================== */
+// ============================================================
+// REGISTRAR PACIENTE
+//
+// También permite:
+// CANALIZACIÓN ACEPTADA -> INICIAR ATENCIÓN
+// ============================================================
 
 export async function registrarPaciente(
   req,
@@ -741,46 +959,856 @@ export async function registrarPaciente(
 
   try {
 
-    /* ==================================================
-       VALIDAR SESIÓN
-    ================================================== */
+    if (
+      !req.user
+    ) {
 
-    if (!req.user) {
+      return res
+        .status(401)
+        .json({
 
-      return res.status(401).json({
-        message:
-          "Sesión no válida"
-      });
+          message:
+            "Sesión no válida"
+
+        });
 
     }
 
 
-    const {
+    const desdeCanalizacion =
+      req.body
+        ?.desde_canalizacion === true ||
+
+      req.body
+        ?.desde_canalizacion === 1 ||
+
+      req.body
+        ?.desde_canalizacion === "1" ||
+
+      normalizar(
+        req.body
+          ?.desde_canalizacion
+      ) === "true";
+
+
+    const idCanalizacion =
+      Number(
+        req.body
+          ?.id_canalizacion
+      );
+
+
+    if (
+      desdeCanalizacion
+    ) {
+
+      if (
+        Number(
+          req.user.role
+        ) !== 2
+      ) {
+
+        return res
+          .status(403)
+          .json({
+
+            success:
+              false,
+
+            message:
+              "Solo el profesional que aceptó la canalización puede iniciar la atención"
+
+          });
+
+      }
+
+
+      if (
+        !Number.isInteger(
+          idCanalizacion
+        ) ||
+
+        idCanalizacion <= 0
+      ) {
+
+        return res
+          .status(400)
+          .json({
+
+            success:
+              false,
+
+            message:
+              "La canalización no es válida"
+
+          });
+
+      }
+
+
+      connection =
+        await pool
+          .getConnection();
+
+
+      await connection
+        .beginTransaction();
+
+
+      const idPsicologoSesion =
+        await obtenerIdPsicologoSesion(
+          req,
+          connection
+        );
+
+
+      if (
+        !idPsicologoSesion
+      ) {
+
+        await connection
+          .rollback();
+
+
+        return res
+          .status(403)
+          .json({
+
+            success:
+              false,
+
+            message:
+              "Tu cuenta no tiene un perfil clínico válido"
+
+          });
+
+      }
+
+
+      const [
+        canalizacionRows
+      ] =
+        await connection.query(
+          `
+            SELECT
+
+              c.id_canalizacion,
+              c.id_empleado,
+              c.id_opcion_elegida,
+              c.estatus,
+              c.motivo,
+
+              cp.id_opcion,
+              cp.id_psicologo,
+              cp.estado_respuesta_profesional,
+
+              e.nombre,
+              e.correo,
+              e.telefono
+
+            FROM canalizaciones c
+
+            INNER JOIN
+              canalizacion_profesionales cp
+
+              ON cp.id_opcion =
+                 c.id_opcion_elegida
+
+            INNER JOIN empleados e
+
+              ON e.id_empleado =
+                 c.id_empleado
+
+            WHERE
+
+              c.id_canalizacion = ?
+
+              AND cp.id_psicologo = ?
+
+              AND cp.tipo_profesional =
+                'mirrorsoul'
+
+              AND cp.estado_respuesta_profesional =
+                'aceptada'
+
+            LIMIT 1
+
+            FOR UPDATE
+          `,
+          [
+            idCanalizacion,
+            idPsicologoSesion
+          ]
+        );
+
+
+      if (
+        !canalizacionRows.length
+      ) {
+
+        await connection
+          .rollback();
+
+
+        return res
+          .status(409)
+          .json({
+
+            success:
+              false,
+
+            message:
+              "Esta canalización no está aceptada por tu perfil profesional"
+
+          });
+
+      }
+
+
+      const canalizacion =
+        canalizacionRows[0];
+
+
+      const nombreEmpleado =
+        String(
+          canalizacion.nombre ||
+          ""
+        ).trim();
+
+
+      const correoEmpleado =
+        String(
+          canalizacion.correo ||
+          ""
+        )
+          .trim()
+          .toLowerCase();
+
+
+      const telefonoEmpleado =
+        String(
+          canalizacion.telefono ||
+          ""
+        ).trim();
+
+
+      // ======================================================
+      // DATOS COMPLETADOS EN EL FORMULARIO CLÍNICO
+      // ======================================================
+
+      const sexoPaciente =
+        String(
+          req.body?.sexo ||
+          ""
+        )
+          .trim()
+          .toUpperCase();
+
+
+      const fechaNacimientoPaciente =
+        req.body?.fecha_nacimiento ||
+        null;
+
+
+      const edadNumero =
+        Number(
+          req.body?.edad
+        );
+
+
+      const edadPaciente =
+        Number.isFinite(
+          edadNumero
+        ) &&
+        edadNumero >= 0
+          ? edadNumero
+          : null;
+
+
+      const direccionPaciente =
+        String(
+          req.body?.direccion ||
+          ""
+        ).trim() ||
+        null;
+
+
+      const antecedentesPaciente =
+        String(
+          req.body?.antecedentes ||
+          ""
+        ).trim() ||
+        null;
+
+
+      if (
+        !sexoPaciente
+      ) {
+
+        await connection
+          .rollback();
+
+
+        return res
+          .status(400)
+          .json({
+
+            success:
+              false,
+
+            message:
+              "Debes seleccionar el sexo del paciente"
+
+          });
+
+      }
+
+
+      if (
+        ![
+          "M",
+          "F",
+          "X"
+        ].includes(
+          sexoPaciente
+        )
+      ) {
+
+        await connection
+          .rollback();
+
+
+        return res
+          .status(400)
+          .json({
+
+            success:
+              false,
+
+            message:
+              "El sexo seleccionado no es válido"
+
+          });
+
+      }
+
+
+      if (
+        !fechaNacimientoPaciente
+      ) {
+
+        await connection
+          .rollback();
+
+
+        return res
+          .status(400)
+          .json({
+
+            success:
+              false,
+
+            message:
+              "La fecha de nacimiento es obligatoria"
+
+          });
+
+      }
+
+
+      if (
+        edadPaciente === null
+      ) {
+
+        await connection
+          .rollback();
+
+
+        return res
+          .status(400)
+          .json({
+
+            success:
+              false,
+
+            message:
+              "La edad del paciente no es válida"
+
+          });
+
+      }
+
+
+      if (
+        !nombreEmpleado
+      ) {
+
+        await connection
+          .rollback();
+
+
+        return res
+          .status(409)
+          .json({
+
+            success:
+              false,
+
+            message:
+              "La persona canalizada no tiene un nombre válido registrado"
+
+          });
+
+      }
+
+
+      let pacienteExistente =
+        null;
+
+
+      if (
+        correoEmpleado
+      ) {
+
+        const [
+          pacientesCorreo
+        ] =
+          await connection.query(
+            `
+              SELECT
+
+                id_paciente,
+                id_mirror,
+                nombre,
+                correo,
+                telefono
+
+              FROM pacientes
+
+              WHERE
+
+                id_psicologo = ?
+
+                AND LOWER(
+                  TRIM(
+                    COALESCE(
+                      correo,
+                      ''
+                    )
+                  )
+                ) = ?
+
+              LIMIT 1
+
+              FOR UPDATE
+            `,
+            [
+              idPsicologoSesion,
+              correoEmpleado
+            ]
+          );
+
+
+        pacienteExistente =
+          pacientesCorreo[0] ||
+          null;
+
+      }
+
+
+      if (
+        !pacienteExistente &&
+        telefonoEmpleado
+      ) {
+
+        const [
+          pacientesTelefono
+        ] =
+          await connection.query(
+            `
+              SELECT
+
+                id_paciente,
+                id_mirror,
+                nombre,
+                correo,
+                telefono
+
+              FROM pacientes
+
+              WHERE
+
+                id_psicologo = ?
+
+                AND TRIM(
+                  COALESCE(
+                    telefono,
+                    ''
+                  )
+                ) = ?
+
+              LIMIT 1
+
+              FOR UPDATE
+            `,
+            [
+              idPsicologoSesion,
+              telefonoEmpleado
+            ]
+          );
+
+
+        pacienteExistente =
+          pacientesTelefono[0] ||
+          null;
+
+      }
+
+
+      if (
+        pacienteExistente
+      ) {
+
+        await connection.query(
+          `
+            UPDATE pacientes
+
+            SET
+              nombre = ?,
+              sexo = ?,
+              fecha_nacimiento = ?,
+              edad = ?,
+              correo = ?,
+              telefono = ?,
+              direccion = ?,
+              antecedentes = ?
+
+            WHERE
+              id_paciente = ?
+
+              AND id_psicologo = ?
+          `,
+          [
+            nombreEmpleado,
+            sexoPaciente,
+            fechaNacimientoPaciente,
+            edadPaciente,
+            correoEmpleado ||
+              null,
+            telefonoEmpleado ||
+              null,
+            direccionPaciente,
+            antecedentesPaciente,
+            pacienteExistente.id_paciente,
+            idPsicologoSesion
+          ]
+        );
+
+
+        await connection.query(
+          `
+            UPDATE canalizaciones
+
+            SET
+              estatus =
+                'atencion_iniciada'
+
+            WHERE
+              id_canalizacion = ?
+          `,
+          [
+            idCanalizacion
+          ]
+        );
+
+
+        if (
+          canalizacion.estatus !==
+          "atencion_iniciada"
+        ) {
+
+          await connection.query(
+            `
+              INSERT INTO canalizacion_historial
+              (
+                id_canalizacion,
+                id_usuario,
+                evento,
+                detalle,
+                fecha_evento
+              )
+
+              VALUES
+              (
+                ?,
+                ?,
+                'Atención iniciada',
+                ?,
+                NOW()
+              )
+            `,
+            [
+              idCanalizacion,
+
+              Number(
+                req.user
+                  ?.id_usuario
+              ) ||
+              null,
+
+              `Paciente existente vinculado al expediente clínico ${pacienteExistente.id_paciente}`
+            ]
+          );
+
+        }
+
+
+        await connection
+          .commit();
+
+
+        return res
+          .status(200)
+          .json({
+
+            success:
+              true,
+
+            reutilizado:
+              true,
+
+            message:
+              "El paciente ya tenía un expediente contigo. Se abrió el expediente existente.",
+
+            id_paciente:
+              pacienteExistente.id_paciente
+
+          });
+
+      }
+
+
+      const {
+
+        id_mirror,
+
+        consecutivo,
+
+        año
+
+      } =
+        await generarIdMirror(
+          edadPaciente,
+          sexoPaciente,
+          connection
+        );
+
+
+      const [
+        resultPaciente
+      ] =
+        await connection.query(
+          `
+            INSERT INTO pacientes
+            (
+              id_psicologo,
+              id_mirror,
+              nombre,
+              sexo,
+              fecha_nacimiento,
+              edad,
+              correo,
+              telefono,
+              direccion,
+              antecedentes
+            )
+
+            VALUES
+            (
+              ?,
+              ?,
+              ?,
+              ?,
+              ?,
+              ?,
+              ?,
+              ?,
+              ?,
+              ?
+            )
+          `,
+          [
+            idPsicologoSesion,
+
+            id_mirror,
+
+            nombreEmpleado,
+
+            sexoPaciente,
+
+            fechaNacimientoPaciente,
+
+            edadPaciente,
+
+            correoEmpleado ||
+              null,
+
+            telefonoEmpleado ||
+              null,
+
+            direccionPaciente,
+
+            antecedentesPaciente
+          ]
+        );
+
+
+      const idPaciente =
+        resultPaciente.insertId;
+
+
+      await connection.query(
+        `
+          INSERT INTO mirror_ids
+          (
+            id_mirror,
+            consecutivo,
+            año,
+            tipo_persona,
+            id_referencia
+          )
+
+          VALUES
+          (
+            ?,
+            ?,
+            ?,
+            'paciente',
+            ?
+          )
+        `,
+        [
+          id_mirror,
+          consecutivo,
+          año,
+          idPaciente
+        ]
+      );
+
+
+      await connection.query(
+        `
+          UPDATE canalizaciones
+
+          SET
+            estatus =
+              'atencion_iniciada'
+
+          WHERE
+            id_canalizacion = ?
+        `,
+        [
+          idCanalizacion
+        ]
+      );
+
+
+      await connection.query(
+        `
+          INSERT INTO canalizacion_historial
+          (
+            id_canalizacion,
+            id_usuario,
+            evento,
+            detalle,
+            fecha_evento
+          )
+
+          VALUES
+          (
+            ?,
+            ?,
+            'Atención iniciada',
+            ?,
+            NOW()
+          )
+        `,
+        [
+          idCanalizacion,
+
+          Number(
+            req.user
+              ?.id_usuario
+          ) ||
+          null,
+
+          `Se creó el expediente clínico ${idPaciente} a partir de una canalización aceptada`
+        ]
+      );
+
+
+      await connection
+        .commit();
+
+
+      return res
+        .status(201)
+        .json({
+
+          success:
+            true,
+
+          reutilizado:
+            false,
+
+          message:
+            "Paciente creado correctamente. La atención clínica ha iniciado.",
+
+          id_paciente:
+            idPaciente
+
+        });
+
+    }
+        const {
+
       nombre,
+
       sexo,
+
       fecha_nacimiento,
+
       edad,
+
       correo,
+
       telefono,
+
       direccion,
+
       antecedentes,
+
       id_psicologo
-    } = req.body;
 
+    } =
+      req.body;
 
-    /* ==================================================
-       VALIDAR NOMBRE
-    ================================================== */
 
     if (
       !nombre ||
-      !String(nombre).trim()
+      !String(
+        nombre
+      ).trim()
     ) {
 
-      return res.status(400).json({
-        message:
-          "El nombre del paciente es obligatorio"
-      });
+      return res
+        .status(400)
+        .json({
+
+          message:
+            "El nombre del paciente es obligatorio"
+
+        });
 
     }
 
@@ -789,64 +1817,110 @@ export async function registrarPaciente(
       null;
 
 
-    /* ==================================================
-       PSICÓLOGO
-    ================================================== */
-
     if (
-      req.user.role === 2
+      Number(
+        req.user.role
+      ) === 2
     ) {
 
       idPsicologoFinal =
-        req.user.id_psicologo;
+        await obtenerIdPsicologoSesion(
+          req
+        );
 
 
       if (
         !idPsicologoFinal
       ) {
 
-        return res.status(403).json({
-          message:
-            "El usuario no tiene configurado su psicólogo"
-        });
+        return res
+          .status(403)
+          .json({
+
+            message:
+              "Tu cuenta no tiene configurado un perfil clínico válido. Completa primero Mi perfil profesional."
+
+          });
 
       }
 
     }
 
 
-    /* ==================================================
-       ADMINISTRADOR
-    ================================================== */
-
     else if (
-      req.user.role === 1
+      Number(
+        req.user.role
+      ) === 1
     ) {
 
       const {
+
         tipoAdmin,
+
         idAdmin,
+
         areaAdmin
+
       } =
-        obtenerDatosAdmin(req);
+        obtenerDatosAdmin(
+          req
+        );
 
-
-      /* ================================================
-         MASTER
-      ================================================ */
 
       if (
-        tipoAdmin === "master"
+        tipoAdmin ===
+        "master"
       ) {
 
         if (
           !id_psicologo
         ) {
 
-          return res.status(400).json({
-            message:
-              "Debes seleccionar el psicólogo responsable del paciente"
-          });
+          return res
+            .status(400)
+            .json({
+
+              message:
+                "Debes seleccionar el psicólogo responsable del paciente"
+
+            });
+
+        }
+
+
+        const [
+          profesional
+        ] =
+          await pool.query(
+            `
+              SELECT
+                p.id_psicologo
+
+              FROM psicologos p
+
+              WHERE
+                p.id_psicologo = ?
+
+              LIMIT 1
+            `,
+            [
+              id_psicologo
+            ]
+          );
+
+
+        if (
+          !profesional.length
+        ) {
+
+          return res
+            .status(404)
+            .json({
+
+              message:
+                "El profesional seleccionado no existe"
+
+            });
 
         }
 
@@ -859,12 +1933,9 @@ export async function registrarPaciente(
       }
 
 
-      /* ================================================
-         ADMIN NORMAL
-      ================================================ */
-
       else if (
-        tipoAdmin === "normal"
+        tipoAdmin ===
+        "normal"
       ) {
 
         if (
@@ -872,10 +1943,14 @@ export async function registrarPaciente(
           !areaAdmin
         ) {
 
-          return res.status(403).json({
-            message:
-              "El administrador no tiene configurados correctamente su ID o área"
-          });
+          return res
+            .status(403)
+            .json({
+
+              message:
+                "El administrador no tiene configurados correctamente su ID o área"
+
+            });
 
         }
 
@@ -884,56 +1959,69 @@ export async function registrarPaciente(
           !id_psicologo
         ) {
 
-          return res.status(400).json({
-            message:
-              "Debes seleccionar el psicólogo responsable del paciente"
-          });
+          return res
+            .status(400)
+            .json({
+
+              message:
+                "Debes seleccionar el psicólogo responsable del paciente"
+
+            });
 
         }
 
 
         const [
           psicologoRows
-        ] = await pool.query(
-          `
-          SELECT
-            p.id_psicologo
+        ] =
+          await pool.query(
+            `
+              SELECT
+                p.id_psicologo
 
-          FROM psicologos p
+              FROM psicologos p
 
-          INNER JOIN usuarios u
-            ON p.id_usuario =
-               u.id_usuario
+              INNER JOIN usuarios u
+                ON u.id_usuario =
+                   p.id_usuario
 
-          WHERE
-            p.id_psicologo = ?
+              WHERE
 
-            AND u.rol = 'psicologo'
+                p.id_psicologo = ?
 
-            AND u.id_admin_padre = ?
+                AND u.rol =
+                  'psicologo'
 
-            AND LOWER(
-              TRIM(u.area)
-            ) = ?
+                AND u.id_admin_padre = ?
 
-          LIMIT 1
-          `,
-          [
-            id_psicologo,
-            idAdmin,
-            areaAdmin
-          ]
-        );
+                AND LOWER(
+                  TRIM(
+                    u.area
+                  )
+                ) = ?
+
+              LIMIT 1
+            `,
+            [
+              id_psicologo,
+              idAdmin,
+              areaAdmin
+            ]
+          );
 
 
         if (
           !psicologoRows.length
         ) {
 
-          return res.status(403).json({
-            message:
-              "No puedes asignar pacientes a un psicólogo que no pertenece a tu área o que no registraste"
-          });
+          return res
+            .status(403)
+            .json({
+
+              message:
+                "No puedes asignar pacientes a un psicólogo que no pertenece a tu área o que no registraste"
+
+            });
 
         }
 
@@ -948,60 +2036,51 @@ export async function registrarPaciente(
 
       else {
 
-        return res.status(403).json({
-          message:
-            "Tipo de administrador inválido"
-        });
+        return res
+          .status(403)
+          .json({
+
+            message:
+              "Tipo de administrador inválido"
+
+          });
 
       }
 
     }
 
 
-    /* ==================================================
-       OTRO ROL
-    ================================================== */
-
     else {
 
-      return res.status(403).json({
-        message:
-          "No tienes permisos para registrar pacientes"
-      });
+      return res
+        .status(403)
+        .json({
+
+          message:
+            "No tienes permisos para registrar pacientes"
+
+        });
 
     }
 
 
-    /* ==================================================
-       OBTENER CONEXIÓN
-
-       Todo se hace dentro de una transacción:
-
-       1. Generar consecutivo
-       2. Insertar paciente
-       3. Registrar ID en mirror_ids
-
-       Si algo falla:
-       ROLLBACK
-
-       Así evitamos IDs duplicados.
-    ================================================== */
-
     connection =
-      await pool.getConnection();
+      await pool
+        .getConnection();
 
 
-    await connection.beginTransaction();
+    await connection
+      .beginTransaction();
 
-
-    /* ==================================================
-       GENERAR ID GLOBAL
-    ================================================== */
 
     const {
+
       id_mirror,
+
       consecutivo,
+
       año
+
     } =
       await generarIdMirror(
         edad,
@@ -1010,66 +2089,91 @@ export async function registrarPaciente(
       );
 
 
-    /* ==================================================
-       INSERTAR PACIENTE
-    ================================================== */
-
     const [
       result
-    ] = await connection.query(
-      `
-      INSERT INTO pacientes
-      (
-        id_psicologo,
-        id_mirror,
-        nombre,
-        sexo,
-        fecha_nacimiento,
-        edad,
-        correo,
-        telefono,
-        direccion,
-        antecedentes
-      )
+    ] =
+      await connection.query(
+        `
+          INSERT INTO pacientes
+          (
+            id_psicologo,
+            id_mirror,
+            nombre,
+            sexo,
+            fecha_nacimiento,
+            edad,
+            correo,
+            telefono,
+            direccion,
+            antecedentes
+          )
 
-      VALUES
-      (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `,
-      [
-        idPsicologoFinal,
-        id_mirror,
-        nombre,
-        sexo || null,
-        fecha_nacimiento || null,
-        edad || null,
-        correo || null,
-        telefono || null,
-        direccion || null,
-        antecedentes || null
-      ]
-    );
+          VALUES
+          (
+            ?,
+            ?,
+            ?,
+            ?,
+            ?,
+            ?,
+            ?,
+            ?,
+            ?,
+            ?
+          )
+        `,
+        [
+          idPsicologoFinal,
 
+          id_mirror,
 
-    /* ==================================================
-       REGISTRAR ID EN TABLA CENTRAL
+          String(
+            nombre
+          ).trim(),
 
-       Aquí queda reservado el consecutivo
-       globalmente.
-    ================================================== */
+          sexo ||
+            null,
+
+          fecha_nacimiento ||
+            null,
+
+          edad ||
+            null,
+
+          correo ||
+            null,
+
+          telefono ||
+            null,
+
+          direccion ||
+            null,
+
+          antecedentes ||
+            null
+        ]
+      );
+
 
     await connection.query(
       `
-      INSERT INTO mirror_ids
-      (
-        id_mirror,
-        consecutivo,
-        año,
-        tipo_persona,
-        id_referencia
-      )
+        INSERT INTO mirror_ids
+        (
+          id_mirror,
+          consecutivo,
+          año,
+          tipo_persona,
+          id_referencia
+        )
 
-      VALUES
-      (?, ?, ?, 'paciente', ?)
+        VALUES
+        (
+          ?,
+          ?,
+          ?,
+          'paciente',
+          ?
+        )
       `,
       [
         id_mirror,
@@ -1080,46 +2184,47 @@ export async function registrarPaciente(
     );
 
 
-    /* ==================================================
-       CONFIRMAR TRANSACCIÓN
-    ================================================== */
-
-    await connection.commit();
+    await connection
+      .commit();
 
 
-    /* ==================================================
-       RESPUESTA
-    ================================================== */
+    return res
+      .status(201)
+      .json({
 
-    return res.status(201).json({
+        success:
+          true,
 
-      message:
-        "✅ Paciente registrado correctamente",
+        message:
+          "✅ Paciente registrado correctamente",
 
-      id_paciente:
-        result.insertId,
+        id_paciente:
+          result.insertId,
 
-      id_mirror,
+        id_mirror,
 
-      id_psicologo:
-        idPsicologoFinal
+        id_psicologo:
+          idPsicologoFinal
 
-    });
+      });
 
 
-  } catch (err) {
+  } catch (
+    err
+  ) {
 
-    /* ==================================================
-       DESHACER TRANSACCIÓN
-    ================================================== */
-
-    if (connection) {
+    if (
+      connection
+    ) {
 
       try {
 
-        await connection.rollback();
+        await connection
+          .rollback();
 
-      } catch (rollbackError) {
+      } catch (
+        rollbackError
+      ) {
 
         console.error(
           "❌ Error en rollback:",
@@ -1137,34 +2242,47 @@ export async function registrarPaciente(
     );
 
 
-    /* ==================================================
-       DUPLICADO DE ID
-    ================================================== */
-
     if (
       err?.code ===
       "ER_DUP_ENTRY"
     ) {
 
-      return res.status(409).json({
-        message:
-          "El ID MirrorSoul generado ya existe. Intenta nuevamente."
-      });
+      return res
+        .status(409)
+        .json({
+
+          message:
+            "El ID MirrorSoul generado ya existe. Intenta nuevamente."
+
+        });
 
     }
 
 
-    return res.status(500).json({
-      message:
-        "Error al registrar paciente"
-    });
+    return res
+      .status(500)
+      .json({
+
+        message:
+          "Error al registrar paciente",
+
+        error:
+          process.env.NODE_ENV ===
+          "development"
+            ? err.message
+            : undefined
+
+      });
 
 
   } finally {
 
-    if (connection) {
+    if (
+      connection
+    ) {
 
-      connection.release();
+      connection
+        .release();
 
     }
 
@@ -1173,14 +2291,9 @@ export async function registrarPaciente(
 }
 
 
-/* ==================================================
-   REPORTES COMPLETOS DE UN PACIENTE
-
-   IMPORTANTE:
-   Antes de entregar información clínica,
-   verificamos que el usuario tenga acceso
-   al paciente.
-================================================== */
+// ============================================================
+// REPORTES COMPLETOS DE UN PACIENTE
+// ============================================================
 
 export async function obtenerReportesCompletos(
   req,
@@ -1189,65 +2302,82 @@ export async function obtenerReportesCompletos(
 
   const {
     id
-  } = req.params;
+  } =
+    req.params;
 
 
   try {
 
-    /* ==================================================
-       VALIDAR ACCESO AL PACIENTE
-    ================================================== */
-
     const [
       pacienteAccessRows
-    ] = await pool.query(
-      `
-      SELECT
-        p.id_paciente,
-        p.id_mirror,
-        p.nombre,
-        p.sexo,
-        p.fecha_nacimiento,
-        p.edad,
-        p.correo,
-        p.telefono,
-        p.direccion,
-        p.antecedentes,
+    ] =
+      await pool.query(
+        `
+          SELECT
 
-        ps.id_psicologo,
+            p.id_paciente,
+            p.id_mirror,
+            p.nombre,
+            p.sexo,
+            p.fecha_nacimiento,
+            p.edad,
+            p.correo,
+            p.telefono,
+            p.direccion,
+            p.antecedentes,
 
-        u.area AS area_psicologo,
-        u.id_admin_padre
+            ps.id_psicologo,
 
-      FROM pacientes p
+            u.id_usuario
+              AS id_usuario_profesional,
 
-      INNER JOIN psicologos ps
-        ON p.id_psicologo =
-           ps.id_psicologo
+            u.area
+              AS area_psicologo,
 
-      INNER JOIN usuarios u
-        ON ps.id_usuario =
-           u.id_usuario
+            u.rol
+              AS rol_profesional,
 
-      WHERE
-        p.id_paciente = ?
+            u.id_admin_padre,
 
-      LIMIT 1
-      `,
-      [
-        id
-      ]
-    );
+            o.perfil_independiente
+
+          FROM pacientes p
+
+          INNER JOIN psicologos ps
+            ON ps.id_psicologo =
+               p.id_psicologo
+
+          INNER JOIN usuarios u
+            ON u.id_usuario =
+               ps.id_usuario
+
+          LEFT JOIN organizaciones o
+            ON o.id_organizacion =
+               u.id_organizacion
+
+          WHERE
+            p.id_paciente = ?
+
+          LIMIT 1
+        `,
+        [
+          id
+        ]
+      );
 
 
     if (
       !pacienteAccessRows.length
     ) {
 
-      return res.status(404).json({
-        message:
-          "Paciente no encontrado"
-      });
+      return res
+        .status(404)
+        .json({
+
+          message:
+            "Paciente no encontrado"
+
+        });
 
     }
 
@@ -1256,44 +2386,47 @@ export async function obtenerReportesCompletos(
       pacienteAccessRows[0];
 
 
-    /* ==================================================
-       VALIDAR PERMISOS
-    ================================================== */
-
     let tieneAcceso =
       false;
 
 
-    /* ================================================
-       PSICÓLOGO
-    ================================================ */
-
     if (
-      req.user?.role === 2
+      Number(
+        req.user?.role
+      ) === 2
     ) {
 
+      const idPsicologoSesion =
+        await obtenerIdPsicologoSesion(
+          req
+        );
+
+
       tieneAcceso =
+        Boolean(
+          idPsicologoSesion
+        ) &&
+
         Number(
-          req.user.id_psicologo
+          idPsicologoSesion
         ) ===
         Number(
-          paciente.id_psicologo
+          paciente
+            .id_psicologo
         );
 
     }
 
 
-    /* ================================================
-       ADMIN MASTER
-    ================================================ */
-
     else if (
-      req.user?.role === 1 &&
-      String(
-        req.user?.tipo_admin || ""
-      )
-        .trim()
-        .toLowerCase() ===
+      Number(
+        req.user?.role
+      ) === 1 &&
+
+      normalizar(
+        req.user
+          ?.tipo_admin
+      ) ===
         "master"
     ) {
 
@@ -1303,53 +2436,45 @@ export async function obtenerReportesCompletos(
     }
 
 
-    /* ================================================
-       ADMIN NORMAL
-    ================================================ */
-
     else if (
-      req.user?.role === 1 &&
-      String(
-        req.user?.tipo_admin || ""
-      )
-        .trim()
-        .toLowerCase() ===
+      Number(
+        req.user?.role
+      ) === 1 &&
+
+      normalizar(
+        req.user
+          ?.tipo_admin
+      ) ===
         "normal"
     ) {
 
       const idAdmin =
-        req.user?.id_usuario;
+        Number(
+          req.user
+            ?.id_usuario
+        );
 
 
       const areaAdmin =
-        req.user?.area
-          ? String(
-              req.user.area
-            )
-              .trim()
-              .toLowerCase()
-          : null;
+        normalizar(
+          req.user
+            ?.area
+        );
 
 
       const areaPaciente =
-        paciente.area_psicologo
-          ? String(
-              paciente.area_psicologo
-            )
-              .trim()
-              .toLowerCase()
-          : null;
+        normalizar(
+          paciente
+            .area_psicologo
+        );
 
 
       tieneAcceso =
         Number(
-          paciente.id_admin_padre
+          paciente
+            .id_admin_padre
         ) ===
-        Number(
-          idAdmin
-        )
-
-        &&
+        idAdmin &&
 
         areaPaciente ===
         areaAdmin;
@@ -1361,162 +2486,162 @@ export async function obtenerReportesCompletos(
       !tieneAcceso
     ) {
 
-      return res.status(403).json({
-        message:
-          "No tienes autorización para consultar el expediente de este paciente"
-      });
+      return res
+        .status(403)
+        .json({
+
+          message:
+            "No tienes autorización para consultar el expediente de este paciente"
+
+        });
 
     }
 
 
-    /* ==================================================
-       1. HISTORIAL INICIAL
-    ================================================== */
-
     const [
       historialInicial
-    ] = await pool.query(
-      `
-      SELECT *
-      FROM historial_inicial
-      WHERE id_paciente = ?
-      LIMIT 1
-      `,
-      [
-        id
-      ]
-    );
+    ] =
+      await pool.query(
+        `
+          SELECT *
 
+          FROM historial_inicial
 
-    /* ==================================================
-       2. RESULTADOS DE PRUEBAS
-    ================================================== */
+          WHERE
+            id_paciente = ?
+
+          LIMIT 1
+        `,
+        [
+          id
+        ]
+      );
+
 
     const [
       resultados
-    ] = await pool.query(
-      `
-      SELECT
-        r.id_resultado,
-        r.id_prueba,
-        p.nombre AS prueba,
-        r.puntaje_total,
-        r.interpretacion,
+    ] =
+      await pool.query(
+        `
+          SELECT
 
-        DATE_FORMAT(
-          r.fecha,
-          '%d/%m/%Y %H:%i'
-        ) AS fecha
+            r.id_resultado,
+            r.id_prueba,
 
-      FROM resultados_prueba r
+            p.nombre
+              AS prueba,
 
-      JOIN pruebas p
-        ON r.id_prueba =
-           p.id_prueba
+            r.puntaje_total,
+            r.interpretacion,
 
-      WHERE
-        r.id_paciente = ?
+            DATE_FORMAT(
+              r.fecha,
+              '%d/%m/%Y %H:%i'
+            )
+              AS fecha
 
-      ORDER BY
-        r.fecha DESC
-      `,
-      [
-        id
-      ]
-    );
+          FROM resultados_prueba r
 
+          JOIN pruebas p
+            ON p.id_prueba =
+               r.id_prueba
 
-    /* ==================================================
-       3. HISTORIAL DE SEGUIMIENTO
-    ================================================== */
+          WHERE
+            r.id_paciente = ?
+
+          ORDER BY
+            r.fecha DESC
+        `,
+        [
+          id
+        ]
+      );
+
 
     const [
       seguimiento
-    ] = await pool.query(
-      `
-      SELECT
-        id_seguimiento,
-        fecha,
-        diagnostico,
-        tratamiento,
-        evolucion,
-        observaciones
+    ] =
+      await pool.query(
+        `
+          SELECT
 
-      FROM historial_seguimiento
+            id_seguimiento,
+            fecha,
+            diagnostico,
+            tratamiento,
+            evolucion,
+            observaciones
 
-      WHERE
-        id_paciente = ?
+          FROM historial_seguimiento
 
-      ORDER BY
-        fecha DESC
-      `,
-      [
-        id
-      ]
-    );
+          WHERE
+            id_paciente = ?
 
+          ORDER BY
+            fecha DESC
+        `,
+        [
+          id
+        ]
+      );
 
-    /* ==================================================
-       4. SESIONES + VIDEOS
-    ================================================== */
 
     const [
       sesiones
-    ] = await pool.query(
-      `
-      SELECT
-        s.id_sesion,
-        s.fecha,
-        s.notas,
+    ] =
+      await pool.query(
+        `
+          SELECT
 
-        GROUP_CONCAT(
-          v.ruta_video
-          SEPARATOR '||'
-        ) AS videos
+            s.id_sesion,
+            s.fecha,
+            s.notas,
 
-      FROM sesiones s
+            GROUP_CONCAT(
+              v.ruta_video
+              SEPARATOR '||'
+            )
+              AS videos
 
-      LEFT JOIN videos_sesion v
-        ON v.id_sesion =
-           s.id_sesion
+          FROM sesiones s
 
-      WHERE
-        s.id_paciente = ?
+          LEFT JOIN videos_sesion v
+            ON v.id_sesion =
+               s.id_sesion
 
-      GROUP BY
-        s.id_sesion
+          WHERE
+            s.id_paciente = ?
 
-      ORDER BY
-        s.fecha DESC
-      `,
-      [
-        id
-      ]
-    );
+          GROUP BY
+            s.id_sesion
 
+          ORDER BY
+            s.fecha DESC
+        `,
+        [
+          id
+        ]
+      );
 
-    /* ==================================================
-       5. FORMATEAR VIDEOS
-    ================================================== */
 
     const sesionesFormateadas =
       sesiones.map(
-        (s) => ({
+        sesion => ({
 
-          ...s,
+          ...sesion,
 
           videos:
-            s.videos
-              ? s.videos.split("||")
+            sesion.videos
+              ? sesion
+                  .videos
+                  .split(
+                    "||"
+                  )
               : []
 
         })
       );
 
-
-    /* ==================================================
-       RESPUESTA
-    ================================================== */
 
     return res.json({
 
@@ -1526,9 +2651,11 @@ export async function obtenerReportesCompletos(
         historialInicial[0] ||
         null,
 
-      resultados,
+      resultados:
+        resultados || [],
 
-      seguimiento,
+      seguimiento:
+        seguimiento || [],
 
       sesiones:
         sesionesFormateadas
@@ -1536,7 +2663,9 @@ export async function obtenerReportesCompletos(
     });
 
 
-  } catch (err) {
+  } catch (
+    err
+  ) {
 
     console.error(
       "❌ Error al obtener reportes completos:",
@@ -1544,10 +2673,20 @@ export async function obtenerReportesCompletos(
     );
 
 
-    return res.status(500).json({
-      message:
-        "Error al obtener reportes completos"
-    });
+    return res
+      .status(500)
+      .json({
+
+        message:
+          "Error al obtener reportes completos",
+
+        error:
+          process.env.NODE_ENV ===
+          "development"
+            ? err.message
+            : undefined
+
+      });
 
   }
 

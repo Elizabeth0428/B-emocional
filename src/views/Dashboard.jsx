@@ -2,19 +2,22 @@
 
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  getCurrentUser,
-  getToken
-} from "../services/AuthService";
+import {getCurrentUser,getToken} from "../services/AuthService";
 
 import Avatar from "../components/Avatar.jsx";
 import WorkflowGuide from "../components/WorkflowGuide.jsx";
 
-const API_URL = import.meta.env.VITE_API_URL || (window.location.protocol === 'https:' ? 'https://reflejoyalma.com' : `http://${window.location.hostname}:5000`);
+const API_URL =
+  import.meta.env.VITE_API_URL ||
+  `http://${window.location.hostname}:5000`;
 
 const Dashboard = ({ onNavigate }) => {
   const navigate = useNavigate();
   const user = getCurrentUser();
+
+  // ==================================================
+  // EMOJIS
+  // ==================================================
 
   const emojis = [
     "😀",
@@ -61,6 +64,10 @@ const Dashboard = ({ onNavigate }) => {
     );
   };
 
+  // ==================================================
+  // DATOS DEL USUARIO
+  // ==================================================
+
   const tipoAdmin =
     user?.tipo_admin
       ? String(
@@ -72,14 +79,18 @@ const Dashboard = ({ onNavigate }) => {
 
   const area =
     user?.area
-      ? String(user.area)
+      ? String(
+          user.area
+        )
           .trim()
           .toLowerCase()
       : null;
 
   const rol =
     user?.rol
-      ? String(user.rol)
+      ? String(
+          user.rol
+        )
           .trim()
           .toLowerCase()
       : null;
@@ -108,22 +119,144 @@ const Dashboard = ({ onNavigate }) => {
     user?.role === 2 &&
     rol === "independiente";
 
+  // ==================================================
+  // PERFIL FUNCIONAL DEL INDEPENDIENTE
+  //
+  // El usuario sigue siendo:
+  // rol  = independiente
+  // area = independiente
+  //
+  // Pero su organización define si trabaja como:
+  // - clinica
+  // - rh
+  //
+  // Primero se intenta leer desde el usuario autenticado.
+  // Como respaldo temporal, se consulta el registro guardado
+  // durante el flujo de compra/registro.
+  // ==================================================
+
+  let perfilIndependienteGuardado =
+    null;
+
+  try {
+
+    const registroGuardado =
+      sessionStorage.getItem(
+        "registro_independiente"
+      );
+
+    if (
+      registroGuardado
+    ) {
+
+      const registro =
+        JSON.parse(
+          registroGuardado
+        );
+
+      const mismoUsuario =
+        !registro?.usuario?.id_usuario ||
+        !user?.id_usuario ||
+        Number(
+          registro.usuario.id_usuario
+        ) ===
+        Number(
+          user.id_usuario
+        );
+
+      const mismoCorreo =
+        !registro?.correo ||
+        !user?.correo ||
+        String(
+          registro.correo
+        )
+          .trim()
+          .toLowerCase() ===
+        String(
+          user.correo
+        )
+          .trim()
+          .toLowerCase();
+
+      if (
+        mismoUsuario &&
+        mismoCorreo
+      ) {
+
+        perfilIndependienteGuardado =
+          registro
+            ?.perfil_independiente ||
+          registro
+            ?.organizacion
+            ?.perfil_independiente ||
+          null;
+
+      }
+
+    }
+
+  } catch (
+    error
+  ) {
+
+    console.warn(
+      "⚠️ No fue posible leer el perfil independiente guardado:",
+      error
+    );
+
+  }
+
+  const perfilIndependiente =
+    String(
+      user?.perfil_independiente ||
+      user?.perfilIndependiente ||
+      user?.organizacion
+        ?.perfil_independiente ||
+      user?.organization
+        ?.perfil_independiente ||
+      perfilIndependienteGuardado ||
+      ""
+    )
+      .trim()
+      .toLowerCase();
+
+  const esIndependienteClinica =
+    esUsuarioIndependiente &&
+    perfilIndependiente ===
+      "clinica";
+
+  const esIndependienteRH =
+    esUsuarioIndependiente &&
+    perfilIndependiente ===
+      "rh";
+
+  const esPerfilClinico =
+    esPsicologo ||
+    esIndependienteClinica;
+
+  const esPerfilRH =
+    esUsuarioRH ||
+    esIndependienteRH;
+
+  // ==================================================
+  // ESTADÍSTICAS
+  // ==================================================
+
   const [
     stats,
     setStats
   ] = useState({
     pacientes: 0,
-
     prospectos: 0,
     prospectosActivos: 0,
     empleados: 0,
-
     citas: 0,
     proximaCita: null,
     sesionesAbiertas: 0,
     seguimientosPendientes: 0,
     pruebasPendientes: 0,
-    preanalisisPendientes: 0
+    preanalisisPendientes: 0,
+    canalizacionesPendientes: 0
   });
 
   const [
@@ -135,7 +268,9 @@ const Dashboard = ({ onNavigate }) => {
     const cargarDatos =
       async () => {
         try {
-          setStatsLoading(true);
+          setStatsLoading(
+            true
+          );
 
           const token =
             getToken();
@@ -144,7 +279,11 @@ const Dashboard = ({ onNavigate }) => {
             return;
           }
 
-          if (esPsicologo) {
+          // ============================================
+          // PSICÓLOGO
+          // ============================================
+
+          if (esPerfilClinico) {
             const response =
               await fetch(
                 `${API_URL}/api/pacientes`,
@@ -156,12 +295,16 @@ const Dashboard = ({ onNavigate }) => {
                 }
               );
 
-            if (response.ok) {
+            if (
+              response.ok
+            ) {
               const data =
                 await response.json();
 
               const lista =
-                Array.isArray(data)
+                Array.isArray(
+                  data
+                )
                   ? data
                   : Array.isArray(
                       data?.pacientes
@@ -172,6 +315,7 @@ const Dashboard = ({ onNavigate }) => {
               setStats(
                 prev => ({
                   ...prev,
+
                   pacientes:
                     lista.length
                 })
@@ -179,7 +323,46 @@ const Dashboard = ({ onNavigate }) => {
             }
           }
 
-          if (esUsuarioRH) {
+          // ============================================
+          // CANALIZACIONES RECIBIDAS DEL PSICÓLOGO
+          // ============================================
+
+          if (esPsicologo) {
+            const responseCanalizaciones =
+              await fetch(
+                `${API_URL}/api/psicologos/canalizaciones`,
+                {
+                  headers: {
+                    Authorization:
+                      `Bearer ${token}`
+                  }
+                }
+              );
+
+            if (responseCanalizaciones.ok) {
+              const dataCanalizaciones =
+                await responseCanalizaciones.json();
+
+              setStats(
+                prev => ({
+                  ...prev,
+                  canalizacionesPendientes:
+                    Number(
+                      dataCanalizaciones?.pendientes ||
+                      0
+                    )
+                })
+              );
+            }
+          }
+
+          // ============================================
+          // RH
+          // ============================================
+
+          if (
+            esPerfilRH
+          ) {
             const [
               respuestaProspectos,
               respuestaEmpleados
@@ -206,12 +389,15 @@ const Dashboard = ({ onNavigate }) => {
                 )
               ]);
 
-            let listaProspectos = [];
+            let listaProspectos =
+              [];
 
             if (
               respuestaProspectos.status ===
                 "fulfilled" &&
-              respuestaProspectos.value.ok
+              respuestaProspectos
+                .value
+                .ok
             ) {
               const data =
                 await respuestaProspectos
@@ -219,10 +405,13 @@ const Dashboard = ({ onNavigate }) => {
                   .json();
 
               listaProspectos =
-                Array.isArray(data)
+                Array.isArray(
+                  data
+                )
                   ? data
                   : Array.isArray(
-                      data?.prospectos
+                      data
+                        ?.prospectos
                     )
                   ? data.prospectos
                   : Array.isArray(
@@ -237,8 +426,10 @@ const Dashboard = ({ onNavigate }) => {
                 prospecto => {
                   const estatus =
                     String(
-                      prospecto.estatus ||
-                      prospecto.estado ||
+                      prospecto
+                        .estatus ||
+                      prospecto
+                        .estado ||
                       ""
                     )
                       .trim()
@@ -253,12 +444,15 @@ const Dashboard = ({ onNavigate }) => {
                 }
               );
 
-            let listaEmpleados = [];
+            let listaEmpleados =
+              [];
 
             if (
               respuestaEmpleados.status ===
                 "fulfilled" &&
-              respuestaEmpleados.value.ok
+              respuestaEmpleados
+                .value
+                .ok
             ) {
               const data =
                 await respuestaEmpleados
@@ -266,10 +460,13 @@ const Dashboard = ({ onNavigate }) => {
                   .json();
 
               listaEmpleados =
-                Array.isArray(data)
+                Array.isArray(
+                  data
+                )
                   ? data
                   : Array.isArray(
-                      data?.empleados
+                      data
+                        ?.empleados
                     )
                   ? data.empleados
                   : Array.isArray(
@@ -283,13 +480,16 @@ const Dashboard = ({ onNavigate }) => {
               "📊 Dashboard RH:",
               {
                 prospectos:
-                  listaProspectos.length,
+                  listaProspectos
+                    .length,
 
                 prospectosActivos:
-                  listaActivos.length,
+                  listaActivos
+                    .length,
 
                 empleados:
-                  listaEmpleados.length
+                  listaEmpleados
+                    .length
               }
             );
 
@@ -298,34 +498,46 @@ const Dashboard = ({ onNavigate }) => {
                 ...prev,
 
                 prospectos:
-                  listaProspectos.length,
+                  listaProspectos
+                    .length,
 
                 prospectosActivos:
-                  listaActivos.length,
+                  listaActivos
+                    .length,
 
                 empleados:
-                  listaEmpleados.length
+                  listaEmpleados
+                    .length
               })
             );
           }
 
-        } catch (err) {
+        } catch (
+          err
+        ) {
           console.warn(
             "⚠️ Error cargando información del Dashboard:",
             err
           );
 
         } finally {
-          setStatsLoading(false);
+          setStatsLoading(
+            false
+          );
         }
       };
 
     cargarDatos();
 
   }, [
-    esPsicologo,
-    esUsuarioRH
+    esPerfilClinico,
+    esPerfilRH,
+    esPsicologo
   ]);
+
+  // ==================================================
+  // TUTORIAL Y GUÍA
+  // ==================================================
 
   const userKey =
     user?.id_usuario ||
@@ -342,6 +554,11 @@ const Dashboard = ({ onNavigate }) => {
     setMostrarTutorial
   ] = useState(false);
 
+  const [
+    mostrarWorkflowGuide,
+    setMostrarWorkflowGuide
+  ] = useState(false);
+
   useEffect(() => {
     const visitas =
       Number(
@@ -350,13 +567,28 @@ const Dashboard = ({ onNavigate }) => {
         ) || 0
       );
 
-    if (visitas < 2) {
-      setMostrarTutorial(true);
+    if (
+      visitas < 2
+    ) {
+      setMostrarTutorial(
+        true
+      );
+
+      setMostrarWorkflowGuide(
+        true
+      );
+
+    } else {
+      setMostrarWorkflowGuide(
+        false
+      );
     }
 
     localStorage.setItem(
       tutorialKey,
-      String(visitas + 1)
+      String(
+        visitas + 1
+      )
     );
 
   }, [
@@ -368,631 +600,918 @@ const Dashboard = ({ onNavigate }) => {
     setAyuda
   ] = useState(null);
 
-  const cerrarAyudas = () => {
-    setMostrarTutorial(false);
-    setAyuda(null);
-  };
+  const cerrarAyudas =
+    () => {
+      setMostrarTutorial(
+        false
+      );
 
-  const obtenerTutorial = () => {
-    if (esPsicologo) {
-      return {
-        titulo:
-          "¿Cómo usar tu Dashboard clínico?",
+      setAyuda(
+        null
+      );
+    };
 
-        descripcion:
-          "Estas son las tres opciones principales para comenzar. El trabajo clínico detallado se realiza dentro del expediente de cada paciente.",
+  // ==================================================
+  // TUTORIAL SEGÚN USUARIO
+  // ==================================================
 
-        pasos: [
-          {
-            icon: "➕",
-            titulo:
-              "Registrar paciente",
-            texto:
-              "Aquí registras por primera vez los datos básicos del paciente. Al guardar, MirrorSoul crea su expediente clínico y su identificador."
-          },
+  const obtenerTutorial =
+    () => {
 
-          {
-            icon: "👥",
-            titulo:
-              "Ver pacientes",
-            texto:
-              "Aquí aparecen todos los pacientes que has registrado. Abre un expediente para continuar con su proceso clínico."
-          },
+      if (
+        esPerfilClinico
+      ) {
+        return {
+          titulo:
+            "¿Cómo usar tu Dashboard clínico?",
 
-          {
-            icon: "📅",
-            titulo:
-              "Citas",
-            texto:
-              "Aquí puedes consultar, organizar y administrar las citas de tus pacientes."
-          }
-        ]
-      };
-    }
+          descripcion:
+            "Estas son las opciones principales para comenzar. El trabajo clínico detallado se realiza dentro del expediente de cada paciente.",
 
-    if (esUsuarioRH) {
-      return {
-        titulo:
-          "¿Cómo usar tu Dashboard de RH?",
+          pasos: [
+            ...(esPsicologo
+              ? [
+                  {
+                    icon:
+                      "📨",
 
-        descripcion:
-          "Desde aquí inicias y administras los procesos de selección.",
+                    titulo:
+                      "Canalizaciones recibidas",
 
-        pasos: [
-          {
-            icon: "➕",
-            titulo:
-              "Registrar prospecto",
-            texto:
-              "Aquí registras a una persona que inicia un proceso de selección."
-          },
+                    texto:
+                      "Aquí revisas a las personas que te seleccionaron mediante una canalización de RH. Puedes aceptar o rechazar cada solicitud."
+                  }
+                ]
+              : []),
 
-          {
-            icon: "👥",
-            titulo:
-              "Ver prospectos",
-            texto:
-              "Aquí consultas los expedientes de selección y continúas con entrevistas, pruebas y seguimiento."
-          },
+            {
+              icon:
+                "➕",
 
-          {
-            icon: "👔",
-            titulo:
-              "Ver empleados",
-            texto:
-              "Aquí aparecen las personas que ya fueron convertidas en empleados."
-          },
+              titulo:
+                "Registrar paciente",
 
-          {
-            icon: "📅",
-            titulo:
-              "Calendario",
-            texto:
-              "Aquí administras entrevistas, citas y actividades del área de Recursos Humanos."
-          }
-        ]
-      };
-    }
+              texto:
+                "Aquí registras por primera vez los datos básicos del paciente. Al guardar, MirrorSoul crea su expediente clínico y su identificador."
+            },
 
-    if (esMaster) {
-      return {
-        titulo:
-          "¿Cómo usar el Dashboard Master?",
+            {
+              icon:
+                "👥",
 
-        descripcion:
-          "Desde aquí administras la estructura general de MirrorSoul.",
+              titulo:
+                "Ver pacientes",
 
-        pasos: [
-          {
-            icon: "🛡️",
-            titulo:
-              "Administradores",
-            texto:
-              "Registra administradores responsables de cada área."
-          },
+              texto:
+                "Aquí aparecen todos los pacientes que tienes asignados. Abre un expediente para continuar con su proceso clínico."
+            },
 
-          {
-            icon: "🧠",
-            titulo:
-              "Psicólogos",
-            texto:
-              "Registra y consulta psicólogos del sistema."
-          },
+            {
+              icon:
+                "📅",
 
-          {
-            icon: "💼",
-            titulo:
-              "Recursos Humanos",
-            texto:
-              "Administra usuarios del área de RH."
-          },
+              titulo:
+                "Citas",
 
-          {
-            icon: "🎓",
-            titulo:
-              "Educativo",
-            texto:
-              "Administra usuarios del área educativa."
-          }
-        ]
-      };
-    }
+              texto:
+                "Aquí puedes consultar, organizar y administrar las citas de tus pacientes."
+            },
 
-    if (esAdminNormal) {
+            {
+              icon:
+                "🔁",
+
+              titulo:
+                "Transferencias",
+
+              texto:
+                "Desde aquí puedes transferir uno de tus pacientes a otro psicólogo autorizado de la misma administración clínica."
+            }
+          ]
+        };
+      }
+
+      if (
+        esPerfilRH
+      ) {
+        return {
+          titulo:
+            "¿Cómo usar tu Dashboard de RH?",
+
+          descripcion:
+            "Desde aquí inicias y administras los procesos de selección y los expedientes laborales.",
+
+          pasos: [
+            {
+              icon:
+                "➕",
+
+              titulo:
+                "Registrar prospecto",
+
+              texto:
+                "Aquí registras a una persona que inicia un proceso de selección."
+            },
+
+            {
+              icon:
+                "👥",
+
+              titulo:
+                "Ver prospectos",
+
+              texto:
+                "Aquí consultas los expedientes de selección y continúas con entrevistas, pruebas y seguimiento."
+            },
+
+            {
+              icon:
+                "👔",
+
+              titulo:
+                "Ver empleados",
+
+              texto:
+                "Aquí aparecen las personas que ya fueron convertidas en empleados."
+            },
+
+            {
+              icon:
+                "📅",
+
+              titulo:
+                "Calendario",
+
+              texto:
+                "Aquí administras entrevistas, citas y actividades del área de Recursos Humanos."
+            },
+
+            {
+              icon:
+                "🔁",
+
+              titulo:
+                "Transferencias",
+
+              texto:
+                "Desde aquí puedes reasignar empleados únicamente a responsables RH autorizados de tu misma empresa."
+            }
+          ]
+        };
+      }
+
+      if (
+        esMaster
+      ) {
+        return {
+          titulo:
+            "¿Cómo usar el Dashboard Master?",
+
+          descripcion:
+            "Desde aquí administras la estructura comercial y general de MirrorSoul.",
+
+          pasos: [
+            {
+              icon:
+                "💼",
+
+              titulo:
+                "Administración comercial",
+
+              texto:
+                "Gestiona organizaciones, planes, suscripciones y licencias."
+            },
+
+            {
+              icon:
+                "🏢",
+
+              titulo:
+                "Organizaciones",
+
+              texto:
+                "Desde Administración comercial puedes consultar cada organización, su plan, suscripción y licencias."
+            },
+
+            {
+              icon:
+                "💳",
+
+              titulo:
+                "Suscripciones",
+
+              texto:
+                "Activa o renueva suscripciones cuando sea necesario."
+            },
+
+            {
+              icon:
+                "📦",
+
+              titulo:
+                "Planes",
+
+              texto:
+                "Crea, modifica, activa o desactiva los planes comerciales."
+            },
+
+            {
+              icon:
+                "🔁",
+
+              titulo:
+                "Transferencias",
+
+              texto:
+                "Administra reasignaciones autorizadas manteniendo Clínica y RH separados."
+            }
+          ]
+        };
+      }
+
+      if (
+        esAdminNormal
+      ) {
+        const permiteTransferencias =
+          area === "clinica" ||
+          area === "rh";
+
+        return {
+          titulo:
+            "¿Cómo usar esta pantalla?",
+
+          descripcion:
+            "Desde aquí puedes registrar y consultar los usuarios correspondientes a tu área.",
+
+          pasos: [
+            {
+              icon:
+                "➕",
+
+              titulo:
+                "Registrar usuario",
+
+              texto:
+                "Utiliza esta opción para agregar nuevos integrantes a tu equipo."
+            },
+
+            {
+              icon:
+                "👥",
+
+              titulo:
+                "Consultar usuarios",
+
+              texto:
+                "Aquí puedes revisar los usuarios que has registrado."
+            },
+
+            ...(permiteTransferencias
+              ? [
+                  {
+                    icon:
+                      "🔁",
+
+                    titulo:
+                      "Transferencias",
+
+                    texto:
+                      area ===
+                      "clinica"
+                        ? "Puedes reasignar pacientes únicamente entre psicólogos de tu misma administración clínica."
+                        : "Puedes reasignar empleados únicamente entre usuarios RH de tu misma empresa."
+                  }
+                ]
+              : [])
+          ]
+        };
+      }
+
+      if (
+        esUsuarioEducativo
+      ) {
+        return {
+          titulo:
+            "¿Cómo usar tu área educativa?",
+
+          descripcion:
+            "Desde aquí accedes a las herramientas correspondientes al área educativa.",
+
+          pasos: [
+            {
+              icon:
+                "🎓",
+
+              titulo:
+                "Mi área educativa",
+
+              texto:
+                "Ingresa aquí para comenzar a utilizar las herramientas educativas disponibles."
+            }
+          ]
+        };
+      }
+
       return {
         titulo:
           "¿Cómo usar esta pantalla?",
 
         descripcion:
-          "Desde aquí puedes registrar y consultar los usuarios correspondientes a tu área.",
+          "Selecciona una opción para comenzar.",
 
         pasos: [
           {
-            icon: "➕",
-            titulo:
-              "Registrar usuario",
-            texto:
-              "Utiliza esta opción para agregar nuevos integrantes a tu equipo."
-          },
+            icon:
+              "👤",
 
-          {
-            icon: "👥",
             titulo:
-              "Consultar usuarios",
+              "Mi área",
+
             texto:
-              "Aquí puedes revisar los usuarios que has registrado."
+              "Desde aquí puedes acceder a las herramientas disponibles para tu cuenta."
           }
         ]
       };
-    }
-
-    if (
-      esUsuarioEducativo
-    ) {
-      return {
-        titulo:
-          "¿Cómo usar tu área educativa?",
-
-        descripcion:
-          "Desde aquí accedes a las herramientas correspondientes al área educativa.",
-
-        pasos: [
-          {
-            icon: "🎓",
-            titulo:
-              "Mi área educativa",
-            texto:
-              "Ingresa aquí para comenzar a utilizar las herramientas educativas disponibles."
-          }
-        ]
-      };
-    }
-
-    return {
-      titulo:
-        "¿Cómo usar esta pantalla?",
-
-      descripcion:
-        "Selecciona una opción para comenzar.",
-
-      pasos: [
-        {
-          icon: "👤",
-          titulo:
-            "Mi área",
-          texto:
-            "Desde aquí puedes acceder a las herramientas disponibles para tu cuenta."
-        }
-      ]
     };
-  };
 
   const tutorial =
     obtenerTutorial();
 
-  const obtenerWorkflow =
-    () => {
+  // ==================================================
+// WORKFLOW
+// ==================================================
 
-      if (esPsicologo) {
-        const tienePacientes =
-          stats.pacientes > 0;
+const obtenerWorkflow =
+  () => {
 
-        return {
-          title:
-            "Ruta de inicio",
+    // ==================================================
+    // PSICÓLOGO
+    // ==================================================
 
-          description:
-            "Sigue estos pasos para comenzar y organizar tu trabajo clínico.",
+    if (
+      esPerfilClinico
+    ) {
 
-          steps: [
-            {
-              id:
-                "registro",
+      const tienePacientes =
+        stats.pacientes >
+        0;
 
-              icon:
-                "👤",
+      return {
 
-              title:
-                "Registrar paciente",
+        title:
+          "Ruta de inicio",
 
-              description:
-                "Crea el expediente clínico del paciente.",
+        description:
+          "Sigue estos pasos para comenzar y organizar tu trabajo clínico.",
 
-              status:
-                tienePacientes
-                  ? "completed"
-                  : "current",
+        steps: [
 
-              action:
-                "registrarPaciente"
-            },
+          {
+            id:
+              "perfil_profesional",
 
-            {
-              id:
-                "pacientes",
+            icon:
+              "🪪",
 
-              icon:
-                "📁",
+            title:
+              "Mi perfil profesional",
 
-              title:
-                "Ver pacientes",
+            description:
+              "Completa tus datos profesionales, áreas de atención, modalidades, ubicación y honorarios.",
 
-              description:
-                "Consulta y administra los expedientes clínicos.",
+            status:
+              "current",
 
-              status:
-                tienePacientes
-                  ? "current"
-                  : "pending",
+            route:
+              "/mi-perfil-profesional"
+          },
 
-              action:
-                "pacientes"
-            },
+          ...(esPsicologo
+            ? [
+                {
+                  id:
+                    "canalizaciones",
 
-            {
-              id:
-                "citas",
+                  icon:
+                    "📨",
 
-              icon:
-                "📅",
+                  title:
+                    "Canalizaciones recibidas",
 
-              title:
-                "Citas",
+                  description:
+                    "Revisa las solicitudes de atención enviadas por empleados mediante RH.",
 
-              description:
-                "Consulta y organiza las citas de tus pacientes.",
+                  status:
+                    stats.canalizacionesPendientes > 0
+                      ? "current"
+                      : "pending",
 
-              status:
-                tienePacientes
-                  ? "current"
-                  : "pending",
+                  route:
+                    "/mis-canalizaciones"
+                }
+              ]
+            : []),
 
-              action:
-                "citas"
-            }
-          ]
-        };
-      }
+          {
+            id:
+              "registro",
 
-      if (esUsuarioRH) {
-        const tieneProspectos =
-          stats.prospectos > 0;
+            icon:
+              "👤",
 
-        const tieneProspectosActivos =
-          stats.prospectosActivos > 0;
+            title:
+              "Registrar paciente",
 
-        const tieneEmpleados =
-          stats.empleados > 0;
+            description:
+              "Crea el expediente clínico del paciente.",
 
-        return {
-          title:
-            "Ruta del proceso de selección",
+            status:
+              tienePacientes
+                ? "completed"
+                : "pending",
 
-          description:
-            "Sigue las etapas principales para organizar el proceso del prospecto.",
+            action:
+              "registrarPaciente"
+          },
 
-          steps: [
-            {
-              id:
-                "registro",
-
-              icon:
-                "👤",
-
-              title:
-                "Registrar prospecto",
-
-              description:
-                "Registra a la persona candidata.",
-
-              status:
-                tieneProspectos ||
-                tieneEmpleados
-                  ? "completed"
-                  : "current",
+          {
+            id:
+              "pacientes",
 
-              route:
-                "/registrar-prospecto"
-            },
+            icon:
+              "📁",
 
-            {
-              id:
-                "expediente",
+            title:
+              "Ver pacientes",
 
-              icon:
-                "📁",
+            description:
+              "Consulta y administra los expedientes clínicos.",
 
-              title:
-                "Ver prospectos",
+            status:
+              tienePacientes
+                ? "current"
+                : "pending",
 
-              description:
-                "Abre y administra los expedientes.",
+            action:
+              "pacientes"
+          },
 
-              status:
-                tieneProspectos ||
-                tieneEmpleados
-                  ? "completed"
-                  : "pending",
+          {
+            id:
+              "citas",
 
-              route:
-                "/prospectos"
-            },
+            icon:
+              "📅",
 
-            {
-              id:
-                "evaluacion",
+            title:
+              "Citas",
 
-              icon:
-                "🧪",
+            description:
+              "Consulta y organiza las citas de tus pacientes.",
 
-              title:
-                "Evaluación",
-
-              description:
-                "Continúa con entrevistas, pruebas y seguimiento.",
-
-              status:
-                tieneProspectosActivos
-                  ? "current"
-                  : tieneEmpleados ||
-                    tieneProspectos
-                  ? "completed"
-                  : "pending",
-
-              route:
-                "/prospectos"
-            },
+            status:
+              tienePacientes
+                ? "current"
+                : "pending",
 
-            {
-              id:
-                "empleados",
+            action:
+              "citas"
+          }
 
-              icon:
-                "👔",
+        ]
 
-              title:
-                "Empleados",
+      };
 
-              description:
-                "Consulta las personas incorporadas.",
+    }
 
-              status:
-                tieneEmpleados
-                  ? "completed"
-                  : "pending",
 
-              route:
-                "/empleados"
-            }
-          ]
-        };
-      }
+    // ==================================================
+    // USUARIO RH
+    // ==================================================
 
-      if (
-        esAdminNormal &&
-        area === "clinica"
-      ) {
-        return {
-          title:
-            "Ruta administrativa clínica",
+    if (
+      esPerfilRH
+    ) {
 
-          description:
-            "Registra y administra a los psicólogos de tu equipo.",
+      const tieneProspectos =
+        stats.prospectos >
+        0;
 
-          steps: [
-            {
-              id:
-                "registro",
-
-              icon:
-                "➕",
+      const tieneProspectosActivos =
+        stats.prospectosActivos >
+        0;
 
-              title:
-                "Registrar psicólogo",
+      const tieneEmpleados =
+        stats.empleados >
+        0;
 
-              description:
-                "Agrega un psicólogo a tu equipo.",
-
-              status:
-                "current",
-
-              action:
-                "registerPsychologist"
-            },
-
-            {
-              id:
-                "consulta",
 
-              icon:
-                "👥",
+      return {
 
-              title:
-                "Ver psicólogos",
+        title:
+          "Ruta del proceso de selección",
 
-              description:
-                "Consulta los psicólogos registrados.",
+        description:
+          "Sigue las etapas principales para organizar el proceso del prospecto.",
 
-              status:
-                "pending",
+        steps: [
 
-              action:
-                "psychologistView"
-            }
-          ]
-        };
-      }
+          {
+            id:
+              "registro",
 
-      if (
-        esAdminNormal &&
-        area === "rh"
-      ) {
-        return {
-          title:
-            "Ruta administrativa RH",
+            icon:
+              "👤",
 
-          description:
-            "Registra y administra usuarios de Recursos Humanos.",
+            title:
+              "Registrar prospecto",
 
-          steps: [
-            {
-              id:
-                "registro",
+            description:
+              "Registra a la persona candidata.",
 
-              icon:
-                "➕",
+            status:
+              tieneProspectos ||
+              tieneEmpleados
+                ? "completed"
+                : "current",
 
-              title:
-                "Registrar usuario RH",
+            route:
+              "/registrar-prospecto"
+          },
 
-              description:
-                "Agrega un nuevo integrante de RH.",
-
-              status:
-                "current",
+          {
+            id:
+              "expediente",
 
-              action:
-                "registerUsuarioRH"
-            },
+            icon:
+              "📁",
 
-            {
-              id:
-                "consulta",
+            title:
+              "Ver prospectos",
 
-              icon:
-                "👥",
+            description:
+              "Abre y administra los expedientes.",
 
-              title:
-                "Ver usuarios RH",
+            status:
+              tieneProspectos ||
+              tieneEmpleados
+                ? "completed"
+                : "pending",
 
-              description:
-                "Consulta tu equipo de Recursos Humanos.",
+            route:
+              "/prospectos"
+          },
 
-              status:
-                "pending",
+          {
+            id:
+              "evaluacion",
 
-              action:
-                "usuariosRH"
-            }
-          ]
-        };
-      }
+            icon:
+              "🧪",
 
-      if (
-        esAdminNormal &&
-        area === "educativo"
-      ) {
-        return {
-          title:
-            "Ruta administrativa educativa",
+            title:
+              "Evaluación",
 
-          description:
-            "Registra y administra usuarios de tu área educativa.",
+            description:
+              "Continúa con entrevistas, pruebas y seguimiento.",
 
-          steps: [
-            {
-              id:
-                "registro",
+            status:
+              tieneProspectosActivos
+                ? "current"
+                : tieneEmpleados ||
+                  tieneProspectos
+                ? "completed"
+                : "pending",
 
-              icon:
-                "➕",
+            route:
+              "/prospectos"
+          },
 
-              title:
-                "Registrar usuario",
+          {
+            id:
+              "empleados",
 
-              description:
-                "Agrega un usuario educativo.",
+            icon:
+              "👔",
 
-              status:
-                "current",
+            title:
+              "Empleados",
 
-              action:
-                "registerUsuarioEducativo"
-            },
+            description:
+              "Consulta las personas incorporadas.",
 
-            {
-              id:
-                "consulta",
+            status:
+              tieneEmpleados
+                ? "completed"
+                : "pending",
 
-              icon:
-                "🎓",
+            route:
+              "/empleados"
+          }
 
-              title:
-                "Ver usuarios",
+        ]
 
-              description:
-                "Consulta los usuarios registrados.",
+      };
 
-              status:
-                "pending",
+    }
 
-              action:
-                "usuariosEducativo"
-            }
-          ]
-        };
-      }
 
-      if (
-        esAdminNormal &&
-        area === "independiente"
-      ) {
-        return {
-          title:
-            "Ruta administrativa",
+    // ==================================================
+    // ADMIN NORMAL CLÍNICA
+    // ==================================================
 
-          description:
-            "Registra y administra usuarios de tu equipo.",
+    if (
+      esAdminNormal &&
+      area ===
+        "clinica"
+    ) {
 
-          steps: [
-            {
-              id:
-                "registro",
+      return {
 
-              icon:
-                "➕",
+        title:
+          "Ruta administrativa clínica",
 
-              title:
-                "Registrar usuario",
+        description:
+          "Registra y administra a los psicólogos de tu equipo.",
 
-              description:
-                "Agrega un nuevo usuario.",
+        steps: [
 
-              status:
-                "current",
+          {
+            id:
+              "registro",
 
-              action:
-                "registerUsuarioIndependiente"
-            },
+            icon:
+              "➕",
 
-            {
-              id:
-                "consulta",
+            title:
+              "Registrar psicólogo",
 
-              icon:
-                "👤",
+            description:
+              "Agrega un psicólogo a tu equipo.",
 
-              title:
-                "Ver usuarios",
+            status:
+              "current",
 
-              description:
-                "Consulta los usuarios registrados.",
+            action:
+              "registerPsychologist"
+          },
 
-              status:
-                "pending",
+          {
+            id:
+              "consulta",
 
-              action:
-                "usuariosIndependiente"
-            }
-          ]
-        };
-      }
+            icon:
+              "👥",
 
-      return null;
-    };
+            title:
+              "Ver psicólogos",
 
-  const workflow =
-    obtenerWorkflow();
+            description:
+              "Consulta los psicólogos registrados.",
+
+            status:
+              "pending",
+
+            action:
+              "psychologistView"
+          }
+
+        ]
+
+      };
+
+    }
+
+
+    // ==================================================
+    // ADMIN NORMAL RH
+    // ==================================================
+
+    if (
+      esAdminNormal &&
+      area ===
+        "rh"
+    ) {
+
+      return {
+
+        title:
+          "Ruta administrativa RH",
+
+        description:
+          "Registra y administra usuarios de Recursos Humanos.",
+
+        steps: [
+
+          {
+            id:
+              "registro",
+
+            icon:
+              "➕",
+
+            title:
+              "Registrar usuario RH",
+
+            description:
+              "Agrega un nuevo integrante de RH.",
+
+            status:
+              "current",
+
+            action:
+              "registerUsuarioRH"
+          },
+
+          {
+            id:
+              "consulta",
+
+            icon:
+              "👥",
+
+            title:
+              "Ver usuarios RH",
+
+            description:
+              "Consulta tu equipo de Recursos Humanos.",
+
+            status:
+              "pending",
+
+            action:
+              "usuariosRH"
+          }
+
+        ]
+
+      };
+
+    }
+
+
+    // ==================================================
+    // ADMIN NORMAL EDUCATIVO
+    // ==================================================
+
+    if (
+      esAdminNormal &&
+      area ===
+        "educativo"
+    ) {
+
+      return {
+
+        title:
+          "Ruta administrativa educativa",
+
+        description:
+          "Registra y administra usuarios de tu área educativa.",
+
+        steps: [
+
+          {
+            id:
+              "registro",
+
+            icon:
+              "➕",
+
+            title:
+              "Registrar usuario",
+
+            description:
+              "Agrega un usuario educativo.",
+
+            status:
+              "current",
+
+            action:
+              "registerUsuarioEducativo"
+          },
+
+          {
+            id:
+              "consulta",
+
+            icon:
+              "🎓",
+
+            title:
+              "Ver usuarios",
+
+            description:
+              "Consulta los usuarios registrados.",
+
+            status:
+              "pending",
+
+            action:
+              "usuariosEducativo"
+          }
+
+        ]
+
+      };
+
+    }
+
+
+    // ==================================================
+    // ADMIN NORMAL INDEPENDIENTE
+    // ==================================================
+
+    if (
+      esAdminNormal &&
+      area ===
+        "independiente"
+    ) {
+
+      return {
+
+        title:
+          "Ruta administrativa",
+
+        description:
+          "Registra y administra usuarios de tu equipo.",
+
+        steps: [
+
+          {
+            id:
+              "registro",
+
+            icon:
+              "➕",
+
+            title:
+              "Registrar usuario",
+
+            description:
+              "Agrega un nuevo usuario.",
+
+            status:
+              "current",
+
+            action:
+              "registerUsuarioIndependiente"
+          },
+
+          {
+            id:
+              "consulta",
+
+            icon:
+              "👤",
+
+            title:
+              "Ver usuarios",
+
+            description:
+              "Consulta los usuarios registrados.",
+
+            status:
+              "pending",
+
+            action:
+              "usuariosIndependiente"
+          }
+
+        ]
+
+      };
+
+    }
+
+
+    return null;
+
+  };
+
+
+const workflow =
+  obtenerWorkflow();
+
+  // ==================================================
+  // OCULTAR GUÍA SI YA TERMINÓ
+  // ==================================================
+
+  const workflowCompleto =
+    workflow
+      ?.steps
+      ?.length > 0 &&
+    workflow.steps.every(
+      step =>
+        step.status ===
+        "completed"
+    );
+
+  const mostrarRutaWorkflow =
+    Boolean(
+      workflow &&
+      mostrarWorkflowGuide &&
+      !workflowCompleto
+    );
 
   const irPasoWorkflow =
     step => {
@@ -1000,7 +1519,9 @@ const Dashboard = ({ onNavigate }) => {
         return;
       }
 
-      if (step.route) {
+      if (
+        step.route
+      ) {
         navigate(
           step.route
         );
@@ -1018,19 +1539,43 @@ const Dashboard = ({ onNavigate }) => {
       }
     };
 
+  // ==================================================
+  // MENSAJES AVATAR
+  // ==================================================
+
   const obtenerMensajesAvatar =
     () => {
-      const mensajes = [];
+      const mensajes =
+        [];
 
-      if (statsLoading) {
+      if (
+        statsLoading
+      ) {
         return [
           "🔄 Estoy revisando tu información y pendientes..."
         ];
       }
 
-      if (esPsicologo) {
+      if (
+        esPerfilClinico
+      ) {
+
         if (
-          stats.pacientes === 0
+          esPsicologo &&
+          stats.canalizacionesPendientes > 0
+        ) {
+          mensajes.push(
+            `📨 Tienes ${stats.canalizacionesPendientes} canalización${
+              stats.canalizacionesPendientes === 1 ? "" : "es"
+            } pendiente${
+              stats.canalizacionesPendientes === 1 ? "" : "s"
+            } de aceptar o rechazar.`
+          );
+        }
+
+        if (
+          stats.pacientes ===
+          0
         ) {
           mensajes.push(
             "👤 Aún no tienes pacientes registrados. Puedes comenzar creando tu primer expediente."
@@ -1043,11 +1588,13 @@ const Dashboard = ({ onNavigate }) => {
         } else {
           mensajes.push(
             `👥 Tienes ${stats.pacientes} paciente${
-              stats.pacientes === 1
+              stats.pacientes ===
+              1
                 ? ""
                 : "s"
             } registrado${
-              stats.pacientes === 1
+              stats.pacientes ===
+              1
                 ? ""
                 : "s"
             }.`
@@ -1056,6 +1603,10 @@ const Dashboard = ({ onNavigate }) => {
           mensajes.push(
             "📁 Abre el expediente del paciente para continuar con su trabajo clínico."
           );
+
+          mensajes.push(
+            "🔁 Si un paciente necesita cambiar de profesional, utiliza Transferencias desde tu Dashboard."
+          );
         }
 
         if (
@@ -1063,11 +1614,13 @@ const Dashboard = ({ onNavigate }) => {
         ) {
           mensajes.push(
             `📅 Tienes ${stats.citas} cita${
-              stats.citas === 1
+              stats.citas ===
+              1
                 ? ""
                 : "s"
             } programada${
-              stats.citas === 1
+              stats.citas ===
+              1
                 ? ""
                 : "s"
             }.`
@@ -1083,16 +1636,21 @@ const Dashboard = ({ onNavigate }) => {
         }
 
         if (
-          stats.sesionesAbiertas >
+          stats
+            .sesionesAbiertas >
           0
         ) {
           mensajes.push(
             `🩺 Tienes ${stats.sesionesAbiertas} sesión${
-              stats.sesionesAbiertas === 1
+              stats
+                .sesionesAbiertas ===
+              1
                 ? ""
                 : "es"
             } activa${
-              stats.sesionesAbiertas === 1
+              stats
+                .sesionesAbiertas ===
+              1
                 ? ""
                 : "s"
             } sin finalizar.`
@@ -1100,16 +1658,21 @@ const Dashboard = ({ onNavigate }) => {
         }
 
         if (
-          stats.seguimientosPendientes >
+          stats
+            .seguimientosPendientes >
           0
         ) {
           mensajes.push(
             `📋 Tienes ${stats.seguimientosPendientes} seguimiento${
-              stats.seguimientosPendientes === 1
+              stats
+                .seguimientosPendientes ===
+              1
                 ? ""
                 : "s"
             } pendiente${
-              stats.seguimientosPendientes === 1
+              stats
+                .seguimientosPendientes ===
+              1
                 ? ""
                 : "s"
             }.`
@@ -1117,16 +1680,21 @@ const Dashboard = ({ onNavigate }) => {
         }
 
         if (
-          stats.pruebasPendientes >
+          stats
+            .pruebasPendientes >
           0
         ) {
           mensajes.push(
             `🧪 Tienes ${stats.pruebasPendientes} prueba${
-              stats.pruebasPendientes === 1
+              stats
+                .pruebasPendientes ===
+              1
                 ? ""
                 : "s"
             } pendiente${
-              stats.pruebasPendientes === 1
+              stats
+                .pruebasPendientes ===
+              1
                 ? ""
                 : "s"
             } de revisar.`
@@ -1134,12 +1702,15 @@ const Dashboard = ({ onNavigate }) => {
         }
 
         if (
-          stats.preanalisisPendientes >
+          stats
+            .preanalisisPendientes >
           0
         ) {
           mensajes.push(
             `🧠 Tienes ${stats.preanalisisPendientes} Preanálisis IA pendiente${
-              stats.preanalisisPendientes === 1
+              stats
+                .preanalisisPendientes ===
+              1
                 ? ""
                 : "s"
             } de revisar.`
@@ -1183,9 +1754,12 @@ const Dashboard = ({ onNavigate }) => {
         );
       }
 
-      if (esUsuarioRH) {
+      if (
+        esPerfilRH
+      ) {
         if (
-          stats.prospectos === 0
+          stats.prospectos ===
+          0
         ) {
           mensajes.push(
             "👤 Aún no tienes prospectos registrados. Registra uno para comenzar un proceso de selección."
@@ -1198,11 +1772,13 @@ const Dashboard = ({ onNavigate }) => {
         } else {
           mensajes.push(
             `💼 Tienes ${stats.prospectos} prospecto${
-              stats.prospectos === 1
+              stats.prospectos ===
+              1
                 ? ""
                 : "s"
             } registrado${
-              stats.prospectos === 1
+              stats.prospectos ===
+              1
                 ? ""
                 : "s"
             }.`
@@ -1214,18 +1790,25 @@ const Dashboard = ({ onNavigate }) => {
         }
 
         if (
-          stats.empleados > 0
+          stats.empleados >
+          0
         ) {
           mensajes.push(
             `👔 Tienes ${stats.empleados} empleado${
-              stats.empleados === 1
+              stats.empleados ===
+              1
                 ? ""
                 : "s"
             } incorporado${
-              stats.empleados === 1
+              stats.empleados ===
+              1
                 ? ""
                 : "s"
             }.`
+          );
+
+          mensajes.push(
+            "🔁 Puedes utilizar Transferencias para reasignar empleados a otro responsable RH autorizado."
           );
         }
 
@@ -1239,7 +1822,8 @@ const Dashboard = ({ onNavigate }) => {
       }
 
       if (
-        mensajes.length === 0
+        mensajes.length ===
+        0
       ) {
         mensajes.push(
           "😊 Selecciona una opción para continuar con tu trabajo."
@@ -1256,33 +1840,62 @@ const Dashboard = ({ onNavigate }) => {
   const mensajesAvatar =
     obtenerMensajesAvatar();
 
+  // ==================================================
+  // RENDER
+  // ==================================================
+
   return (
     <div style={page}>
-      <main style={mainContent}>
+
+      <main
+        style={
+          mainContent
+        }
+      >
 
         <div
-          style={decorCircleOne}
+          style={
+            decorCircleOne
+          }
         />
 
         <div
-          style={decorCircleTwo}
+          style={
+            decorCircleTwo
+          }
         />
 
         <div
-          style={decorCircleThree}
+          style={
+            decorCircleThree
+          }
         />
+
+        {/* ============================================
+            BIENVENIDA
+        ============================================ */}
 
         <section
-          style={welcomeSection}
+          style={
+            welcomeSection
+          }
         >
           <div
-            style={welcomeText}
+            style={
+              welcomeText
+            }
           >
-            <h1 style={title}>
+            <h1
+              style={
+                title
+              }
+            >
               ¡Hola,{" "}
 
               <span
-                style={name}
+                style={
+                  name
+                }
                 onMouseEnter={
                   handleHoverEmoji
                 }
@@ -1298,17 +1911,29 @@ const Dashboard = ({ onNavigate }) => {
               </span>
             </h1>
 
-            <p style={subtitle}>
-              🌱 Selecciona una opción para continuar
+            <p
+              style={
+                subtitle
+              }
+            >
+              {esIndependienteClinica
+                ? "🧠 Tu espacio independiente de Psicología / Clínica"
+                : esIndependienteRH
+                  ? "👥 Tu espacio independiente de Recursos Humanos"
+                  : "🌱 Selecciona una opción para continuar"}
               <br />
               con tu trabajo.
             </p>
 
             <button
               type="button"
-              style={helpButton}
+              style={
+                helpButton
+              }
               onClick={() => {
-                setAyuda(null);
+                setAyuda(
+                  null
+                );
 
                 setMostrarTutorial(
                   true
@@ -1332,177 +1957,74 @@ const Dashboard = ({ onNavigate }) => {
           </div>
         </section>
 
-        {workflow && (
+        {/* ============================================
+            WORKFLOW
+        ============================================ */}
+
+        {mostrarRutaWorkflow && (
           <WorkflowGuide
             title={
               workflow.title
             }
-
             description={
               workflow.description
             }
-
             steps={
               workflow.steps
             }
-
             onStepClick={
               irPasoWorkflow
             }
           />
         )}
 
+        {/* ============================================
+            TARJETAS
+        ============================================ */}
+
         <section
-          style={cardsContainer}
+          style={
+            cardsContainer
+          }
         >
+
+          {/* ==========================================
+              MASTER
+          ========================================== */}
 
           {esMaster && (
             <>
               <DashboardCard
-                icon="➕"
-                title="Registrar psicólogo"
-                description="Añade un nuevo psicólogo al sistema"
-                accent="purple"
-                help="Aquí registras a un nuevo psicólogo para que pueda acceder al área clínica."
-                onHelp={
-                  setAyuda
-                }
-                onClick={() =>
-                  onNavigate(
-                    "registerPsychologist"
-                  )
-                }
-              />
-
-              <DashboardCard
-                icon="👥"
-                title="Ver psicólogos"
-                description="Consulta y gestiona todos los psicólogos"
-                accent="blue"
-                help="Aquí aparecen los psicólogos registrados en el sistema."
-                onHelp={
-                  setAyuda
-                }
-                onClick={() =>
-                  onNavigate(
-                    "psychologistView"
-                  )
-                }
-              />
-
-              <DashboardCard
-                icon="🛡️"
-                title="Registrar administrador"
-                description="Crea administradores para las diferentes áreas"
+                icon="💼"
+                title="Administración comercial"
+                description="Gestiona organizaciones, planes, suscripciones y licencias"
                 accent="green"
-                help="Aquí puedes crear administradores y asignarlos a Clínica, RH, Educativo u otra área."
-                onHelp={
-                  setAyuda
-                }
+                help="Desde aquí administras la estructura comercial de MirrorSoul: organizaciones, planes, suscripciones y licencias."
                 onClick={() =>
-                  onNavigate(
-                    "registerAdmin"
+                  onNavigate?.(
+                    "adminComercial"
                   )
                 }
               />
 
               <DashboardCard
-                icon="➕"
-                title="Registrar usuario RH"
-                description="Añade usuarios al área de Recursos Humanos"
-                accent="purple"
-                help="Aquí registras usuarios que trabajarán dentro del módulo de Recursos Humanos."
-                onHelp={
-                  setAyuda
-                }
-                onClick={() =>
-                  onNavigate(
-                    "registerUsuarioRH"
-                  )
-                }
-              />
-
-              <DashboardCard
-                icon="👥"
-                title="Ver usuarios RH"
-                description="Consulta los usuarios del área de Recursos Humanos"
+                icon="🔁"
+                title="Transferencias"
+                description="Gestiona reasignaciones de expedientes autorizadas"
                 accent="blue"
-                help="Aquí puedes consultar los usuarios registrados en Recursos Humanos."
-                onHelp={
-                  setAyuda
-                }
+                help="Administra transferencias manteniendo Clínica y RH separados y respetando cada organización."
                 onClick={() =>
-                  onNavigate(
-                    "usuariosRH"
-                  )
-                }
-              />
-
-              <DashboardCard
-                icon="➕"
-                title="Registrar usuario educativo"
-                description="Añade usuarios al área educativa"
-                accent="purple"
-                help="Aquí agregas usuarios del área educativa."
-                onHelp={
-                  setAyuda
-                }
-                onClick={() =>
-                  onNavigate(
-                    "registerUsuarioEducativo"
-                  )
-                }
-              />
-
-              <DashboardCard
-                icon="🎓"
-                title="Ver usuarios educativos"
-                description="Consulta los usuarios del área educativa"
-                accent="blue"
-                help="Aquí aparecen los usuarios registrados en el área educativa."
-                onHelp={
-                  setAyuda
-                }
-                onClick={() =>
-                  onNavigate(
-                    "usuariosEducativo"
-                  )
-                }
-              />
-
-              <DashboardCard
-                icon="➕"
-                title="Registrar usuario independiente"
-                description="Añade usuarios al área independiente"
-                accent="purple"
-                help="Aquí puedes registrar usuarios independientes."
-                onHelp={
-                  setAyuda
-                }
-                onClick={() =>
-                  onNavigate(
-                    "registerUsuarioIndependiente"
-                  )
-                }
-              />
-
-              <DashboardCard
-                icon="👤"
-                title="Ver usuarios independientes"
-                description="Consulta los usuarios del área independiente"
-                accent="blue"
-                help="Aquí aparecen los usuarios independientes registrados."
-                onHelp={
-                  setAyuda
-                }
-                onClick={() =>
-                  onNavigate(
-                    "usuariosIndependiente"
+                  navigate(
+                    "/transferencias"
                   )
                 }
               />
             </>
           )}
+
+          {/* ==========================================
+              ADMIN CLÍNICA
+          ========================================== */}
 
           {esAdminNormal &&
             area ===
@@ -1514,11 +2036,8 @@ const Dashboard = ({ onNavigate }) => {
                   description="Añade un nuevo psicólogo a tu equipo"
                   accent="purple"
                   help="Aquí registras a los psicólogos que formarán parte de tu equipo."
-                  onHelp={
-                    setAyuda
-                  }
                   onClick={() =>
-                    onNavigate(
+                    onNavigate?.(
                       "registerPsychologist"
                     )
                   }
@@ -1530,17 +2049,31 @@ const Dashboard = ({ onNavigate }) => {
                   description="Consulta únicamente los psicólogos que tú registraste"
                   accent="blue"
                   help="Aquí puedes consultar los psicólogos registrados por tu cuenta."
-                  onHelp={
-                    setAyuda
-                  }
                   onClick={() =>
-                    onNavigate(
+                    onNavigate?.(
                       "psychologistView"
+                    )
+                  }
+                />
+
+                <DashboardCard
+                  icon="🔁"
+                  title="Transferencias"
+                  description="Reasigna pacientes entre psicólogos autorizados"
+                  accent="green"
+                  help="Solo puedes reasignar pacientes entre psicólogos pertenecientes a esta misma administración clínica."
+                  onClick={() =>
+                    navigate(
+                      "/transferencias"
                     )
                   }
                 />
               </>
             )}
+
+          {/* ==========================================
+              ADMIN RH
+          ========================================== */}
 
           {esAdminNormal &&
             area === "rh" && (
@@ -1551,11 +2084,8 @@ const Dashboard = ({ onNavigate }) => {
                   description="Añade un nuevo usuario a tu equipo de RH"
                   accent="purple"
                   help="Aquí agregas usuarios que trabajarán contigo en Recursos Humanos."
-                  onHelp={
-                    setAyuda
-                  }
                   onClick={() =>
-                    onNavigate(
+                    onNavigate?.(
                       "registerUsuarioRH"
                     )
                   }
@@ -1567,17 +2097,31 @@ const Dashboard = ({ onNavigate }) => {
                   description="Consulta únicamente los usuarios RH que tú registraste"
                   accent="blue"
                   help="Aquí puedes consultar los integrantes de tu equipo de Recursos Humanos."
-                  onHelp={
-                    setAyuda
-                  }
                   onClick={() =>
-                    onNavigate(
+                    onNavigate?.(
                       "usuariosRH"
+                    )
+                  }
+                />
+
+                <DashboardCard
+                  icon="🔁"
+                  title="Transferencias"
+                  description="Reasigna empleados entre responsables RH autorizados"
+                  accent="green"
+                  help="Solo puedes reasignar empleados entre responsables RH pertenecientes a esta misma empresa o administración."
+                  onClick={() =>
+                    navigate(
+                      "/transferencias"
                     )
                   }
                 />
               </>
             )}
+
+          {/* ==========================================
+              ADMIN EDUCATIVO
+          ========================================== */}
 
           {esAdminNormal &&
             area ===
@@ -1589,11 +2133,8 @@ const Dashboard = ({ onNavigate }) => {
                   description="Añade un nuevo usuario a tu equipo educativo"
                   accent="purple"
                   help="Aquí registras integrantes de tu equipo educativo."
-                  onHelp={
-                    setAyuda
-                  }
                   onClick={() =>
-                    onNavigate(
+                    onNavigate?.(
                       "registerUsuarioEducativo"
                     )
                   }
@@ -1605,17 +2146,18 @@ const Dashboard = ({ onNavigate }) => {
                   description="Consulta únicamente los usuarios educativos que tú registraste"
                   accent="blue"
                   help="Aquí aparecen los usuarios educativos registrados por ti."
-                  onHelp={
-                    setAyuda
-                  }
                   onClick={() =>
-                    onNavigate(
+                    onNavigate?.(
                       "usuariosEducativo"
                     )
                   }
                 />
               </>
             )}
+
+          {/* ==========================================
+              ADMIN INDEPENDIENTE
+          ========================================== */}
 
           {esAdminNormal &&
             area ===
@@ -1627,11 +2169,8 @@ const Dashboard = ({ onNavigate }) => {
                   description="Añade un nuevo usuario a tu equipo"
                   accent="purple"
                   help="Aquí puedes registrar un nuevo usuario."
-                  onHelp={
-                    setAyuda
-                  }
                   onClick={() =>
-                    onNavigate(
+                    onNavigate?.(
                       "registerUsuarioIndependiente"
                     )
                   }
@@ -1643,11 +2182,8 @@ const Dashboard = ({ onNavigate }) => {
                   description="Consulta únicamente los usuarios que tú registraste"
                   accent="blue"
                   help="Aquí aparecen los usuarios que has registrado."
-                  onHelp={
-                    setAyuda
-                  }
                   onClick={() =>
-                    onNavigate(
+                    onNavigate?.(
                       "usuariosIndependiente"
                     )
                   }
@@ -1655,19 +2191,55 @@ const Dashboard = ({ onNavigate }) => {
               </>
             )}
 
-          {esPsicologo && (
+          {/* ==========================================
+              PSICÓLOGO
+          ========================================== */}
+
+          {esPerfilClinico && (
             <>
+
+            <DashboardCard
+              icon="🪪"
+              title="Mi perfil profesional"
+              description="Completa tus especialidades, modalidad, ubicación y honorarios"
+              accent="purple"
+              help="Completa tu perfil profesional para que puedas aparecer como opción de atención en las canalizaciones de Recursos Humanos."
+              onClick={() =>
+              navigate(
+              "/mi-perfil-profesional"
+              )
+              }
+              />
+              
+              
+
+              {esPsicologo && (
+                <DashboardCard
+                  icon="📨"
+                  title={
+                    stats.canalizacionesPendientes > 0
+                      ? `Canalizaciones recibidas (${stats.canalizacionesPendientes})`
+                      : "Canalizaciones recibidas"
+                  }
+                  description="Revisa las solicitudes de atención que te han enviado"
+                  accent="blue"
+                  help="Aquí aparecen las canalizaciones en las que un empleado te seleccionó como profesional. Puedes aceptar o rechazar cada solicitud."
+                  onClick={() =>
+                    navigate(
+                      "/mis-canalizaciones"
+                    )
+                  }
+                />
+              )}
+
               <DashboardCard
                 icon="➕"
                 title="Registrar paciente"
                 description="Añade un nuevo paciente al sistema"
                 accent="purple"
                 help="Aquí registras por primera vez los datos básicos de un paciente. Al guardar, se crea su expediente clínico y su ID MirrorSoul."
-                onHelp={
-                  setAyuda
-                }
                 onClick={() =>
-                  onNavigate(
+                  onNavigate?.(
                     "registrarPaciente"
                   )
                 }
@@ -1693,11 +2265,8 @@ const Dashboard = ({ onNavigate }) => {
                 description="Consulta y gestiona tus expedientes clínicos"
                 accent="blue"
                 help="Aquí aparecen tus pacientes registrados. Abre un expediente para trabajar con historial clínico, seguimiento, sesiones, pruebas psicológicas y Preanálisis IA."
-                onHelp={
-                  setAyuda
-                }
                 onClick={() =>
-                  onNavigate(
+                  onNavigate?.(
                     "pacientes"
                   )
                 }
@@ -1709,19 +2278,37 @@ const Dashboard = ({ onNavigate }) => {
                 description="Gestiona citas y agendamientos"
                 accent="green"
                 help="Aquí puedes consultar, organizar y administrar las citas de tus pacientes."
-                onHelp={
-                  setAyuda
-                }
                 onClick={() =>
-                  onNavigate(
+                  onNavigate?.(
                     "citas"
+                  )
+                }
+              />
+
+              
+
+              <DashboardCard
+                icon="🔁"
+                title="Transferencias"
+                description="Transfiere tus pacientes a colegas autorizados"
+                accent="green"
+                help="Solo puedes transferir pacientes que estén bajo tu responsabilidad a psicólogos de tu misma administración clínica."
+                onClick={() =>
+                  navigate(
+                    "/transferencias"
                   )
                 }
               />
             </>
           )}
 
-          {esUsuarioRH && (
+          
+
+          {/* ==========================================
+              USUARIO RH
+          ========================================== */}
+
+          {esPerfilRH && (
             <>
               <DashboardCard
                 icon="➕"
@@ -1729,9 +2316,6 @@ const Dashboard = ({ onNavigate }) => {
                 description="Registra una persona que está en proceso de selección"
                 accent="purple"
                 help="Aquí registras a una persona que inicia un proceso de selección."
-                onHelp={
-                  setAyuda
-                }
                 onClick={() =>
                   navigate(
                     "/registrar-prospecto"
@@ -1745,9 +2329,6 @@ const Dashboard = ({ onNavigate }) => {
                 description="Consulta y gestiona los expedientes de las personas en proceso de selección"
                 accent="blue"
                 help="Aquí aparecen los prospectos registrados. Abre un expediente para gestionar entrevistas, pruebas, seguimiento, documentos, observaciones y reportes."
-                onHelp={
-                  setAyuda
-                }
                 onClick={() =>
                   navigate(
                     "/prospectos"
@@ -1761,9 +2342,6 @@ const Dashboard = ({ onNavigate }) => {
                 description="Consulta y gestiona los expedientes de los empleados"
                 accent="green"
                 help="Aquí aparecen las personas que ya fueron convertidas en empleados."
-                onHelp={
-                  setAyuda
-                }
                 onClick={() =>
                   navigate(
                     "/empleados"
@@ -1773,21 +2351,35 @@ const Dashboard = ({ onNavigate }) => {
 
               <DashboardCard
                 icon="📅"
-                title="Calendario"
+                title="Agenda"
                 description="Gestiona entrevistas, citas y actividades del área de RH"
                 accent="green"
                 help="Aquí puedes consultar y organizar entrevistas, citas y otras actividades del proceso de selección."
-                onHelp={
-                  setAyuda
-                }
                 onClick={() =>
-                  onNavigate(
+                  onNavigate?.(
                     "citasRH"
+                  )
+                }
+              />
+
+              <DashboardCard
+                icon="🔁"
+                title="Transferencias"
+                description="Reasigna empleados a responsables RH autorizados"
+                accent="green"
+                help="Solo puedes transferir empleados dentro de tu misma empresa o administración hacia responsables RH autorizados."
+                onClick={() =>
+                  navigate(
+                    "/transferencias"
                   )
                 }
               />
             </>
           )}
+
+          {/* ==========================================
+              EDUCATIVO
+          ========================================== */}
 
           {esUsuarioEducativo && (
             <DashboardCard
@@ -1796,30 +2388,9 @@ const Dashboard = ({ onNavigate }) => {
               description="Accede a las herramientas disponibles para tu trabajo"
               accent="blue"
               help="Desde aquí puedes acceder a las herramientas correspondientes al área educativa."
-              onHelp={
-                setAyuda
-              }
               onClick={() =>
-                onNavigate(
+                onNavigate?.(
                   "usuariosEducativo"
-                )
-              }
-            />
-          )}
-
-          {esUsuarioIndependiente && (
-            <DashboardCard
-              icon="👤"
-              title="Mi área independiente"
-              description="Accede a las herramientas disponibles para tu trabajo"
-              accent="blue"
-              help="Desde aquí puedes acceder a las herramientas disponibles para tu cuenta."
-              onHelp={
-                setAyuda
-              }
-              onClick={() =>
-                onNavigate(
-                  "usuariosIndependiente"
                 )
               }
             />
@@ -1827,11 +2398,38 @@ const Dashboard = ({ onNavigate }) => {
 
         </section>
 
-        <footer style={footer}>
+          {/* ==========================================
+              INDEPENDIENTE SIN PERFIL FUNCIONAL
+          ========================================== */}
+
+          {esUsuarioIndependiente &&
+            !esIndependienteClinica &&
+            !esIndependienteRH && (
+              <DashboardCard
+                icon="⚠️"
+                title="Perfil pendiente de identificar"
+                description="No fue posible determinar si tu cuenta independiente es Clínica o RH"
+                accent="blue"
+                help="Tu cuenta existe, pero falta que el inicio de sesión devuelva el campo perfil_independiente."
+                onClick={() => {}}
+              />
+            )}
+
+        {/* ============================================
+            FOOTER
+        ============================================ */}
+
+        <footer
+          style={
+            footer
+          }
+        >
           © 2026{" "}
 
           <span
-            style={footerBrand}
+            style={
+              footerBrand
+            }
           >
             MirrorSoul
           </span>
@@ -1839,9 +2437,15 @@ const Dashboard = ({ onNavigate }) => {
           . Todos los derechos reservados.
         </footer>
 
+        {/* ============================================
+            TUTORIAL
+        ============================================ */}
+
         {mostrarTutorial && (
           <div
-            style={overlay}
+            style={
+              overlay
+            }
             onClick={
               cerrarAyudas
             }
@@ -1850,8 +2454,9 @@ const Dashboard = ({ onNavigate }) => {
               style={
                 tutorialModal
               }
-              onClick={e =>
-                e.stopPropagation()
+              onClick={
+                e =>
+                  e.stopPropagation()
               }
             >
               <button
@@ -1879,7 +2484,9 @@ const Dashboard = ({ onNavigate }) => {
                   tutorialTitle
                 }
               >
-                {tutorial.titulo}
+                {
+                  tutorial.titulo
+                }
               </h2>
 
               <p
@@ -1915,7 +2522,8 @@ const Dashboard = ({ onNavigate }) => {
                           stepNumber
                         }
                       >
-                        {index + 1}
+                        {index +
+                          1}
                       </div>
 
                       <div
@@ -1923,7 +2531,9 @@ const Dashboard = ({ onNavigate }) => {
                           stepIcon
                         }
                       >
-                        {paso.icon}
+                        {
+                          paso.icon
+                        }
                       </div>
 
                       <div>
@@ -1986,6 +2596,10 @@ const Dashboard = ({ onNavigate }) => {
   );
 };
 
+// ==================================================
+// TARJETA DEL DASHBOARD
+// ==================================================
+
 const DashboardCard = ({
   icon,
   title,
@@ -1994,7 +2608,6 @@ const DashboardCard = ({
   onClick,
   help
 }) => {
-
   const [
     mostrarAyuda,
     setMostrarAyuda
@@ -2045,11 +2658,14 @@ const DashboardCard = ({
   };
 
   const colors =
-    accentColors[accent] ||
+    accentColors[
+      accent
+    ] ||
     accentColors.blue;
 
   const tituloAyuda =
-    typeof title === "string"
+    typeof title ===
+    "string"
       ? title
       : "Ayuda";
 
@@ -2084,21 +2700,33 @@ const DashboardCard = ({
         onClick
       }
 
-      onMouseEnter={e => {
-        e.currentTarget.style.transform =
-          "translateY(-6px)";
+      onMouseEnter={
+        e => {
+          e.currentTarget
+            .style
+            .transform =
+            "translateY(-6px)";
 
-        e.currentTarget.style.boxShadow =
-          "0 15px 30px rgba(40,80,140,.14)";
-      }}
+          e.currentTarget
+            .style
+            .boxShadow =
+            "0 15px 30px rgba(40,80,140,.14)";
+        }
+      }
 
-      onMouseLeave={e => {
-        e.currentTarget.style.transform =
-          "translateY(0)";
+      onMouseLeave={
+        e => {
+          e.currentTarget
+            .style
+            .transform =
+            "translateY(0)";
 
-        e.currentTarget.style.boxShadow =
-          "0 8px 20px rgba(40,80,140,.08)";
-      }}
+          e.currentTarget
+            .style
+            .boxShadow =
+            "0 8px 20px rgba(40,80,140,.08)";
+        }
+      }
     >
 
       {help && (
@@ -2119,17 +2747,19 @@ const DashboardCard = ({
             alternarAyuda
           }
 
-          onKeyDown={e => {
-            if (
-              e.key ===
-                "Enter" ||
-              e.key === " "
-            ) {
-              alternarAyuda(
-                e
-              );
+          onKeyDown={
+            e => {
+              if (
+                e.key ===
+                  "Enter" ||
+                e.key === " "
+              ) {
+                alternarAyuda(
+                  e
+                );
+              }
             }
-          }}
+          }
         >
           ?
         </span>
@@ -2142,12 +2772,14 @@ const DashboardCard = ({
               helpPopover
             }
 
-            onClick={e => {
-              e.preventDefault();
-              e.stopPropagation();
-            }}
-          >
+            onClick={
+              e => {
+                e.preventDefault();
 
+                e.stopPropagation();
+              }
+            }
+          >
             <div
               style={
                 helpPopoverArrow
@@ -2159,7 +2791,6 @@ const DashboardCard = ({
                 helpPopoverHeader
               }
             >
-
               <span
                 style={
                   helpPopoverIcon
@@ -2173,7 +2804,9 @@ const DashboardCard = ({
                   helpPopoverTitle
                 }
               >
-                {tituloAyuda}
+                {
+                  tituloAyuda
+                }
               </strong>
 
               <span
@@ -2189,21 +2822,23 @@ const DashboardCard = ({
                   alternarAyuda
                 }
 
-                onKeyDown={e => {
-                  if (
-                    e.key ===
-                      "Enter" ||
-                    e.key === " "
-                  ) {
-                    alternarAyuda(
-                      e
-                    );
+                onKeyDown={
+                  e => {
+                    if (
+                      e.key ===
+                        "Enter" ||
+                      e.key ===
+                        " "
+                    ) {
+                      alternarAyuda(
+                        e
+                      );
+                    }
                   }
-                }}
+                }
               >
                 ×
               </span>
-
             </div>
 
             <p
@@ -2213,7 +2848,6 @@ const DashboardCard = ({
             >
               {help}
             </p>
-
           </div>
         )}
 
@@ -2222,10 +2856,12 @@ const DashboardCard = ({
           ...cardIcon,
 
           background:
-            colors.iconBackground,
+            colors
+              .iconBackground,
 
           color:
-            colors.iconColor
+            colors
+              .iconColor
         }}
       >
         {icon}
@@ -2254,967 +2890,214 @@ const DashboardCard = ({
   );
 };
 
+// ==================================================
+// ESTILOS
+// ==================================================
+
 const page = {
-  minHeight: "100%",
-  width: "100%",
-  background: "#F4F9FE",
-
-  fontFamily:
-    "'Segoe UI', Arial, sans-serif",
-
-  color: "#1A2B4B",
-  overflow: "hidden"
+  minHeight: "100%", width: "100%", background: "#F4F9FE",
+  fontFamily: "'Segoe UI', Arial, sans-serif", color: "#1A2B4B", overflow: "hidden"
 };
 
 const mainContent = {
-  minHeight:
-    "calc(100vh - 86px)",
-
-  position: "relative",
-
-  padding:
-    "55px 7%",
-
-  boxSizing:
-    "border-box",
-
-  overflow:
-    "hidden"
+  minHeight: "calc(100vh - 86px)", position: "relative", padding: "55px 7%",
+  boxSizing: "border-box", overflow: "hidden"
 };
 
-const decorCircleOne = {
-  position: "absolute",
-
-  width: "350px",
-  height: "350px",
-
-  borderRadius: "50%",
-
-  background:
-    "rgba(100,170,255,.08)",
-
-  right: "-130px",
-  bottom: "-150px",
-
-  pointerEvents:
-    "none"
+const decorBase = {
+  position: "absolute", borderRadius: "50%",
+  background: "rgba(100,170,255,.08)", pointerEvents: "none"
 };
 
-const decorCircleTwo = {
-  position: "absolute",
-
-  width: "150px",
-  height: "150px",
-
-  borderRadius: "50%",
-
-  background:
-    "rgba(100,170,255,.08)",
-
-  right: "20px",
-  top: "80px",
-
-  pointerEvents:
-    "none"
-};
-
+const decorCircleOne = { ...decorBase, width: 350, height: 350, right: -130, bottom: -150 };
+const decorCircleTwo = { ...decorBase, width: 150, height: 150, right: 20, top: 80 };
 const decorCircleThree = {
-  position: "absolute",
-
-  width: "10px",
-  height: "10px",
-
-  borderRadius: "50%",
-
-  background:
-    "rgba(60,120,220,.20)",
-
-  right: "150px",
-  top: "100px",
-
-  boxShadow:
-    "30px 20px 0 rgba(60,120,220,.15),60px -15px 0 rgba(60,120,220,.12)",
-
-  pointerEvents:
-    "none"
+  ...decorBase, width: 10, height: 10, right: 150, top: 100,
+  background: "rgba(60,120,220,.20)",
+  boxShadow: "30px 20px 0 rgba(60,120,220,.15),60px -15px 0 rgba(60,120,220,.12)"
 };
 
 const welcomeSection = {
-  maxWidth: "1150px",
-
-  margin:
-    "0 auto 32px",
-
-  display: "flex",
-
-  alignItems:
-    "center",
-
-  justifyContent:
-    "space-between",
-
-  position:
-    "relative",
-
-  zIndex: 2
+  maxWidth: 1150, margin: "0 auto 32px", display: "flex",
+  alignItems: "center", justifyContent: "space-between", position: "relative", zIndex: 2
 };
 
-const welcomeText = {
-  flex: 1
-};
+const welcomeText = { flex: 1 };
 
 const title = {
-  margin:
-    "0 0 12px",
-
-  fontSize:
-    "40px",
-
-  fontWeight:
-    "800",
-
-  color:
-    "#172B4D",
-
-  letterSpacing:
-    "-1px"
+  margin: "0 0 12px", fontSize: 40, fontWeight: 800,
+  color: "#172B4D", letterSpacing: "-1px"
 };
 
-const name = {
-  color:
-    "#2167D5",
-
-  cursor:
-    "pointer"
-};
+const name = { color: "#2167D5", cursor: "pointer" };
 
 const subtitle = {
-  margin: 0,
-
-  fontSize:
-    "17px",
-
-  lineHeight:
-    "1.6",
-
-  color:
-    "#596B82"
+  margin: 0, fontSize: 17, lineHeight: 1.6, color: "#596B82"
 };
 
 const helpButton = {
-  marginTop:
-    "16px",
-
-  border:
-    "1px solid #C9DAF4",
-
-  background:
-    "#FFFFFF",
-
-  color:
-    "#2167D5",
-
-  borderRadius:
-    "999px",
-
-  padding:
-    "9px 15px",
-
-  cursor:
-    "pointer",
-
-  fontSize:
-    "12px",
-
-  fontWeight:
-    "800",
-
-  boxShadow:
-    "0 4px 12px rgba(40,80,140,.07)"
+  marginTop: 16, border: "1px solid #C9DAF4", background: "#FFF", color: "#2167D5",
+  borderRadius: 999, padding: "9px 15px", cursor: "pointer", fontSize: 12,
+  fontWeight: 800, boxShadow: "0 4px 12px rgba(40,80,140,.07)"
 };
 
 const avatarContainer = {
-  width:
-    "390px",
-
-  minHeight:
-    "170px",
-
-  display:
-    "flex",
-
-  justifyContent:
-    "center",
-
-  alignItems:
-    "center",
-
-  background:
-    "transparent",
-
-  position:
-    "relative",
-
-  overflow:
-    "visible",
-
-  boxSizing:
-    "border-box",
-
-  transform:
-    "translateY(-15px)"
+  width: 390, minHeight: 170, display: "flex", justifyContent: "center",
+  alignItems: "center", background: "transparent", position: "relative",
+  overflow: "visible", boxSizing: "border-box", transform: "translateY(-15px)"
 };
 
 const cardsContainer = {
-  maxWidth:
-    "1150px",
-
-  margin:
-    "0 auto",
-
-  padding:
-    "38px",
-
-  background:
-    "rgba(255,255,255,.90)",
-
-  borderRadius:
-    "20px",
-
-  boxShadow:
-    "0 8px 24px rgba(40,80,140,.08)",
-
-  display:
-    "grid",
-
-  gridTemplateColumns:
-    "repeat(3,1fr)",
-
-  gap:
-    "28px",
-
-  position:
-    "relative",
-
-  zIndex: 3,
-
-  boxSizing:
-    "border-box"
+  maxWidth: 1150, margin: "0 auto", padding: 38, background: "rgba(255,255,255,.90)",
+  borderRadius: 20, boxShadow: "0 8px 24px rgba(40,80,140,.08)",
+  display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))",
+  gap: 28, position: "relative", zIndex: 3, boxSizing: "border-box"
 };
 
 const card = {
-  minHeight:
-    "245px",
-
-  background:
-    "#FFFFFF",
-
-  border:
-    "1px solid #E4EAF2",
-
-  borderRadius:
-    "16px",
-
-  padding:
-    "28px 22px 24px",
-
-  cursor:
-    "pointer",
-
-  display:
-    "flex",
-
-  flexDirection:
-    "column",
-
-  justifyContent:
-    "center",
-
-  alignItems:
-    "center",
-
-  textAlign:
-    "center",
-
-  transition:
-    "all .25s ease",
-
-  boxShadow:
-    "0 8px 20px rgba(40,80,140,.08)",
-
-  fontFamily:
-    "'Segoe UI', Arial, sans-serif",
-
-  position:
-    "relative"
+  minHeight: 245, background: "#FFF", border: "1px solid #E4EAF2", borderRadius: 16,
+  padding: "28px 22px 24px", cursor: "pointer", display: "flex",
+  flexDirection: "column", justifyContent: "center", alignItems: "center",
+  textAlign: "center", transition: "all .25s ease",
+  boxShadow: "0 8px 20px rgba(40,80,140,.08)",
+  fontFamily: "'Segoe UI', Arial, sans-serif", position: "relative"
 };
 
 const cardHelpButton = {
-  position:
-    "absolute",
-
-  top:
-    "12px",
-
-  right:
-    "12px",
-
-  width:
-    "27px",
-
-  height:
-    "27px",
-
-  borderRadius:
-    "50%",
-
-  background:
-    "#F1F6FD",
-
-  border:
-    "1px solid #D5E2F4",
-
-  display:
-    "flex",
-
-  alignItems:
-    "center",
-
-  justifyContent:
-    "center",
-
-  color:
-    "#2167D5",
-
-  fontWeight:
-    "900",
-
-  fontSize:
-    "14px",
-
-  cursor:
-    "help",
-
-  zIndex:
-    5
+  position: "absolute", top: 12, right: 12, width: 27, height: 27, borderRadius: "50%",
+  background: "#F1F6FD", border: "1px solid #D5E2F4", display: "flex",
+  alignItems: "center", justifyContent: "center", color: "#2167D5",
+  fontWeight: 900, fontSize: 14, cursor: "help", zIndex: 5
 };
 
 const cardHelpButtonActive = {
-  background:
-    "#2167D5",
-
-  color:
-    "#FFFFFF",
-
-  border:
-    "1px solid #2167D5",
-
-  boxShadow:
-    "0 4px 12px rgba(33,103,213,.22)"
+  background: "#2167D5", color: "#FFF", border: "1px solid #2167D5",
+  boxShadow: "0 4px 12px rgba(33,103,213,.22)"
 };
 
 const helpPopover = {
-  position:
-    "absolute",
-
-  top:
-    "48px",
-
-  right:
-    "12px",
-
-  width:
-    "280px",
-
-  maxWidth:
-    "calc(100% - 24px)",
-
-  padding:
-    "15px 16px",
-
-  background:
-    "#FFFFFF",
-
-  border:
-    "1px solid #D7E3F3",
-
-  borderRadius:
-    "14px",
-
-  boxShadow:
-    "0 14px 34px rgba(30,60,100,.18)",
-
-  zIndex:
-    40,
-
-  textAlign:
-    "left",
-
-  boxSizing:
-    "border-box",
-
-  cursor:
-    "default"
+  position: "absolute", top: 48, right: 12, width: 280, maxWidth: "calc(100% - 24px)",
+  padding: "15px 16px", background: "#FFF", border: "1px solid #D7E3F3",
+  borderRadius: 14, boxShadow: "0 14px 34px rgba(30,60,100,.18)",
+  zIndex: 40, textAlign: "left", boxSizing: "border-box", cursor: "default"
 };
 
 const helpPopoverArrow = {
-  position:
-    "absolute",
-
-  top:
-    "-7px",
-
-  right:
-    "15px",
-
-  width:
-    "12px",
-
-  height:
-    "12px",
-
-  background:
-    "#FFFFFF",
-
-  borderLeft:
-    "1px solid #D7E3F3",
-
-  borderTop:
-    "1px solid #D7E3F3",
-
-  transform:
-    "rotate(45deg)"
+  position: "absolute", top: -7, right: 15, width: 12, height: 12, background: "#FFF",
+  borderLeft: "1px solid #D7E3F3", borderTop: "1px solid #D7E3F3",
+  transform: "rotate(45deg)"
 };
 
 const helpPopoverHeader = {
-  display:
-    "grid",
-
-  gridTemplateColumns:
-    "28px 1fr 26px",
-
-  gap:
-    "8px",
-
-  alignItems:
-    "center",
-
-  marginBottom:
-    "8px"
+  display: "grid", gridTemplateColumns: "28px 1fr 26px",
+  gap: 8, alignItems: "center", marginBottom: 8
 };
 
 const helpPopoverIcon = {
-  width:
-    "28px",
-
-  height:
-    "28px",
-
-  borderRadius:
-    "8px",
-
-  background:
-    "#EEF4FF",
-
-  display:
-    "flex",
-
-  alignItems:
-    "center",
-
-  justifyContent:
-    "center",
-
-  fontSize:
-    "14px"
+  width: 28, height: 28, borderRadius: 8, background: "#EEF4FF",
+  display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14
 };
 
-const helpPopoverTitle = {
-  color:
-    "#172B4D",
-
-  fontSize:
-    "14px",
-
-  lineHeight:
-    "1.3"
-};
+const helpPopoverTitle = { color: "#172B4D", fontSize: 14, lineHeight: 1.3 };
 
 const helpPopoverClose = {
-  width:
-    "26px",
-
-  height:
-    "26px",
-
-  borderRadius:
-    "50%",
-
-  background:
-    "#F1F5F9",
-
-  color:
-    "#64748B",
-
-  display:
-    "flex",
-
-  alignItems:
-    "center",
-
-  justifyContent:
-    "center",
-
-  fontWeight:
-    "800",
-
-  fontSize:
-    "18px",
-
-  cursor:
-    "pointer",
-
-  lineHeight:
-    1
+  width: 26, height: 26, borderRadius: "50%", background: "#F1F5F9",
+  color: "#64748B", display: "flex", alignItems: "center", justifyContent: "center",
+  fontWeight: 800, fontSize: 18, cursor: "pointer", lineHeight: 1
 };
 
 const helpPopoverText = {
-  margin:
-    0,
-
-  color:
-    "#52657C",
-
-  fontSize:
-    "14px",
-
-  lineHeight:
-    "1.55",
-
-  fontWeight:
-    "500"
+  margin: 0, color: "#52657C", fontSize: 14, lineHeight: 1.55, fontWeight: 500
 };
 
 const cardIcon = {
-  width:
-    "64px",
-
-  height:
-    "64px",
-
-  borderRadius:
-    "50%",
-
-  display:
-    "flex",
-
-  alignItems:
-    "center",
-
-  justifyContent:
-    "center",
-
-  fontSize:
-    "29px",
-
-  marginBottom:
-    "18px"
+  width: 64, height: 64, borderRadius: "50%", display: "flex",
+  alignItems: "center", justifyContent: "center", fontSize: 29, marginBottom: 18
 };
 
 const cardTitle = {
-  fontSize:
-    "18px",
-
-  fontWeight:
-    "800",
-
-  marginBottom:
-    "12px",
-
-  lineHeight:
-    "1.3"
+  fontSize: 18, fontWeight: 800, marginBottom: 12, lineHeight: 1.3
 };
 
 const cardDescription = {
-  fontSize:
-    "14px",
-
-  lineHeight:
-    "1.5",
-
-  color:
-    "#718096",
-
-  maxWidth:
-    "210px"
+  fontSize: 14, lineHeight: 1.5, color: "#718096", maxWidth: 210
 };
 
 const footer = {
-  maxWidth:
-    "1150px",
-
-  margin:
-    "38px auto 0",
-
-  paddingTop:
-    "20px",
-
-  borderTop:
-    "1px solid #DCE5F0",
-
-  textAlign:
-    "center",
-
-  fontSize:
-    "12px",
-
-  color:
-    "#64748B",
-
-  position:
-    "relative",
-
-  zIndex:
-    2
+  maxWidth: 1150, margin: "38px auto 0", paddingTop: 20,
+  borderTop: "1px solid #DCE5F0", textAlign: "center",
+  fontSize: 12, color: "#64748B", position: "relative", zIndex: 2
 };
 
-const footerBrand = {
-  color:
-    "#2167D5",
-
-  fontWeight:
-    "700"
-};
+const footerBrand = { color: "#2167D5", fontWeight: 700 };
 
 const overlay = {
-  position:
-    "fixed",
-
-  inset:
-    0,
-
-  background:
-    "rgba(18,35,61,.48)",
-
-  display:
-    "flex",
-
-  justifyContent:
-    "center",
-
-  alignItems:
-    "center",
-
-  padding:
-    "20px",
-
-  zIndex:
-    9999,
-
-  backdropFilter:
-    "blur(3px)"
+  position: "fixed", inset: 0, background: "rgba(18,35,61,.48)",
+  display: "flex", justifyContent: "center", alignItems: "center",
+  padding: 20, zIndex: 9999, backdropFilter: "blur(3px)"
 };
 
 const tutorialModal = {
-  width:
-    "100%",
-
-  maxWidth:
-    "700px",
-
-  maxHeight:
-    "88vh",
-
-  overflowY:
-    "auto",
-
-  background:
-    "#FFFFFF",
-
-  borderRadius:
-    "24px",
-
-  padding:
-    "30px",
-
-  boxShadow:
-    "0 24px 80px rgba(20,50,90,.25)",
-
-  position:
-    "relative",
-
-  boxSizing:
-    "border-box"
+  width: "100%", maxWidth: 700, maxHeight: "88vh", overflowY: "auto",
+  background: "#FFF", borderRadius: 24, padding: 30,
+  boxShadow: "0 24px 80px rgba(20,50,90,.25)",
+  position: "relative", boxSizing: "border-box"
 };
 
 const closeButton = {
-  position:
-    "absolute",
-
-  right:
-    "16px",
-
-  top:
-    "13px",
-
-  width:
-    "34px",
-
-  height:
-    "34px",
-
-  borderRadius:
-    "50%",
-
-  border:
-    "none",
-
-  background:
-    "#F1F5F9",
-
-  color:
-    "#64748B",
-
-  fontSize:
-    "23px",
-
-  cursor:
-    "pointer",
-
-  lineHeight:
-    1
+  position: "absolute", right: 16, top: 13, width: 34, height: 34,
+  borderRadius: "50%", border: "none", background: "#F1F5F9",
+  color: "#64748B", fontSize: 23, cursor: "pointer", lineHeight: 1
 };
 
 const tutorialIcon = {
-  width:
-    "58px",
-
-  height:
-    "58px",
-
-  borderRadius:
-    "16px",
-
-  background:
-    "#EAF1FF",
-
-  display:
-    "flex",
-
-  alignItems:
-    "center",
-
-  justifyContent:
-    "center",
-
-  fontSize:
-    "27px",
-
-  marginBottom:
-    "15px"
+  width: 58, height: 58, borderRadius: 16, background: "#EAF1FF",
+  display: "flex", alignItems: "center", justifyContent: "center",
+  fontSize: 27, marginBottom: 15
 };
 
-const tutorialTitle = {
-  margin:
-    "0 0 8px",
-
-  color:
-    "#172B4D",
-
-  fontSize:
-    "25px"
-};
+const tutorialTitle = { margin: "0 0 8px", color: "#172B4D", fontSize: 25 };
 
 const tutorialDescription = {
-  margin:
-    "0 0 24px",
-
-  color:
-    "#667085",
-
-  fontSize:
-    "14px",
-
-  lineHeight:
-    "1.6"
+  margin: "0 0 24px", color: "#667085", fontSize: 14, lineHeight: 1.6
 };
 
-const tutorialSteps = {
-  display:
-    "flex",
-
-  flexDirection:
-    "column",
-
-  gap:
-    "12px"
-};
+const tutorialSteps = { display: "flex", flexDirection: "column", gap: 12 };
 
 const tutorialStep = {
-  display:
-    "grid",
-
-  gridTemplateColumns:
-    "34px 48px 1fr",
-
-  gap:
-    "12px",
-
-  alignItems:
-    "center",
-
-  padding:
-    "14px",
-
-  border:
-    "1px solid #E5EBF3",
-
-  borderRadius:
-    "14px",
-
-  background:
-    "#FBFCFE"
+  display: "grid", gridTemplateColumns: "34px 48px 1fr", gap: 12,
+  alignItems: "center", padding: 14, border: "1px solid #E5EBF3",
+  borderRadius: 14, background: "#FBFCFE"
 };
 
 const stepNumber = {
-  width:
-    "30px",
-
-  height:
-    "30px",
-
-  borderRadius:
-    "50%",
-
-  background:
-    "#2167D5",
-
-  color:
-    "#FFFFFF",
-
-  display:
-    "flex",
-
-  alignItems:
-    "center",
-
-  justifyContent:
-    "center",
-
-  fontWeight:
-    "900",
-
-  fontSize:
-    "12px"
+  width: 30, height: 30, borderRadius: "50%", background: "#2167D5", color: "#FFF",
+  display: "flex", alignItems: "center", justifyContent: "center",
+  fontWeight: 900, fontSize: 12
 };
 
 const stepIcon = {
-  width:
-    "44px",
-
-  height:
-    "44px",
-
-  borderRadius:
-    "12px",
-
-  background:
-    "#EEF4FF",
-
-  display:
-    "flex",
-
-  alignItems:
-    "center",
-
-  justifyContent:
-    "center",
-
-  fontSize:
-    "22px"
+  width: 44, height: 44, borderRadius: 12, background: "#EEF4FF",
+  display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22
 };
 
 const stepTitle = {
-  fontSize:
-    "14px",
-
-  fontWeight:
-    "900",
-
-  color:
-    "#344054",
-
-  marginBottom:
-    "3px"
+  fontSize: 14, fontWeight: 900, color: "#344054", marginBottom: 3
 };
 
-const stepText = {
-  fontSize:
-    "12px",
-
-  color:
-    "#667085",
-
-  lineHeight:
-    "1.5"
-};
+const stepText = { fontSize: 12, color: "#667085", lineHeight: 1.5 };
 
 const tutorialNotice = {
-  marginTop:
-    "20px",
-
-  padding:
-    "12px 14px",
-
-  borderRadius:
-    "12px",
-
-  background:
-    "#FFF9E8",
-
-  border:
-    "1px solid #F6D98B",
-
-  color:
-    "#7A5A10",
-
-  fontSize:
-    "11px",
-
-  lineHeight:
-    "1.5"
+  marginTop: 20, padding: "12px 14px", borderRadius: 12, background: "#FFF9E8",
+  border: "1px solid #F6D98B", color: "#7A5A10", fontSize: 11, lineHeight: 1.5
 };
 
 const understoodButton = {
-  width:
-    "100%",
-
-  marginTop:
-    "20px",
-
-  border:
-    "none",
-
-  background:
-    "linear-gradient(135deg,#2167D5,#5795F2)",
-
-  color:
-    "#FFFFFF",
-
-  borderRadius:
-    "12px",
-
-  padding:
-    "12px 18px",
-
-  cursor:
-    "pointer",
-
-  fontWeight:
-    "900",
-
-  fontSize:
-    "13px"
+  width: "100%", marginTop: 20, border: "none",
+  background: "linear-gradient(135deg,#2167D5,#5795F2)",
+  color: "#FFF", borderRadius: 12, padding: "12px 18px",
+  cursor: "pointer", fontWeight: 900, fontSize: 13
 };
 
 export default Dashboard;
+ 

@@ -1,0 +1,790 @@
+
+/* ============================================================
+   MIRRORSOUL - PÁGINA PÚBLICA
+   MODO CLARO Y OSCURO
+   ============================================================ */
+
+/* ============================================================
+   1. CONFIGURACIÓN GENERAL
+   ============================================================ */
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* ============================================================
+   2. VARIABLES DE COLOR - MODO CLARO
+   ============================================================ */
+
+:root,
+:root[data-ms-theme="claro"] {
+  --ms-bg: #f4f8ff;
+  --ms-bg-alt: #edf5ff;
+
+  --ms-text: #172842;
+  --ms-title: #12243f;
+  --ms-muted: #526782;
+
+  --ms-card: #ffffff;
+  --ms-card-alt: #f8fbff;
+
+  --ms-card-text: #172842;
+  --ms-card-muted: #526782;
+
+  --ms-border: #dce7f5;
+  --ms-accent: #1670d9;
+  --ms-accent-soft: #e6f3ff;
+
+  --ms-decoration: rgba(37, 99, 235, 0.20);
+  --ms-dot: rgba(37, 99, 235, 0.20);
+
+  --ms-shadow:
+    0 15px 45px rgba(29, 62, 108, 0.08);
+
+  --ms-bg-gradient:
+    radial-gradient(
+      circle at 8% 8%,
+      rgba(83, 175, 255, 0.12),
+      transparent 28%
+    ),
+    radial-gradient(
+      circle at 92% 25%,
+      rgba(145, 116, 255, 0.08),
+      transparent 28%
+    ),
+    linear-gradient(
+      180deg,
+      #f8fbff 0%,
+      #edf5ff 48%,
+      #ffffff 100%
+    );
+}
+
+/* ============================================================
+   3. VARIABLES DE COLOR - MODO OSCURO
+   ============================================================ */
+
+:root[data-ms-theme="oscuro"] {
+  --ms-bg: #07111f;
+  --ms-bg-alt: #0a1828;
+
+  --ms-text: #ffffff;
+  --ms-title: #ffffff;
+  --ms-muted: #c0d0e4;
+
+  --ms-card: #202f40;
+  --ms-card-alt: #142337;
+
+  --ms-card-text: #ffffff;
+  --ms-card-muted: #c0d0e4;
+
+  --ms-border: rgba(255, 255, 255, 0.10);
+  --ms-accent: #61e6ff;
+  --ms-accent-soft: rgba(97, 230, 255, 0.10);
+
+  --ms-decoration: rgba(143, 131, 255, 0.25);
+  --ms-dot: rgba(93, 225, 255, 0.48);
+
+  --ms-shadow:
+    0 18px 55px rgba(0, 0, 0, 0.20);
+
+  --ms-bg-gradient:
+    radial-gradient(
+      circle at 8% 8%,
+      rgba(68, 213, 255, 0.12),
+      transparent 25%
+    ),
+    radial-gradient(
+      circle at 92% 24%,
+      rgba(145, 116, 255, 0.10),
+      transparent 28%
+    ),
+    linear-gradient(
+      180deg,
+      #07111f 0%,
+      #0a1828 45%,
+      #07111f 100%
+    );
+}
+
+/* ============================================================
+   4. CONTENEDOR PRINCIPAL
+   ============================================================ */
+
+.mirrorsoul-public-page {
+  position: relative;
+
+  min-height: 100vh;
+  width: 100%;
+
+  overflow-x: hidden;
+
+  font-family:
+    "Inter",
+    "Segoe UI",
+    Arial,
+    sans-serif;
+
+  background: var(--ms-bg-gradient);
+
+  color: var(--ms-text);
+
+  transition:
+    background 0.3s ease,
+    color 0.3s ease;
+}
+
+.public-content-layer,
+.public-main {
+  position: relative;
+  z-index: 1;
+}
+
+.public-main {
+  color: var(--ms-text);
+}
+
+/* ============================================================
+   5. SECCIONES
+   ============================================================ */
+
+.public-section {
+  position: relative;
+
+  overflow: hidden;
+  isolation: isolate;
+
+  scroll-margin-top: 95px;
+
+  color: var(--ms-text);
+
+  border-top:
+    1px solid var(--ms-border);
+}
+
+/* Los componentes de la página pública
+   contienen fondos propios en línea.
+   Dejamos transparente su sección principal
+   para mostrar el fondo y las decoraciones. */
+
+.mirrorsoul-public-page
+.public-section > section {
+  position: relative !important;
+
+  z-index: 2 !important;
+
+  background: transparent !important;
+
+  color: var(--ms-text);
+}
+
+/* ============================================================
+   6. DECORACIONES POR SECCIÓN
+   ============================================================ */
+
+.section-background-icons {
+  position: absolute;
+  inset: 0;
+
+  z-index: 1;
+
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.section-bg-icon {
+  position: absolute;
+
+  user-select: none;
+
+  opacity: 0.16;
+
+  font-family:
+    "Segoe UI Emoji",
+    "Apple Color Emoji",
+    sans-serif;
+
+  filter:
+    drop-shadow(
+      0 0 18px rgba(91, 224, 255, 0.20)
+    );
+
+  animation:
+    mirrorFloat 9s ease-in-out infinite;
+}
+
+.section-bg-icon-left {
+  left: 2.5%;
+  top: 18%;
+
+  font-size:
+    clamp(42px, 4vw, 72px);
+
+  transform: rotate(-8deg);
+}
+
+.section-bg-icon-right {
+  right: 3%;
+  top: 42%;
+
+  font-size:
+    clamp(44px, 4.2vw, 76px);
+
+  animation-delay: 1.4s;
+}
+
+.section-bg-icon-bottom {
+  left: 7%;
+  bottom: 8%;
+
+  font-size:
+    clamp(36px, 3.5vw, 64px);
+
+  color: #8f83ff;
+
+  animation-delay: 2s;
+}
+
+.section-bg-dot {
+  position: absolute;
+
+  width: 6px;
+  height: 6px;
+
+  border-radius: 50%;
+
+  background: var(--ms-dot);
+
+  box-shadow:
+    0 0 15px rgba(93, 225, 255, 0.25);
+}
+
+.section-bg-dot-1 {
+  top: 13%;
+  left: 18%;
+}
+
+.section-bg-dot-2 {
+  top: 66%;
+  right: 17%;
+}
+
+.section-bg-dot-3 {
+  bottom: 12%;
+  left: 43%;
+}
+
+/* ============================================================
+   7. DECORACIONES SEGÚN TEMA
+   ============================================================ */
+
+:root[data-ms-theme="claro"]
+.section-bg-icon {
+  opacity: 0.13;
+  filter: saturate(0.75);
+}
+
+:root[data-ms-theme="claro"]
+.section-bg-dot {
+  opacity: 0.22;
+}
+
+:root[data-ms-theme="oscuro"]
+.section-bg-icon {
+  opacity: 0.23;
+}
+
+:root[data-ms-theme="oscuro"]
+.section-bg-dot {
+  opacity: 0.35;
+}
+
+/* ============================================================
+   8. TRAMA TECNOLÓGICA
+   ============================================================ */
+
+.public-section::before {
+  content: "";
+
+  position: absolute;
+  inset: 0;
+
+  z-index: 0;
+
+  pointer-events: none;
+
+  opacity: 0.44;
+
+  background-image:
+    radial-gradient(
+      circle,
+      var(--ms-decoration) 1px,
+      transparent 1px
+    );
+
+  background-size: 48px 48px;
+}
+
+.public-section::after {
+  content: "";
+
+  position: absolute;
+  inset: 0;
+
+  z-index: 0;
+
+  pointer-events: none;
+
+  background:
+    radial-gradient(
+      circle at 10% 22%,
+      rgba(74, 216, 255, 0.07),
+      transparent 24%
+    ),
+    radial-gradient(
+      circle at 90% 72%,
+      rgba(143, 121, 255, 0.07),
+      transparent 25%
+    );
+}
+
+/* ============================================================
+   9. TÍTULOS GLOBALES
+   ============================================================ */
+
+.mirrorsoul-public-page h1 {
+  color: var(--ms-title) !important;
+
+  font-size:
+    clamp(2.6rem, 3.45vw, 4.15rem) !important;
+
+  line-height: 1.045 !important;
+
+  letter-spacing: -1.4px !important;
+
+  font-weight: 900 !important;
+}
+
+.mirrorsoul-public-page h2 {
+  color: var(--ms-title) !important;
+
+  font-size:
+    clamp(2.15rem, 2.8vw, 3.35rem) !important;
+
+  line-height: 1.08 !important;
+
+  letter-spacing: -0.8px !important;
+
+  font-weight: 900 !important;
+}
+
+.mirrorsoul-public-page h3 {
+  color: var(--ms-title) !important;
+
+  font-size:
+    clamp(1.4rem, 1.55vw, 1.8rem) !important;
+
+  line-height: 1.28 !important;
+
+  font-weight: 850 !important;
+}
+
+.mirrorsoul-public-page h4 {
+  color: var(--ms-title) !important;
+
+  font-size: 1.3rem !important;
+
+  font-weight: 800 !important;
+}
+
+/* ============================================================
+   10. PÁRRAFOS GLOBALES
+   ============================================================ */
+
+.mirrorsoul-public-page p {
+  color: var(--ms-muted) !important;
+
+  font-size:
+    clamp(1.02rem, 1.08vw, 1.18rem) !important;
+
+  line-height: 1.72 !important;
+
+  font-weight: 500 !important;
+}
+
+/* ============================================================
+   11. CONTRASTE DE TEXTOS EN MODO CLARO
+   ============================================================ */
+
+:root[data-ms-theme="claro"]
+.mirrorsoul-public-page
+.public-section h1,
+
+:root[data-ms-theme="claro"]
+.mirrorsoul-public-page
+.public-section h2,
+
+:root[data-ms-theme="claro"]
+.mirrorsoul-public-page
+.public-section h3,
+
+:root[data-ms-theme="claro"]
+.mirrorsoul-public-page
+.public-section h4 {
+  color: #12243f !important;
+}
+
+:root[data-ms-theme="claro"]
+.mirrorsoul-public-page
+.public-section p {
+  color: #526782 !important;
+}
+
+/* ============================================================
+   12. HERO PRINCIPAL
+   ============================================================ */
+
+#inicio h1 {
+  max-width: 760px;
+
+  font-size:
+    clamp(2.55rem, 3.3vw, 4rem) !important;
+}
+
+:root[data-ms-theme="claro"]
+#inicio h1 {
+  color: #12243f !important;
+}
+
+:root[data-ms-theme="claro"]
+#inicio p {
+  color: #526782 !important;
+}
+
+:root[data-ms-theme="oscuro"]
+#inicio h1 {
+  color: #ffffff !important;
+}
+
+:root[data-ms-theme="oscuro"]
+#inicio p {
+  color: #c0d0e4 !important;
+}
+
+/* ============================================================
+   13. ENCABEZADOS PEQUEÑOS
+   ============================================================ */
+
+#problematica > section > div > div:first-child > span:first-child,
+#soluciones > section > div > div:first-child > span:first-child,
+#video > section > div > div:first-child > span:first-child,
+#beneficios > section > div > div:first-child > span:first-child,
+#servicios > section > div > div:first-child > span:first-child {
+  font-size: 0.98rem !important;
+
+  font-weight: 900 !important;
+
+  line-height: 1.2 !important;
+
+  letter-spacing: 2.2px !important;
+}
+
+/* ============================================================
+   14. TÍTULOS DE SECCIONES
+   ============================================================ */
+
+#problematica h2,
+#soluciones h2,
+#beneficios h2,
+#servicios h2 {
+  max-width: 980px;
+
+  font-size:
+    clamp(2.25rem, 2.9vw, 3.5rem) !important;
+
+  line-height: 1.08 !important;
+}
+
+#video h2 {
+  max-width: 1000px;
+
+  margin-left: auto;
+  margin-right: auto;
+
+  font-size:
+    clamp(2.2rem, 2.8vw, 3.35rem) !important;
+}
+
+/* ============================================================
+   15. TARJETAS Y ARTÍCULOS
+   ============================================================ */
+
+/* Las tarjetas deben utilizar colores
+   diferentes dependiendo del tema.
+
+   Se aplican a las tarjetas semánticas
+   que se encuentran dentro de las secciones.
+*/
+
+.mirrorsoul-public-page
+.public-section article {
+  transition:
+    background 0.3s ease,
+    color 0.3s ease,
+    border-color 0.3s ease,
+    box-shadow 0.3s ease;
+}
+
+/* ============================================================
+   16. TARJETAS EN MODO CLARO
+   ============================================================ */
+
+:root[data-ms-theme="claro"]
+.mirrorsoul-public-page
+.public-section article {
+  background: var(--ms-card) !important;
+
+  color: var(--ms-card-text) !important;
+
+  border-color: var(--ms-border) !important;
+
+  box-shadow: var(--ms-shadow);
+}
+
+:root[data-ms-theme="claro"]
+.mirrorsoul-public-page
+.public-section article h1,
+
+:root[data-ms-theme="claro"]
+.mirrorsoul-public-page
+.public-section article h2,
+
+:root[data-ms-theme="claro"]
+.mirrorsoul-public-page
+.public-section article h3,
+
+:root[data-ms-theme="claro"]
+.mirrorsoul-public-page
+.public-section article h4 {
+  color: var(--ms-card-text) !important;
+}
+
+:root[data-ms-theme="claro"]
+.mirrorsoul-public-page
+.public-section article p {
+  color: var(--ms-card-muted) !important;
+}
+
+/* ============================================================
+   17. TARJETAS EN MODO OSCURO
+   ============================================================ */
+
+:root[data-ms-theme="oscuro"]
+.mirrorsoul-public-page
+.public-section article {
+  background: var(--ms-card) !important;
+
+  color: var(--ms-card-text) !important;
+
+  border-color: var(--ms-border) !important;
+}
+
+:root[data-ms-theme="oscuro"]
+.mirrorsoul-public-page
+.public-section article h1,
+
+:root[data-ms-theme="oscuro"]
+.mirrorsoul-public-page
+.public-section article h2,
+
+:root[data-ms-theme="oscuro"]
+.mirrorsoul-public-page
+.public-section article h3,
+
+:root[data-ms-theme="oscuro"]
+.mirrorsoul-public-page
+.public-section article h4 {
+  color: #ffffff !important;
+}
+
+:root[data-ms-theme="oscuro"]
+.mirrorsoul-public-page
+.public-section article p {
+  color: #c0d0e4 !important;
+}
+
+/* ============================================================
+   18. OTROS TEXTOS DENTRO DE TARJETAS
+   ============================================================ */
+
+:root[data-ms-theme="claro"]
+.public-section article li,
+
+:root[data-ms-theme="claro"]
+.public-section article label,
+
+:root[data-ms-theme="claro"]
+.public-section article strong {
+  color: var(--ms-card-text);
+}
+
+:root[data-ms-theme="oscuro"]
+.public-section article li,
+
+:root[data-ms-theme="oscuro"]
+.public-section article label,
+
+:root[data-ms-theme="oscuro"]
+.public-section article strong {
+  color: var(--ms-card-text);
+}
+
+/* ============================================================
+   19. ETIQUETAS Y CHIPS
+   ============================================================ */
+
+#que-es article span,
+#soluciones article span,
+#beneficios article span,
+#servicios article span {
+  letter-spacing: normal !important;
+}
+
+/* ============================================================
+   20. BOTONES
+   ============================================================ */
+
+.mirrorsoul-public-page button,
+.mirrorsoul-public-page a {
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.mirrorsoul-public-page button:focus-visible,
+.mirrorsoul-public-page a:focus-visible {
+  outline: 3px solid #3b82f6;
+  outline-offset: 3px;
+}
+
+/* Nota:
+   No sobrescribimos indiscriminadamente
+   el color de los botones porque algunos
+   utilizan degradados y texto contrastante.
+*/
+
+/* ============================================================
+   21. ANIMACIÓN DE DECORACIONES
+   ============================================================ */
+
+@keyframes mirrorFloat {
+  0%,
+  100% {
+    transform:
+      translateY(0)
+      rotate(-3deg);
+  }
+
+  50% {
+    transform:
+      translateY(-15px)
+      rotate(3deg);
+  }
+}
+
+/* ============================================================
+   22. TABLET
+   ============================================================ */
+
+@media (max-width: 1024px) {
+  .mirrorsoul-public-page h1 {
+    font-size:
+      clamp(2.4rem, 5vw, 3.7rem) !important;
+  }
+
+  .mirrorsoul-public-page h2 {
+    font-size:
+      clamp(2rem, 4.2vw, 2.9rem) !important;
+  }
+
+  .mirrorsoul-public-page h3 {
+    font-size: 1.42rem !important;
+  }
+
+  .mirrorsoul-public-page p {
+    font-size: 1.05rem !important;
+  }
+
+  .section-bg-icon {
+    opacity: 0.12;
+  }
+}
+
+/* ============================================================
+   23. CELULAR
+   ============================================================ */
+
+@media (max-width: 768px) {
+  .mirrorsoul-public-page h1 {
+    font-size:
+      clamp(2.2rem, 8vw, 3.05rem) !important;
+  }
+
+  .mirrorsoul-public-page h2 {
+    font-size:
+      clamp(1.9rem, 6.8vw, 2.55rem) !important;
+  }
+
+  .mirrorsoul-public-page h3 {
+    font-size: 1.3rem !important;
+  }
+
+  .mirrorsoul-public-page p {
+    font-size: 1rem !important;
+  }
+
+  #problematica > section > div > div:first-child > span:first-child,
+  #soluciones > section > div > div:first-child > span:first-child,
+  #video > section > div > div:first-child > span:first-child,
+  #beneficios > section > div > div:first-child > span:first-child,
+  #servicios > section > div > div:first-child > span:first-child {
+    font-size: 0.86rem !important;
+
+    letter-spacing: 1.6px !important;
+  }
+
+  .section-bg-icon {
+    opacity: 0.09;
+    font-size: 42px;
+  }
+
+  .public-section {
+    scroll-margin-top: 78px;
+  }
+}
+
+/* ============================================================
+   24. MOVIMIENTO REDUCIDO
+   ============================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  .mirrorsoul-public-page,
+  .mirrorsoul-public-page *,
+  .ms-public-navbar,
+  .ms-public-navbar * {
+    scroll-behavior: auto !important;
+
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

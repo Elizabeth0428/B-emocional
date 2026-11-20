@@ -5,18 +5,92 @@ import crypto from "crypto";
 import pool from "../config/database.js";
 
 // ==================================================
+// AUXILIAR: NORMALIZAR
+// ==================================================
+
+const normalizar = valor =>
+  valor
+    ? String(valor).trim().toLowerCase()
+    : "";
+
+// ==================================================
+// AUXILIAR: CONTEXTO RH
+// ==================================================
+
+const obtenerContextoRH = async (
+  user,
+  connection = pool
+) => {
+  const idUsuario =
+    Number(user?.id_usuario) || null;
+
+  if (!idUsuario) {
+    return {
+      idUsuario: null,
+      tipoAdmin: "",
+      area: "",
+      rol: "",
+      perfilIndependiente: ""
+    };
+  }
+
+  const [rows] = await connection.query(
+    `
+      SELECT
+        u.id_usuario,
+        u.tipo_admin,
+        u.area,
+        u.rol,
+        u.id_organizacion,
+        o.perfil_independiente
+      FROM usuarios u
+      LEFT JOIN organizaciones o
+        ON o.id_organizacion = u.id_organizacion
+      WHERE u.id_usuario = ?
+      LIMIT 1
+    `,
+    [idUsuario]
+  );
+
+  const usuario = rows[0] || {};
+
+  return {
+    idUsuario,
+    tipoAdmin:
+      normalizar(usuario.tipo_admin || user?.tipo_admin),
+    area:
+      normalizar(usuario.area || user?.area),
+    rol:
+      normalizar(usuario.rol || user?.rol),
+    perfilIndependiente:
+      normalizar(
+        usuario.perfil_independiente ||
+        user?.perfil_independiente
+      )
+  };
+};
+
+// ==================================================
 // AUXILIAR: VALIDAR ACCESO RH AL PROSPECTO
 // ==================================================
-const validarAccesoProspecto = async (idProspecto, user) => {
-  const idUsuario = user?.id_usuario;
+const validarAccesoProspecto = async (
+  idProspecto,
+  user,
+  connection = pool
+) => {
+  const contexto =
+    await obtenerContextoRH(
+      user,
+      connection
+    );
 
-  const tipoAdmin = user?.tipo_admin
-    ? String(user.tipo_admin).trim().toLowerCase()
-    : null;
-
-  const area = user?.area
-    ? String(user.area).trim().toLowerCase()
-    : null;
+  const {
+    idUsuario,
+    tipoAdmin,
+    area,
+    rol,
+    perfilIndependiente
+  } = contexto;
 
   if (!idUsuario) {
     return {
@@ -26,7 +100,28 @@ const validarAccesoProspecto = async (idProspecto, user) => {
     };
   }
 
-  if (tipoAdmin !== "master" && area !== "rh") {
+  const esMaster =
+    tipoAdmin === "master";
+
+  const esAdminRH =
+    tipoAdmin === "normal" &&
+    area === "rh";
+
+  const esUsuarioRH =
+    rol === "rh" &&
+    area === "rh";
+
+  const esIndependienteRH =
+    rol === "independiente" &&
+    area === "independiente" &&
+    perfilIndependiente === "rh";
+
+  if (
+    !esMaster &&
+    !esAdminRH &&
+    !esUsuarioRH &&
+    !esIndependienteRH
+  ) {
     return {
       ok: false,
       status: 403,
@@ -49,14 +144,20 @@ const validarAccesoProspecto = async (idProspecto, user) => {
 
   const params = [idProspecto];
 
-  if (tipoAdmin !== "master") {
+  // Todo usuario RH no-master, incluido Independiente RH,
+  // solo puede acceder a sus propios prospectos.
+  if (!esMaster) {
     query += ` AND id_admin_padre = ? `;
     params.push(idUsuario);
   }
 
   query += ` LIMIT 1 `;
 
-  const [rows] = await pool.query(query, params);
+  const [rows] =
+    await connection.query(
+      query,
+      params
+    );
 
   if (!rows.length) {
     return {
@@ -69,6 +170,13 @@ const validarAccesoProspecto = async (idProspecto, user) => {
   return {
     ok: true,
     prospecto: rows[0],
+    contexto: {
+      ...contexto,
+      esMaster,
+      esAdminRH,
+      esUsuarioRH,
+      esIndependienteRH
+    }
   };
 };
 

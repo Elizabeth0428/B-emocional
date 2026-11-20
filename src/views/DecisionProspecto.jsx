@@ -12,10 +12,15 @@ import {
   useParams
 } from "react-router-dom";
 
+import {
+  getToken,
+  clearSession
+} from "../services/AuthService";
+
 
 const API_URL =
   import.meta.env.VITE_API_URL ||
-  "https://reflejoyalma.com";
+  "https://www.reflejoyalma.com";
 
 
 const DecisionProspecto = () => {
@@ -27,7 +32,7 @@ const DecisionProspecto = () => {
     useNavigate();
 
   const token =
-    localStorage.getItem("token");
+    getToken();
 
 
   const config =
@@ -134,6 +139,23 @@ const DecisionProspecto = () => {
             "📡 Status:",
             err.response?.status
           );
+
+
+          if (
+            err.response?.status ===
+            401
+          ) {
+            clearSession();
+
+            navigate(
+              "/login",
+              {
+                replace: true
+              }
+            );
+
+            return;
+          }
 
 
           setError(
@@ -401,6 +423,23 @@ const DecisionProspecto = () => {
         );
 
 
+        if (
+          err.response?.status ===
+          401
+        ) {
+          clearSession();
+
+          navigate(
+            "/login",
+            {
+              replace: true
+            }
+          );
+
+          return;
+        }
+
+
         setError(
           err.response?.data?.message ||
           err.response?.data?.error ||
@@ -510,17 +549,21 @@ const DecisionProspecto = () => {
             VOLVER
         ========================================== */}
 
-        <button
-          type="button"
-          style={styles.backButton}
-          onClick={() =>
-            navigate(
-              `/prospecto/${idProspecto}`
-            )
-          }
-        >
-          ← Volver al expediente
-        </button>
+        <div style={styles.backButtonRow}>
+          <button
+            type="button"
+            style={styles.backButton}
+            onClick={() =>
+              navigate(
+                `/prospecto/${idProspecto}`
+              )
+            }
+          >
+            <span style={styles.backButtonText}>
+              ← Volver al expediente
+            </span>
+          </button>
+        </div>
 
 
         {/* ==========================================
@@ -1319,14 +1362,52 @@ const styles = {
     margin: "0 auto"
   },
 
+  backButtonRow: {
+    position: "relative",
+    zIndex: 9999,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "flex-start",
+    width: "100%",
+    marginBottom: "18px",
+    pointerEvents: "auto"
+  },
+
   backButton: {
+    appearance: "none",
+    WebkitAppearance: "none",
+    position: "relative",
+    zIndex: 10000,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: "240px",
+    minHeight: "46px",
+    padding: "12px 24px",
+    margin: 0,
     border: "none",
-    background: "transparent",
-    padding: 0,
-    marginBottom: "14px",
+    borderRadius: "999px",
+    background:
+      "linear-gradient(135deg,#64B5F6,#1976D2)",
+    color: "#ffffff",
     cursor: "pointer",
-    color: "#344054",
-    fontWeight: "700"
+    fontWeight: "700",
+    fontSize: "16px",
+    lineHeight: 1.2,
+    boxShadow:
+      "0 5px 14px rgba(25,118,210,.25)",
+    pointerEvents: "auto",
+    userSelect: "none",
+    WebkitUserSelect: "none",
+    touchAction: "manipulation",
+    whiteSpace: "nowrap"
+  },
+
+  backButtonText: {
+    display: "block",
+    width: "100%",
+    textAlign: "center",
+    pointerEvents: "none"
   },
 
   header: {

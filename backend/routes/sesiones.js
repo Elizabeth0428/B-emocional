@@ -10,7 +10,9 @@ import {
   generarLinkVideollamada
 } from "../controllers/sesionController.js";
 
-import { verifyToken } from "../middlewares/authMiddleware.js";
+import { verifyToken,
+  verificarSuscripcionOrganizacion
+} from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
 
@@ -22,6 +24,7 @@ const router = express.Router();
 router.get(
   "/paciente/:id_paciente",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   obtenerSesionesPaciente
 );
 
@@ -33,6 +36,7 @@ router.get(
 router.post(
   "/",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   crearSesion
 );
 
@@ -67,6 +71,7 @@ router.post(
 router.post(
   "/iniciar/:id_paciente",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   iniciarVideollamadaPaciente
 );
 
@@ -78,6 +83,7 @@ router.post(
 router.put(
   "/:id/finalizar",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   finalizarSesion
 );
 
@@ -99,6 +105,7 @@ router.put(
 router.post(
   "/:id/videollamada",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   generarLinkVideollamada
 );
 

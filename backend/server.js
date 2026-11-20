@@ -17,6 +17,7 @@ import fsExtra from "fs-extra";
 import { ExpressPeerServer } from "peer";
 import { fileURLToPath } from "url";
 
+
 // ==================================================
 // ROUTES
 // ==================================================
@@ -40,6 +41,9 @@ import evaluationRoutes from "./routes/evaluation.js";
 
 import streamRoutes from "./routes/stream.js";
 
+import agendaRHRoutes from "./routes/agendaRH.js";
+
+
 // ==================================================
 // NUEVAS RUTAS DE USUARIOS POR ÁREA
 // ==================================================
@@ -53,13 +57,15 @@ import usuariosEducativoRoutes from "./routes/usuarioEducativo.js";
 // Independiente
 import usuariosIndependienteRoutes from "./routes/usuarioIndependiente.js";
 
+
 // ==================================================
 // PROSPECTOS RH
 // ==================================================
 
 import prospectosRoutes from "./routes/prospectos.js";
-import documentosProspectoRoutes
-from "./routes/documentosProspecto.js";
+
+import documentosProspectoRoutes from "./routes/documentosProspecto.js";
+
 
 // ==================================================
 // EMPLEADOS RH
@@ -67,21 +73,130 @@ from "./routes/documentosProspecto.js";
 
 import empleadosRoutes from "./routes/empleados.js";
 
-import archivosEntrevistaRHRoutes
-from "./routes/archivosEntrevistaRH.js";
 
+// ==================================================
+// NOM-035
+// ==================================================
+
+import nom035Routes from "./routes/nom035.js";
+
+import transferenciasRoutes from "./routes/transferencias.js";
+
+import archivosEntrevistaRHRoutes from "./routes/archivosEntrevistaRH.js";
+
+
+// ==================================================
+// CANALIZACION
+// ==================================================
+
+import canalizacionRoutes from "./routes/canalizacionRoutes.js";
+
+
+// ==================================================
+// CÓDIGOS POSTALES MÉXICO
+// ==================================================
+
+import codigoPostalRoutes from "./routes/codigoPostalRoutes.js";
+
+
+// ==================================================
+// ORGANIZACIONES
+// ==================================================
+
+import organizacionesRoutes from "./routes/organizaciones.js";
+
+import psicologoEstadoRoutes from "./routes/psicologoEstadoRoutes.js";
+
+// ==================================================
+// JOB SUSCRIPCIONES
+// ==================================================
+
+import {iniciarRevisionSuscripciones} from "./jobs/suscripcionesJob.js";
+
+import planesRoutes from "./routes/planes.js";
+
+import backupsRoutes from "./routes/backups.js";
+
+import {iniciarBackupsAutomaticos} from "./jobs/backupsJob.js";
+
+import checkoutRoutes from "./routes/checkout.js";
+
+// ============================================================
+// PAGOS MIRRORSOUL / MERCADO PAGO
+// ============================================================
+
+import pagosRoutes from "./routes/pagosRoutes.js";
+import passwordInicialRoutes from "./routes/passwordInicialRoutes.js";
 // ==================================================
 // APP
 // ==================================================
 
 const app = express();
-app.set('trust proxy', 1);
+
+
+const PORT =
+  process.env.PORT ||
+  5000;
+
+
+// ==================================================
+// REVISIÓN AUTOMÁTICA DE SUSCRIPCIONES
+// ==================================================
+
+iniciarRevisionSuscripciones();
+
+iniciarBackupsAutomaticos();
+
 
 // ==================================================
 // SEGURIDAD
 // ==================================================
 
-app.use(helmet());
+const esProduccion =
+  process.env.NODE_ENV ===
+  "production";
+
+
+app.use(
+  helmet({
+
+    contentSecurityPolicy:
+      esProduccion
+        ? undefined
+        : {
+
+            directives: {
+
+              "upgrade-insecure-requests":
+                null
+
+            }
+
+          },
+
+
+    crossOriginOpenerPolicy:
+      esProduccion
+        ? undefined
+        : false,
+
+
+    originAgentCluster:
+      esProduccion
+        ? undefined
+        : false,
+
+
+    crossOriginResourcePolicy: {
+
+      policy:
+        "cross-origin"
+
+    }
+
+  })
+);
+
 
 // ==================================================
 // CORS
@@ -89,14 +204,6 @@ app.use(helmet());
 
 const allowedOrigins = [
 
-   // Producción (Hostinger)
-  "https://reflejoyalma.com",
-  "https://www.reflejoyalma.com",
-  "https://red-caribou-571136.hostingersite.com", // <-- El nuevo dominio autorizado
-  "http://localhost:5173",
-
-
-  // Casa
   "http://localhost:5173",
   "http://localhost:5174",
   "http://localhost:5175",
@@ -107,7 +214,6 @@ const allowedOrigins = [
 
   "http://192.168.1.243:5175",
 
-  // Red actual
   "http://192.168.1.79:5175",
 
   "http://192.168.100.21:5175",
@@ -116,56 +222,76 @@ const allowedOrigins = [
 
   "http://192.168.11.157:5175",
 
-  // Red actual CASA
   "http://192.168.1.67:5175",
 
-  // casa de Karen
+  "http://192.168.100.24:5175",
+
+  "http://192.168.25.213:5175",
+
   "http://10.0.0.14:5175"
+
 ];
+
 
 app.use(
   cors({
+
     origin: function (
       origin,
       callback
     ) {
 
-      // Permitir peticiones sin origin
-      // como Postman o algunas herramientas
       if (!origin) {
+
         return callback(
           null,
           true
         );
+
       }
+
 
       if (
         allowedOrigins.includes(
           origin
         )
       ) {
+
         return callback(
           null,
           true
         );
+
       }
 
+
       return callback(
+
         new Error(
           "No permitido por CORS: " +
           origin
         )
+
       );
+
     },
 
-    credentials: true,
+
+    credentials:
+      true,
+
 
     exposedHeaders: [
+
       "Content-Range",
+
       "Accept-Ranges"
+
     ]
+
   })
 );
+
 
 // ==================================================
 // HTTP SERVER
@@ -176,22 +302,31 @@ const server =
     app
   );
 
+
 // ==================================================
 // PEERJS
 // ==================================================
 
 const peerServer =
   ExpressPeerServer(
+
     server,
+
     {
-      path: "/myapp"
+
+      path:
+        "/myapp"
+
     }
+
   );
+
 
 app.use(
   "/peerjs",
   peerServer
 );
+
 
 // ==================================================
 // RATE LIMIT
@@ -199,15 +334,19 @@ app.use(
 
 app.use(
   rateLimit({
+
     windowMs:
       15 * 60 * 1000,
 
-    max: 500,
+    max:
+      500,
 
     message:
       "Demasiadas solicitudes desde esta IP, intenta de nuevo más tarde."
+
   })
 );
+
 
 // ==================================================
 // BODY PARSERS
@@ -217,11 +356,16 @@ app.use(
   express.json()
 );
 
+
 app.use(
   express.urlencoded({
-    extended: true
+
+    extended:
+      true
+
   })
 );
+
 
 // ==================================================
 // __dirname PARA ES MODULES
@@ -232,39 +376,51 @@ const __filename =
     import.meta.url
   );
 
+
 const __dirname =
   path.dirname(
     __filename
   );
+
 
 // ==================================================
 // CARPETAS UPLOADS
 // ==================================================
 
 fsExtra.ensureDirSync(
+
   path.join(
     __dirname,
     "uploads/multimedia"
   )
+
 );
 
+
 fsExtra.ensureDirSync(
+
   path.join(
     __dirname,
     "uploads/imagenes"
   )
+
 );
 
+
 fsExtra.ensureDirSync(
+
   path.join(
     __dirname,
     "uploads/pdfs"
   )
+
 );
+
 
 // ==================================================
 // RUTAS API
 // ==================================================
+
 
 // ==================================================
 // REPORTES
@@ -275,9 +431,11 @@ app.use(
   reporteRoutes
 );
 
+
 console.log(
   "✅ Ruta reportes cargada"
 );
+
 
 // ==================================================
 // INTELIGENCIA ARTIFICIAL
@@ -288,9 +446,11 @@ app.use(
   iaRoutes
 );
 
+
 console.log(
   "✅ Ruta IA cargada"
 );
+
 
 // ==================================================
 // AUTENTICACIÓN
@@ -301,9 +461,11 @@ app.use(
   authRoutes
 );
 
+
 console.log(
   "✅ Rutas de autenticación cargadas"
 );
+
 
 // ==================================================
 // PACIENTES
@@ -314,6 +476,7 @@ app.use(
   pacientesRoutes
 );
 
+
 // ==================================================
 // SESIONES
 // ==================================================
@@ -322,6 +485,7 @@ app.use(
   "/api/sesiones",
   sesionesRoutes
 );
+
 
 // ==================================================
 // HISTORIAL CLÍNICO INICIAL
@@ -332,6 +496,7 @@ app.use(
   historialRoutes
 );
 
+
 // ==================================================
 // SEGUIMIENTO
 // ==================================================
@@ -340,6 +505,7 @@ app.use(
   "/api/seguimiento",
   seguimientoRoutes
 );
+
 
 // ==================================================
 // NOTAS
@@ -350,6 +516,7 @@ app.use(
   notasRoutes
 );
 
+
 // ==================================================
 // ARCHIVOS
 // ==================================================
@@ -358,6 +525,7 @@ app.use(
   "/api/archivos",
   archivosRoutes
 );
+
 
 // ==================================================
 // CITAS
@@ -368,6 +536,7 @@ app.use(
   citasRoutes
 );
 
+
 // ==================================================
 // PSICÓLOGOS
 // ==================================================
@@ -377,22 +546,9 @@ app.use(
   psicologosRoutes
 );
 
+
 // ==================================================
 // EVALUACIONES / PRUEBAS
-// ==================================================
-//
-// evaluation.js contiene rutas como:
-//
-// /pruebas
-// /pruebas/habilitadas/:id_paciente
-// /resultados/:id_paciente
-//
-// Resultado:
-//
-// /api/evaluation/pruebas
-// /api/evaluation/pruebas/habilitadas/:id_paciente
-// /api/evaluation/resultados/:id_paciente
-//
 // ==================================================
 
 app.use(
@@ -400,9 +556,11 @@ app.use(
   evaluationRoutes
 );
 
+
 console.log(
   "✅ Rutas de evaluaciones cargadas"
 );
+
 
 // ==================================================
 // CLEAVER
@@ -413,19 +571,26 @@ app.use(
   cleaverRoutes
 );
 
+
 console.log(
   "✅ Rutas Cleaver cargadas"
 );
+
 
 // ==================================================
 // RAVEN
 // ==================================================
 
-app.use("/api/raven", ravenRoutes);
+app.use(
+  "/api/raven",
+  ravenRoutes
+);
+
 
 console.log(
   "✅ Rutas Raven cargadas"
 );
+
 
 // ==================================================
 // BETA
@@ -436,6 +601,7 @@ app.use(
   beta3Routes
 );
 
+
 // ==================================================
 // STREAM
 // ==================================================
@@ -445,18 +611,9 @@ app.use(
   streamRoutes
 );
 
+
 // ==================================================
 // USUARIO RH
-// ==================================================
-//
-// Archivo:
-//
-// routes/usuarioRH.js
-//
-// Endpoint:
-//
-// /api/usuario-rh
-//
 // ==================================================
 
 app.use(
@@ -464,18 +621,14 @@ app.use(
   usuarioRHRoutes
 );
 
+
 console.log(
   "✅ Ruta de usuario RH cargada"
 );
 
+
 // ==================================================
 // USUARIOS EDUCATIVOS
-// ==================================================
-//
-// Endpoint:
-//
-// /api/usuario-educativo
-//
 // ==================================================
 
 app.use(
@@ -483,47 +636,29 @@ app.use(
   usuariosEducativoRoutes
 );
 
+
 console.log(
   "✅ Rutas de usuarios educativos cargadas"
 );
 
+
 // ==================================================
 // USUARIOS INDEPENDIENTES
 // ==================================================
-//
-// Endpoint:
-//
-// /api/usuario-independiente
-//
-// ==================================================
 
 app.use(
-  "/api/usuarios-independiente",
+  "/api/usuario-independiente",
   usuariosIndependienteRoutes
 );
+
 
 console.log(
   "✅ Rutas de usuarios independientes cargadas"
 );
 
+
 // ==================================================
 // PROSPECTOS RH
-// ==================================================
-//
-// Archivo:
-//
-// routes/prospectos.js
-//
-// Endpoint base:
-//
-// /api/prospectos
-//
-// Por ejemplo:
-//
-// POST /api/prospectos
-// GET  /api/prospectos
-// GET  /api/prospectos/:id
-//
 // ==================================================
 
 app.use(
@@ -531,9 +666,11 @@ app.use(
   prospectosRoutes
 );
 
+
 console.log(
   "✅ Rutas de prospectos RH cargadas"
 );
+
 
 // ==================================================
 // DOCUMENTOS DE PROSPECTOS RH
@@ -544,27 +681,14 @@ app.use(
   documentosProspectoRoutes
 );
 
+
 console.log(
   "✅ Rutas de documentos de prospectos RH cargadas"
 );
 
+
 // ==================================================
 // EMPLEADOS RH
-// ==================================================
-//
-// Archivo:
-//
-// routes/empleados.js
-//
-// Endpoint base:
-//
-// /api/empleados
-//
-// Por ejemplo:
-//
-// GET /api/empleados
-// GET /api/empleados/:id
-//
 // ==================================================
 
 app.use(
@@ -572,20 +696,283 @@ app.use(
   empleadosRoutes
 );
 
+
 console.log(
   "✅ Rutas de empleados RH cargadas"
 );
+
+
+// ==================================================
+// NOM-035
+// ==================================================
+
+app.use(
+  "/api/empleados",
+  nom035Routes
+);
+
+
+console.log(
+  "✅ Rutas NOM-035 cargadas"
+);
+
+
+// ==================================================
+// CANALIZACIÓN
+// ==================================================
+
+app.use(
+  "/api/empleados",
+  canalizacionRoutes
+);
+
+
+console.log(
+  "✅ Rutas de canalización cargadas"
+);
+
+
+// ==================================================
+// CÓDIGOS POSTALES MÉXICO
+// ==================================================
+//
+// GET /api/codigos-postales/:cp
+//
+// Ejemplo:
+// GET /api/codigos-postales/56400
+//
+// ==================================================
+
+app.use(
+  "/api/codigos-postales",
+  codigoPostalRoutes
+);
+
+
+console.log(
+  "✅ Rutas de códigos postales cargadas"
+);
+
+
+// ==================================================
+// AGENDA RH
+// ==================================================
+
+app.use(
+  "/api/agenda-rh",
+  agendaRHRoutes
+);
+
+
+console.log(
+  "✅ Rutas de Agenda RH cargadas"
+);
+
+
+// ==================================================
+// TRANSFERENCIAS DE EXPEDIENTES
+// ==================================================
+
+app.use(
+  "/api/transferencias",
+  transferenciasRoutes
+);
+
+
+console.log(
+  "✅ Rutas de transferencias cargadas"
+);
+
+
+// ==================================================
+// ORGANIZACIONES
+// ==================================================
+
+app.use(
+  "/api/organizaciones",
+  organizacionesRoutes
+);
+
+
+console.log(
+  "✅ Rutas de organizaciones cargadas"
+);
+
+// ==================================================
+// RESPALDOS DE BASE DE DATOS
+// ==================================================
+
+app.use(
+  "/api/backups",
+  backupsRoutes
+);
+
+console.log(
+  "✅ Rutas de respaldos cargadas"
+);
+
+// ==================================================
+// PLANES
+// ==================================================
+
+app.use(
+  "/api/planes",
+  planesRoutes
+);
+
+console.log(
+  "✅ Rutas de planes cargadas"
+);
+
+
+// ==================================================
+// checkout
+// ==================================================
+
+
+app.use(
+  "/api/checkout",
+  checkoutRoutes
+);
+
+console.log(
+  "✅ Rutas de checkout cargadas"
+);
+// ==================================================
+// ESTADO PSICÓLOGOS
+// ==================================================
+
+app.use(
+  "/api/psicologos",
+  psicologoEstadoRoutes
+);
+
+
+console.log(
+  "✅ Rutas de psicologoEstado cargadas"
+);
+
 
 // ==================================================
 // ARCHIVOS UPLOADS
 // ==================================================
 
 app.use(
+
   "/uploads",
+
   express.static(
+
     path.join(
       __dirname,
       "uploads"
+    ),
+
+    {
+
+      acceptRanges:
+        true,
+
+
+      setHeaders:
+        (
+          res,
+          filePath
+        ) => {
+
+
+          const extension =
+            path.extname(
+              filePath
+            )
+              .toLowerCase();
+
+
+          if (
+            extension ===
+            ".webm"
+          ) {
+
+            res.setHeader(
+              "Content-Type",
+              "video/webm"
+            );
+
+          }
+
+
+          if (
+            extension ===
+            ".mp4"
+          ) {
+
+            res.setHeader(
+              "Content-Type",
+              "video/mp4"
+            );
+
+          }
+
+
+          if (
+            extension ===
+            ".ogg"
+          ) {
+
+            res.setHeader(
+              "Content-Type",
+              "audio/ogg"
+            );
+
+          }
+
+
+          if (
+            extension ===
+            ".mp3"
+          ) {
+
+            res.setHeader(
+              "Content-Type",
+              "audio/mpeg"
+            );
+
+          }
+
+
+          res.setHeader(
+            "Cross-Origin-Resource-Policy",
+            "cross-origin"
+          );
+
+
+          res.setHeader(
+            "Accept-Ranges",
+            "bytes"
+          );
+
+        }
+
+    }
+
+  )
+
+);
+
+// ==================================================
+// ARCHIVOS STORAGE
+//
+// Documentos heredados del proceso de selección.
+// Ejemplo:
+// /storage/documentos-prospectos/archivo.pdf
+// ==================================================
+
+app.use(
+  "/storage",
+  express.static(
+    path.join(
+      __dirname,
+      "storage"
     )
   )
 );
@@ -594,6 +981,22 @@ app.use(
 // RUTA PRINCIPAL
 // ==================================================
 
+app.get(
+
+  "/",
+
+  (
+    _req,
+    res
+  ) => {
+
+    res.send(
+      "✅ Backend de B-emocional corriendo"
+    );
+
+  }
+
+);
 
 
 // ==================================================
@@ -605,54 +1008,149 @@ app.use(
   archivosEntrevistaRHRoutes
 );
 
+
 console.log(
   "✅ Rutas de grabaciones RH cargadas"
 );
 
-// ==========================================
-// SERVIR FRONTEND EN PRODUCCIÓN (ARCHIVOS ESTÁTICOS)
-// ==========================================
-app.use(express.static(path.join(__dirname, 'dist')));
+// ============================================================
+// PAGOS MIRRORSOUL / MERCADO PAGO
+// ============================================================
 
-// ==================================================
-// MANEJO DE RUTA NO ENCONTRADA (¡SOLO PARA LA API!)
-// ==================================================
 app.use(
-  "/api",
-  (req, res) => {
-    console.log(`⚠️ Ruta de API no encontrada: ${req.method} ${req.originalUrl}`);
-    res.status(404).json({
-      success: false,
-      message: "Ruta de API no encontrada",
-      ruta: req.originalUrl
-    });
-  }
+  "/api/pagos",
+  pagosRoutes
 );
 
-// ==========================================
-// FALLBACK PARA REACT ROUTER (EL PUENTE AL FRONTEND)
-// ==========================================
-app.use((req, res) => {
-  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
-});
+console.log(
+  "✅ Rutas de pagos MirrorSoul cargadas"
+);
+
+app.use(
+  "/api/auth/password-inicial",
+  passwordInicialRoutes
+);
+
+console.log(
+  "✅ Rutas de contraseña inicial cargadas"
+);
+
+// ==================================================
+// MANEJO DE RUTA NO ENCONTRADA
+// ==================================================
+
+app.use(
+
+  (
+    req,
+    res
+  ) => {
+
+
+    console.log(
+      `⚠️ Ruta no encontrada: ${req.method} ${req.originalUrl}`
+    );
+
+
+    res
+      .status(
+        404
+      )
+      .json({
+
+        success:
+          false,
+
+
+        message:
+          "Ruta no encontrada",
+
+
+        ruta:
+          req.originalUrl
+
+      });
+
+  }
+
+);
+
 
 // ==================================================
 // MANEJO GLOBAL DE ERRORES
 // ==================================================
+
 app.use(
-  (err, req, res, next) => {
-    console.error("❌ Error del servidor:", err);
-    if (res.headersSent) {
-      return next(err);
+
+  (
+    err,
+    req,
+    res,
+    next
+  ) => {
+
+
+    console.error(
+      "❌ Error del servidor:",
+      err
+    );
+
+
+    if (
+      res.headersSent
+    ) {
+
+      return next(
+        err
+      );
+
     }
-    res.status(err.status || 500).json({
-      success: false,
-      message: err.message || "Error interno del servidor"
-    });
+
+
+    res
+      .status(
+        err.status ||
+        500
+      )
+      .json({
+
+        success:
+          false,
+
+
+        message:
+          err.message ||
+          "Error interno del servidor"
+
+      });
+
   }
+
 );
 
-const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => {
-  console.log(`Servidor de Mirror Soul corriendo en el puerto ${PORT}`);
-});
+
+// ==================================================
+// INICIAR SERVIDOR
+// ==================================================
+
+server.listen(
+
+  PORT,
+
+  "0.0.0.0",
+
+  () => {
+
+
+    console.log(
+      `✅ Servidor backend corriendo en http://0.0.0.0:${PORT}`
+    );
+
+
+    console.log(
+      `✅ PeerJS corriendo en ws://0.0.0.0:${PORT}/peerjs/myapp`
+    );
+
+  }
+
+);

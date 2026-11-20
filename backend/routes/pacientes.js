@@ -7,7 +7,9 @@ import {
   obtenerReportesCompletos
 } from "../controllers/pacienteController.js";
 
-import { verifyToken } from "../middlewares/authMiddleware.js";
+import { verifyToken,
+  verificarSuscripcionOrganizacion
+} from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
 
@@ -15,6 +17,7 @@ const router = express.Router();
 router.get(
   "/:id/reportes-completos",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   obtenerReportesCompletos
 );
 
@@ -22,6 +25,7 @@ router.get(
 router.get(
   "/",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   listarPacientes
 );
 
@@ -29,6 +33,7 @@ router.get(
 router.get(
   "/:id",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   obtenerPaciente
 );
 
@@ -36,6 +41,7 @@ router.get(
 router.post(
   "/",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   registrarPaciente
 );
 

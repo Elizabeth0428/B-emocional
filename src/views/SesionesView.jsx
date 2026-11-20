@@ -60,7 +60,7 @@ export default function SesionesView() {
       const token = getToken();
 
       const res = await fetch(
-        `https://reflejoyalma.com/api/sesiones/paciente/${idPaciente}`,
+        `https://www.reflejoyalma.com/api/sesiones/paciente/${idPaciente}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -155,7 +155,7 @@ export default function SesionesView() {
       setMostrarNuevaSesion(false);
 
       setError(
-        `⚠️ Ya existe una sesión activa (#${sesionActiva.id_sesion}). Termina esa consulta antes de crear una nueva.`
+        `⚠️ Ya existe una sesión activa (#${sesionActiva.numero_sesion || sesionActiva.id_sesion}). Termina esa consulta antes de crear una nueva.`
       );
 
       setSesionAbierta(
@@ -173,7 +173,7 @@ export default function SesionesView() {
       const token = getToken();
 
       const res = await fetch(
-        "https://reflejoyalma.com/api/sesiones",
+        "https://www.reflejoyalma.com/api/sesiones",
         {
           method: "POST",
           headers: {
@@ -237,7 +237,7 @@ export default function SesionesView() {
       }
 
       const resVideo = await fetch(
-        `https://reflejoyalma.com/api/sesiones/${data.id_sesion}/videollamada`,
+        `https://www.reflejoyalma.com/api/sesiones/${data.id_sesion}/videollamada`,
         {
           method: "POST",
           headers: {
@@ -294,7 +294,7 @@ export default function SesionesView() {
 
         const res =
           await fetch(
-            `https://reflejoyalma.com/api/archivos/sesion/${idSesion}`,
+            `https://www.reflejoyalma.com/api/archivos/sesion/${idSesion}`,
             {
               headers: {
                 Authorization:
@@ -424,7 +424,8 @@ export default function SesionesView() {
         const token =
           getToken();
 
-        const API_URL = import.meta.env.VITE_API_URL || (window.location.protocol === 'https:' ? 'https://reflejoyalma.com' : `http://${window.location.hostname}:5000`);
+        const API_URL =
+          `http://${window.location.hostname}:5000`;
 
         setMensajeTranscripcion(
           (prev) => ({
@@ -550,7 +551,8 @@ export default function SesionesView() {
         const token =
           getToken();
 
-        const API_URL = import.meta.env.VITE_API_URL || (window.location.protocol === 'https:' ? 'https://reflejoyalma.com' : `http://${window.location.hostname}:5000`);
+        const API_URL =
+          `http://${window.location.hostname}:5000`;
 
         const res =
           await fetch(
@@ -624,7 +626,8 @@ export default function SesionesView() {
         const token =
           getToken();
 
-        const API_URL = import.meta.env.VITE_API_URL || (window.location.protocol === 'https:' ? 'https://reflejoyalma.com' : `http://${window.location.hostname}:5000`);
+        const API_URL =
+          `http://${window.location.hostname}:5000`;
 
         const res =
           await fetch(
@@ -716,7 +719,8 @@ export default function SesionesView() {
         const token =
           getToken();
 
-        const API_URL = import.meta.env.VITE_API_URL || (window.location.protocol === 'https:' ? 'https://reflejoyalma.com' : `http://${window.location.hostname}:5000`);
+        const API_URL =
+          `http://${window.location.hostname}:5000`;
 
         const res =
           await fetch(
@@ -1505,41 +1509,6 @@ export default function SesionesView() {
                                   detailIcon
                                 }
                               >
-                                🆔
-                              </div>
-
-                              <div>
-                                <div
-                                  style={
-                                    detailLabel
-                                  }
-                                >
-                                  Identificador de sesión
-                                </div>
-
-                                <div
-                                  style={
-                                    detailValue
-                                  }
-                                >
-                                  #
-                                  {
-                                    s.id_sesion
-                                  }
-                                </div>
-                              </div>
-                            </div>
-
-                            <div
-                              style={
-                                detailItem
-                              }
-                            >
-                              <div
-                                style={
-                                  detailIcon
-                                }
-                              >
                                 {s.estado ===
                                 "finalizada"
                                   ? "✅"
@@ -1817,6 +1786,10 @@ export default function SesionesView() {
                                     idSesion={
                                       s.id_sesion
                                     }
+                                    numeroSesion={
+                                      s.numero_sesion ||
+                                      s.id_sesion
+                                    }
                                     tipo="audio"
                                     onSaved={async (
                                       data
@@ -2066,7 +2039,7 @@ export default function SesionesView() {
                                             "http"
                                           )
                                             ? ruta
-                                            : `https://reflejoyalma.com${ruta}`;
+                                            : `https://www.reflejoyalma.com${ruta}`;
 
                                         const esAudio =
                                           archivo.tipo ===

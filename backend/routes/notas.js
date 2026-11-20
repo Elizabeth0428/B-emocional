@@ -9,7 +9,9 @@ import {
   obtenerNotasSesion
 } from "../controllers/notasController.js";
 
-import { verifyToken } from "../middlewares/authMiddleware.js";
+import { verifyToken,
+  verificarSuscripcionOrganizacion
+} from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
 
@@ -20,6 +22,7 @@ const router = express.Router();
 router.post(
   "/",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   crearNota
 );
 
@@ -30,12 +33,14 @@ router.post(
 router.post(
   "/ia",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   guardarNotaIA
 );
 
 router.get(
   "/ia/:id_sesion",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   obtenerNotaIA
 );
 
@@ -46,6 +51,7 @@ router.get(
 router.get(
   "/sesion/:id_sesion",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   obtenerNotasSesion
 );
 

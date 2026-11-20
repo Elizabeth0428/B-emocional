@@ -6,128 +6,53 @@ import {
   getCurrentUser
 } from "../services/AuthService";
 
+
 const RegisterPsychologist = ({ onBack }) => {
 
-  // ==================================================
-  // USUARIO ACTUAL
-  // ==================================================
+  const user =
+    getCurrentUser();
 
-  const user = getCurrentUser();
-
-
-  // ==================================================
-  // DETERMINAR ÁREA DEL ADMINISTRADOR
-  // ==================================================
-
-  const areaAdministrador =
-    user?.area
-      ? String(user.area).trim().toLowerCase()
-      : null;
-
-
-  // ==================================================
-  // DETERMINAR SI ES MASTER
-  // ==================================================
 
   const esMaster =
     user?.role === 1 &&
     user?.tipo_admin === "master";
 
 
-  // ==================================================
-  // DETERMINAR ROL INICIAL
-  //
-  // MASTER:
-  // comienza como psicólogo.
-  //
-  // ADMIN NORMAL:
-  // comienza con el rol correspondiente
-  // a su propia área.
-  // ==================================================
-
-  const obtenerRolInicial = () => {
-
-    if (esMaster) {
-      return "psicologo";
-    }
-
-    if (areaAdministrador === "rh") {
-      return "rh";
-    }
-
-    if (areaAdministrador === "educativo") {
-      return "educativo";
-    }
-
-    if (areaAdministrador === "independiente") {
-      return "independiente";
-    }
-
-    if (areaAdministrador === "clinica") {
-      return "psicologo";
-    }
-
-    return "psicologo";
-  };
+  const areaAdministrador =
+    user?.area
+      ? String(user.area)
+          .trim()
+          .toLowerCase()
+      : null;
 
 
-  // ==================================================
-  // DETERMINAR ÁREA INICIAL
-  // ==================================================
+  const puedeRegistrar =
+    esMaster ||
+    areaAdministrador === "clinica";
 
-  const obtenerAreaInicial = () => {
-
-    if (esMaster) {
-      return "clinica";
-    }
-
-    if (areaAdministrador) {
-      return areaAdministrador;
-    }
-
-    return "clinica";
-  };
-
-
-  // ==================================================
-  // FORMULARIO
-  // ==================================================
 
   const [form, setForm] = useState({
-
-    rol: obtenerRolInicial(),
-
     cedula_profesional: "",
-
     nombre: "",
-
-    correo: "",
-
-    password: "",
-
     especialidad: "",
-
     telefono: "",
-
     direccion: "",
-
     fecha_nacimiento: "",
-
-    area: obtenerAreaInicial(),
-
+    id_organizacion: ""
   });
 
 
-  const [message, setMessage] = useState("");
+  const [message, setMessage] =
+    useState("");
 
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] =
+    useState(false);
+
+  const [credenciales, setCredenciales] =
+    useState(null);
 
 
-  // ==================================================
-  // CAMBIO DE CAMPOS
-  // ==================================================
-
-  const handleChange = (e) => {
+  const handleChange = e => {
 
     const {
       name,
@@ -135,156 +60,55 @@ const RegisterPsychologist = ({ onBack }) => {
     } = e.target;
 
 
-    setForm((prev) => ({
-
+    setForm(prev => ({
       ...prev,
-
-      [name]: value,
-
+      [name]: value
     }));
 
   };
 
 
-  // ==================================================
-  // CAMBIAR ROL
-  //
-  // SOLAMENTE EL MASTER PUEDE HACERLO.
-  // ==================================================
-
-  const handleRolChange = (e) => {
-
-    if (!esMaster) {
-      return;
-    }
-
-
-    const nuevoRol = e.target.value;
-
-
-    let nuevaArea = "clinica";
-
-
-    // --------------------------------------------------
-    // PSICÓLOGO
-    // --------------------------------------------------
-
-    if (nuevoRol === "psicologo") {
-
-      nuevaArea = "clinica";
-
-    }
-
-
-    // --------------------------------------------------
-    // RECURSOS HUMANOS
-    // --------------------------------------------------
-
-    else if (nuevoRol === "rh") {
-
-      nuevaArea = "rh";
-
-    }
-
-
-    // --------------------------------------------------
-    // EDUCATIVO
-    // --------------------------------------------------
-
-    else if (nuevoRol === "educativo") {
-
-      nuevaArea = "educativo";
-
-    }
-
-
-    // --------------------------------------------------
-    // INDEPENDIENTE
-    // --------------------------------------------------
-
-    else if (nuevoRol === "independiente") {
-
-      nuevaArea = "independiente";
-
-    }
-
-
-    setForm((prev) => ({
-
-      ...prev,
-
-      rol: nuevoRol,
-
-      area: nuevaArea,
-
-    }));
-
-  };
-
-
-  // ==================================================
-  // REGISTRAR USUARIO
-  // ==================================================
-
-  const handleSubmit = async (e) => {
+  const handleSubmit = async e => {
 
     e.preventDefault();
 
     setMessage("");
+    setCredenciales(null);
 
-
-    // ==================================================
-    // VALIDACIÓN LOCAL
-    // ==================================================
 
     if (
-      !form.nombre.trim() ||
-      !form.correo.trim() ||
-      !form.password.trim()
+      !form.nombre.trim()
     ) {
 
       setMessage(
-        "❌ Completa los campos obligatorios."
+        "❌ El nombre es obligatorio."
       );
 
       return;
 
     }
 
-
-    if (form.password.length < 6) {
-
-      setMessage(
-        "❌ La contraseña debe tener al menos 6 caracteres."
-      );
-
-      return;
-
-    }
-
-
-    if (!form.rol) {
-
-      setMessage(
-        "❌ Selecciona el tipo de usuario."
-      );
-
-      return;
-
-    }
-
-
-    // ==================================================
-    // VALIDAR CÉDULA PARA PSICÓLOGO
-    // ==================================================
 
     if (
-      form.rol === "psicologo" &&
       !form.cedula_profesional.trim()
     ) {
 
       setMessage(
-        "❌ La cédula profesional es obligatoria para el psicólogo."
+        "❌ La cédula profesional es obligatoria."
+      );
+
+      return;
+
+    }
+
+
+    if (
+      esMaster &&
+      !form.id_organizacion
+    ) {
+
+      setMessage(
+        "❌ El Master debe indicar la organización clínica."
       );
 
       return;
@@ -297,14 +121,13 @@ const RegisterPsychologist = ({ onBack }) => {
       setLoading(true);
 
 
-      // ==================================================
-      // TOKEN
-      // ==================================================
-
-      const token = getToken();
+      const token =
+        getToken();
 
 
-      if (!token) {
+      if (
+        !token
+      ) {
 
         throw new Error(
           "No hay una sesión válida de administrador."
@@ -313,29 +136,19 @@ const RegisterPsychologist = ({ onBack }) => {
       }
 
 
-      // ==================================================
-      // DATOS QUE SE ENVÍAN
-      // ==================================================
-
       const datos = {
 
         rol:
-          form.rol,
+          "psicologo",
+
+        area:
+          "clinica",
 
         nombre:
           form.nombre.trim(),
 
-        correo:
-          form.correo.trim().toLowerCase(),
-
-        password:
-          form.password,
-
-        area:
-          form.area || null,
-
         cedula_profesional:
-          form.cedula_profesional.trim() || null,
+          form.cedula_profesional.trim(),
 
         especialidad:
           form.especialidad.trim() || null,
@@ -349,131 +162,99 @@ const RegisterPsychologist = ({ onBack }) => {
         fecha_nacimiento:
           form.fecha_nacimiento || null,
 
+        id_organizacion:
+          esMaster
+            ? Number(
+                form.id_organizacion
+              )
+            : undefined
+
       };
 
 
-      console.log(
-        "📤 Datos enviados al backend:",
-        datos
-      );
-
-
-      // ==================================================
-      // URL DEL BACKEND
-      // ==================================================
-
       const API =
-        import.meta.env.VITE_API_URL;
+        import.meta.env.VITE_API_URL ||
+        `http://${window.location.hostname}:5000`;
 
 
-      // ==================================================
-      // PETICIÓN
-      // ==================================================
+      const response =
+        await fetch(
+          `${API}/api/psicologos/register`,
+          {
 
-      const res = await fetch(
-        `${API}/api/psicologos/register`,
-        {
+            method:
+              "POST",
 
-          method: "POST",
+            headers: {
 
-          headers: {
+              "Content-Type":
+                "application/json",
 
-            "Content-Type":
-              "application/json",
+              Authorization:
+                `Bearer ${token}`
 
-            Authorization:
-              `Bearer ${token}`,
+            },
 
-          },
+            body:
+              JSON.stringify(
+                datos
+              )
 
-          body:
-            JSON.stringify(datos),
+          }
+        );
 
-        }
-      );
-
-
-      // ==================================================
-      // RESPUESTA
-      // ==================================================
 
       const data =
-        await res.json();
+        await response
+          .json()
+          .catch(
+            () => ({})
+          );
 
 
-      if (!res.ok) {
+      if (
+        !response.ok
+      ) {
 
         throw new Error(
-
           data?.message ||
-          "Error al registrar usuario."
-
+          "Error al registrar psicólogo."
         );
 
       }
 
 
-      // ==================================================
-      // ÉXITO
-      // ==================================================
-
       setMessage(
-
         `✅ ${
           data.message ||
-          "Usuario registrado correctamente."
+          "Psicólogo registrado correctamente."
         }`
-
       );
 
 
-      // ==================================================
-      // LIMPIAR FORMULARIO
-      //
-      // IMPORTANTE:
-      // después de registrar, volvemos al rol
-      // correspondiente al administrador.
-      // ==================================================
+      setCredenciales(
+        data.credenciales ||
+        null
+      );
+
 
       setForm({
-
-        rol:
-          obtenerRolInicial(),
-
-        cedula_profesional:
-          "",
-
-        nombre:
-          "",
-
-        correo:
-          "",
-
-        password:
-          "",
-
-        especialidad:
-          "",
-
-        telefono:
-          "",
-
-        direccion:
-          "",
-
-        fecha_nacimiento:
-          "",
-
-        area:
-          obtenerAreaInicial(),
-
+        cedula_profesional: "",
+        nombre: "",
+        especialidad: "",
+        telefono: "",
+        direccion: "",
+        fecha_nacimiento: "",
+        id_organizacion: ""
       });
 
 
-    } catch (err) {
+    } catch (
+      err
+    ) {
 
       console.error(
-        "❌ Error al registrar usuario:",
+        "❌ Error al registrar psicólogo:",
         err
       );
 
@@ -492,68 +273,44 @@ const RegisterPsychologist = ({ onBack }) => {
   };
 
 
-  // ==================================================
-  // DETERMINAR TIPO
-  // ==================================================
+  if (
+    !puedeRegistrar
+  ) {
 
-  const esPsicologo =
-    form.rol === "psicologo";
+    return (
 
+      <div style={container}>
 
-  const esRH =
-    form.rol === "rh";
+        <div style={deniedBox}>
 
+          <h3>
+            Acceso no disponible
+          </h3>
 
-  const esEducativo =
-    form.rol === "educativo";
+          <p>
+            Solo un administrador de Clínica puede registrar psicólogos.
+          </p>
 
+          <button
+            type="button"
+            style={backButtonBottom}
+            onClick={onBack}
+          >
+            ← Volver
+          </button>
 
-  const esIndependiente =
-    form.rol === "independiente";
+        </div>
 
+      </div>
 
-  // ==================================================
-  // PERMISOS
-  //
-  // MASTER:
-  // puede crear cualquier tipo.
-  //
-  // ADMIN NORMAL:
-  // solamente puede crear usuarios
-  // de su propia área.
-  // ==================================================
+    );
 
-  const puedeCrearPsicologo =
-    esMaster ||
-    areaAdministrador === "clinica";
+  }
 
-
-  const puedeCrearRH =
-    esMaster ||
-    areaAdministrador === "rh";
-
-
-  const puedeCrearEducativo =
-    esMaster ||
-    areaAdministrador === "educativo";
-
-
-  const puedeCrearIndependiente =
-    esMaster ||
-    areaAdministrador === "independiente";
-
-
-  // ==================================================
-  // INTERFAZ
-  // ==================================================
 
   return (
 
     <div style={container}>
-
-      {/* ==================================================
-          ENCABEZADO
-      ================================================== */}
 
       <div style={header}>
 
@@ -570,23 +327,17 @@ const RegisterPsychologist = ({ onBack }) => {
         <div>
 
           <h2 style={title}>
-            Registrar usuario
+            Registrar psicólogo
           </h2>
 
-
           <p style={subtitle}>
-            Crea una nueva cuenta para trabajar
-            en MirrorSoul.
+            Registra un nuevo profesional para el módulo clínico.
           </p>
 
         </div>
 
       </div>
 
-
-      {/* ==================================================
-          INFORMACIÓN DEL ADMIN
-      ================================================== */}
 
       <div style={adminInfo}>
 
@@ -600,60 +351,24 @@ const RegisterPsychologist = ({ onBack }) => {
         <div>
 
           <strong style={adminName}>
-
             {esMaster
               ? "Administrador Master"
-              : "Administrador"}
-
+              : "Administrador Clínica"}
           </strong>
 
-
           <span style={adminUserName}>
-
             {user?.nombre ||
               "Administrador"}
-
           </span>
 
-
-          {!esMaster &&
-            areaAdministrador && (
-
-              <small style={adminArea}>
-
-                Área:{" "}
-
-                {areaAdministrador === "rh"
-                  ? "Recursos Humanos"
-                  : areaAdministrador === "educativo"
-                  ? "Educativo"
-                  : areaAdministrador === "clinica"
-                  ? "Clínica"
-                  : "Independiente"}
-
-              </small>
-
-            )}
-
-
-          {esMaster && (
-
-            <small style={adminArea}>
-
-              Acceso completo a todas las áreas
-
-            </small>
-
-          )}
+          <small style={adminArea}>
+            Área: Clínica
+          </small>
 
         </div>
 
       </div>
 
-
-      {/* ==================================================
-          FORMULARIO
-      ================================================== */}
 
       <form
         onSubmit={handleSubmit}
@@ -661,134 +376,25 @@ const RegisterPsychologist = ({ onBack }) => {
       >
 
         <h3 style={sectionTitle}>
-          👤 Datos del usuario
+          🧠 Datos del psicólogo
         </h3>
 
 
-        {/* ==================================================
-            ROL
-        ================================================== */}
-
-        <label style={label}>
-          Tipo de usuario
-        </label>
-
-
-        <select
-          name="rol"
-          value={form.rol}
-          onChange={handleRolChange}
-          style={input}
-          required
-          disabled={!esMaster}
-        >
-
-          {puedeCrearPsicologo && (
-
-            <option value="psicologo">
-              🧠 Psicólogo
-            </option>
-
-          )}
-
-
-          {puedeCrearRH && (
-
-            <option value="rh">
-              👥 Recursos Humanos
-            </option>
-
-          )}
-
-
-          {puedeCrearEducativo && (
-
-            <option value="educativo">
-              🎓 Educativo
-            </option>
-
-          )}
-
-
-          {puedeCrearIndependiente && (
-
-            <option value="independiente">
-              👤 Independiente
-            </option>
-
-          )}
-
-        </select>
-
-
-        {/* ==================================================
-            ÁREA
-        ================================================== */}
-
-        <label style={label}>
-          Área de trabajo
-        </label>
-
-
-        <select
-          name="area"
-          value={form.area}
-          onChange={handleChange}
-          style={{
-            ...input,
-
-            background:
-              !esMaster
-                ? "#F1F5F9"
-                : "#FFFFFF",
-
-            cursor:
-              !esMaster
-                ? "not-allowed"
-                : "pointer",
-
-          }}
-          disabled={!esMaster}
-        >
-
-          <option value="clinica">
-            🧠 Clínica
-          </option>
-
-          <option value="rh">
-            👥 Recursos Humanos
-          </option>
-
-          <option value="educativo">
-            🎓 Educativo
-          </option>
-
-          <option value="independiente">
-            👤 Independiente
-          </option>
-
-        </select>
-
-
-        {/* ==================================================
-            CÉDULA PROFESIONAL
-        ================================================== */}
-
-        {esPsicologo && (
+        {esMaster && (
 
           <>
 
             <label style={label}>
-              Cédula profesional
+              ID de organización clínica
             </label>
 
-
             <input
-              type="text"
-              name="cedula_profesional"
-              placeholder="Ej. 12345678"
+              type="number"
+              min="1"
+              name="id_organizacion"
+              placeholder="Ej. 1"
               value={
-                form.cedula_profesional
+                form.id_organizacion
               }
               onChange={handleChange}
               style={input}
@@ -800,14 +406,26 @@ const RegisterPsychologist = ({ onBack }) => {
         )}
 
 
-        {/* ==================================================
-            NOMBRE
-        ================================================== */}
+        <label style={label}>
+          Cédula profesional
+        </label>
+
+        <input
+          type="text"
+          name="cedula_profesional"
+          placeholder="Ej. 12345678"
+          value={
+            form.cedula_profesional
+          }
+          onChange={handleChange}
+          style={input}
+          required
+        />
+
 
         <label style={label}>
           Nombre completo
         </label>
-
 
         <input
           type="text"
@@ -820,75 +438,14 @@ const RegisterPsychologist = ({ onBack }) => {
         />
 
 
-        {/* ==================================================
-            CORREO
-        ================================================== */}
-
         <label style={label}>
-          Correo electrónico
+          Especialidad
         </label>
-
-
-        <input
-          type="email"
-          name="correo"
-          placeholder="Correo electrónico"
-          value={form.correo}
-          onChange={handleChange}
-          style={input}
-          required
-        />
-
-
-        {/* ==================================================
-            CONTRASEÑA
-        ================================================== */}
-
-        <label style={label}>
-          Contraseña
-        </label>
-
-
-        <input
-          type="password"
-          name="password"
-          placeholder="Contraseña"
-          value={form.password}
-          onChange={handleChange}
-          style={input}
-          required
-        />
-
-
-        {/* ==================================================
-            ESPECIALIDAD / PUESTO
-        ================================================== */}
-
-        <label style={label}>
-
-          {esPsicologo
-            ? "Especialidad"
-            : esRH
-            ? "Puesto / área"
-            : esEducativo
-            ? "Puesto / especialidad"
-            : "Especialidad"}
-
-        </label>
-
 
         <input
           type="text"
           name="especialidad"
-          placeholder={
-            esPsicologo
-              ? "Ej. Psicología Clínica"
-              : esRH
-              ? "Ej. Recursos Humanos"
-              : esEducativo
-              ? "Ej. Orientación educativa"
-              : "Especialidad"
-          }
+          placeholder="Ej. Psicología Clínica"
           value={
             form.especialidad
           }
@@ -897,14 +454,9 @@ const RegisterPsychologist = ({ onBack }) => {
         />
 
 
-        {/* ==================================================
-            TELÉFONO
-        ================================================== */}
-
         <label style={label}>
           Teléfono
         </label>
-
 
         <input
           type="tel"
@@ -916,14 +468,9 @@ const RegisterPsychologist = ({ onBack }) => {
         />
 
 
-        {/* ==================================================
-            DIRECCIÓN
-        ================================================== */}
-
         <label style={label}>
           Dirección
         </label>
-
 
         <input
           type="text"
@@ -935,14 +482,9 @@ const RegisterPsychologist = ({ onBack }) => {
         />
 
 
-        {/* ==================================================
-            FECHA DE NACIMIENTO
-        ================================================== */}
-
         <label style={label}>
           Fecha de nacimiento
         </label>
-
 
         <input
           type="date"
@@ -955,59 +497,61 @@ const RegisterPsychologist = ({ onBack }) => {
         />
 
 
-        {/* ==================================================
-            AVISO SEGÚN TIPO
-        ================================================== */}
-
         <div style={infoBox}>
 
-          {esPsicologo && (
-
-            <>
-              🧠 Este usuario será registrado como{" "}
-              <strong>Psicólogo</strong> y tendrá
-              acceso al módulo clínico.
-            </>
-
-          )}
-
-
-          {esRH && (
-
-            <>
-              👥 Este usuario será registrado con rol{" "}
-              <strong>Recursos Humanos</strong>.
-            </>
-
-          )}
-
-
-          {esEducativo && (
-
-            <>
-              🎓 Este usuario será registrado con rol{" "}
-              <strong>Educativo</strong> y tendrá
-              acceso al módulo educativo.
-            </>
-
-          )}
-
-
-          {esIndependiente && (
-
-            <>
-              👤 Este usuario será registrado como{" "}
-              <strong>Independiente</strong>.
-            </>
-
-          )}
+          🧠 MirrorSoul generará automáticamente
+          la matrícula del psicólogo y una contraseña
+          temporal. El profesional deberá cambiarla
+          en su primer inicio de sesión.
 
         </div>
 
 
-        {/* ==================================================
-            MENSAJE
-        ================================================== */}
+        {credenciales && (
+
+          <div style={credentialsBox}>
+
+            <div style={credentialsTitle}>
+              🔐 Credenciales generadas
+            </div>
+
+            <div style={credentialRow}>
+
+              <span>
+                Matrícula
+              </span>
+
+              <strong>
+                {
+                  credenciales.matricula
+                }
+              </strong>
+
+            </div>
+
+            <div style={credentialRow}>
+
+              <span>
+                Contraseña temporal
+              </span>
+
+              <strong>
+                {
+                  credenciales.password_temporal
+                }
+              </strong>
+
+            </div>
+
+            <div style={credentialsNotice}>
+              Entrega estas credenciales al psicólogo.
+              En su primer acceso deberá crear una nueva contraseña.
+            </div>
+
+          </div>
+
+        )}
+
 
         {message && (
 
@@ -1028,21 +572,14 @@ const RegisterPsychologist = ({ onBack }) => {
               border:
                 message.startsWith("✅")
                   ? "1px solid #C8EBCF"
-                  : "1px solid #FFD4D4",
-
+                  : "1px solid #FFD4D4"
             }}
           >
-
             {message}
-
           </div>
 
         )}
 
-
-        {/* ==================================================
-            BOTÓN REGISTRAR
-        ================================================== */}
 
         <button
           type="submit"
@@ -1052,21 +589,15 @@ const RegisterPsychologist = ({ onBack }) => {
             opacity:
               loading
                 ? 0.7
-                : 1,
+                : 1
           }}
           disabled={loading}
         >
-
           {loading
             ? "⏳ Registrando..."
-            : "➕ Registrar usuario"}
-
+            : "➕ Registrar psicólogo"}
         </button>
 
-
-        {/* ==================================================
-            BOTÓN VOLVER
-        ================================================== */}
 
         <button
           type="button"
@@ -1074,9 +605,7 @@ const RegisterPsychologist = ({ onBack }) => {
           onClick={onBack}
           disabled={loading}
         >
-
           ← Volver
-
         </button>
 
       </form>
@@ -1093,312 +622,227 @@ const RegisterPsychologist = ({ onBack }) => {
 // ==================================================
 
 const container = {
-
   maxWidth: "650px",
-
   margin: "45px auto",
-
   padding: "35px",
-
   background: "#FFFFFF",
-
   borderRadius: "20px",
-
   boxShadow:
     "0 10px 30px rgba(40,80,140,0.10)",
-
   fontFamily:
     "'Segoe UI', Arial, sans-serif",
-
-  color: "#172B4D",
-
+  color: "#172B4D"
 };
 
 
 const header = {
-
   display: "flex",
-
   alignItems: "flex-start",
-
   gap: "18px",
-
-  marginBottom: "22px",
-
+  marginBottom: "22px"
 };
 
 
 const title = {
-
-  margin: "0",
-
+  margin: 0,
   color: "#172B4D",
-
   fontSize: "28px",
-
-  fontWeight: "800",
-
+  fontWeight: "800"
 };
 
 
 const subtitle = {
-
   margin: "7px 0 0",
-
   color: "#64748B",
-
-  lineHeight: "1.5",
-
+  lineHeight: 1.5
 };
 
 
 const adminInfo = {
-
   display: "flex",
-
   alignItems: "center",
-
   gap: "13px",
-
   padding: "14px 18px",
-
   marginBottom: "22px",
-
   background: "#EEF5FF",
-
-  border:
-    "1px solid #D8E7FF",
-
-  borderRadius: "13px",
-
+  border: "1px solid #D8E7FF",
+  borderRadius: "13px"
 };
 
 
 const adminIcon = {
-
   width: "45px",
-
   height: "45px",
-
   borderRadius: "50%",
-
   background: "#FFFFFF",
-
   display: "flex",
-
   alignItems: "center",
-
   justifyContent: "center",
-
-  fontSize: "22px",
-
+  fontSize: "22px"
 };
 
 
 const adminName = {
-
   display: "block",
-
-  color: "#172B4D",
-
+  color: "#172B4D"
 };
 
 
 const adminUserName = {
-
   display: "block",
-
   marginTop: "2px",
-
-  color: "#475569",
-
+  color: "#475569"
 };
 
 
 const adminArea = {
-
   display: "block",
-
   marginTop: "3px",
-
-  color: "#64748B",
-
+  color: "#64748B"
 };
 
 
 const sectionTitle = {
-
-  margin:
-    "0 0 22px",
-
+  margin: "0 0 22px",
   fontSize: "19px",
-
   fontWeight: "800",
-
-  color: "#172B4D",
-
+  color: "#172B4D"
 };
 
 
 const formStyle = {
-
   display: "flex",
-
   flexDirection: "column",
-
-  gap: "10px",
-
+  gap: "10px"
 };
 
 
 const label = {
-
   fontSize: "14px",
-
   fontWeight: "700",
-
   color: "#334155",
-
-  marginTop: "5px",
-
+  marginTop: "5px"
 };
 
 
 const input = {
-
   width: "100%",
-
   boxSizing: "border-box",
-
   padding: "12px 13px",
-
   borderRadius: "9px",
-
-  border:
-    "1px solid #CFD8E3",
-
+  border: "1px solid #CFD8E3",
   fontSize: "14px",
-
   outline: "none",
-
   background: "#FFFFFF",
-
-  color: "#1E293B",
-
+  color: "#1E293B"
 };
 
 
 const infoBox = {
-
   marginTop: "10px",
-
   padding: "13px 15px",
-
   borderRadius: "10px",
-
   background: "#F8FAFC",
-
-  border:
-    "1px solid #E2E8F0",
-
+  border: "1px solid #E2E8F0",
   color: "#64748B",
-
   fontSize: "13px",
+  lineHeight: 1.5
+};
 
-  lineHeight: "1.5",
 
+const credentialsBox = {
+  marginTop: "8px",
+  padding: "18px",
+  borderRadius: "14px",
+  background: "#F7F5FF",
+  border: "1px solid #DCCFFB"
+};
+
+
+const credentialsTitle = {
+  fontWeight: "800",
+  color: "#5B3DB4",
+  marginBottom: "12px"
+};
+
+
+const credentialRow = {
+  display: "flex",
+  justifyContent: "space-between",
+  gap: "20px",
+  padding: "9px 0",
+  borderBottom: "1px solid #E8E0FA",
+  fontSize: "14px"
+};
+
+
+const credentialsNotice = {
+  marginTop: "12px",
+  color: "#6B7280",
+  fontSize: "13px",
+  lineHeight: 1.5
 };
 
 
 const messageStyle = {
-
   marginTop: "8px",
-
   padding: "12px 14px",
-
   borderRadius: "9px",
-
   fontSize: "14px",
-
-  fontWeight: "600",
-
+  fontWeight: "600"
 };
 
 
 const button = {
-
   width: "100%",
-
   padding: "13px",
-
   marginTop: "12px",
-
   background:
     "linear-gradient(135deg, #7B3FE4, #2167D5)",
-
   color: "#FFFFFF",
-
   border: "none",
-
   borderRadius: "9px",
-
   cursor: "pointer",
-
   fontSize: "15px",
-
-  fontWeight: "700",
-
+  fontWeight: "700"
 };
 
 
 const backButton = {
-
   border: "none",
-
   background: "#FFFFFF",
-
   color: "#2167D5",
-
   padding: "10px 15px",
-
   borderRadius: "9px",
-
   fontSize: "14px",
-
   fontWeight: "700",
-
   cursor: "pointer",
-
   boxShadow:
     "0 4px 12px rgba(40,80,140,0.08)",
-
-  whiteSpace: "nowrap",
-
+  whiteSpace: "nowrap"
 };
 
 
 const backButtonBottom = {
-
   width: "100%",
-
   padding: "12px",
-
   marginTop: "5px",
-
   background: "#E2E8F0",
-
   color: "#475569",
-
   border: "none",
-
   borderRadius: "9px",
-
   cursor: "pointer",
-
   fontSize: "14px",
+  fontWeight: "700"
+};
 
-  fontWeight: "700",
 
+const deniedBox = {
+  padding: "25px",
+  textAlign: "center",
+  borderRadius: "15px",
+  background: "#FFF7F7",
+  border: "1px solid #FFD8D8"
 };
 
 

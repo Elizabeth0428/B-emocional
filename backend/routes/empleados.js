@@ -14,6 +14,13 @@ import {
 } from "../controllers/seguimientoEmpleadoController.js";
 
 import {
+  uploadEvidenciaSeguimiento,
+  listarEvidenciasSeguimiento,
+  subirEvidenciaSeguimiento,
+  anularEvidenciaSeguimiento
+} from "../controllers/evidenciaSeguimientoEmpleadoController.js";
+
+import {
   listarPruebasDisponiblesEmpleado,
   habilitarPruebaEmpleado,
   listarPruebasEmpleado,
@@ -21,7 +28,8 @@ import {
   obtenerPruebaPublicaEmpleado,
   guardarRespuestasPruebaEmpleado,
   finalizarPruebaEmpleado,
-  cancelarPruebaEmpleado
+  cancelarPruebaEmpleado,
+  eliminarPruebaCanceladaEmpleado
 } from "../controllers/pruebaEmpleadoController.js";
 
 import {
@@ -44,9 +52,16 @@ import {
 } from "../controllers/nom035EmpleadoController.js";
 
 import {
-  verifyToken
-} from "../middlewares/authMiddleware.js";
+  uploadDocumentoEmpleado,
+  listarDocumentosEmpleado,
+  subirDocumentoEmpleado,
+  eliminarDocumentoEmpleado
+} from "../controllers/documentosEmpleadoController.js";
 
+import {
+  verifyToken,
+  verificarSuscripcionOrganizacion
+} from "../middlewares/authMiddleware.js";
 
 const router =
   express.Router();
@@ -59,6 +74,7 @@ const router =
 
 // GET
 // /api/empleados/evaluacion-publica/:token
+
 router.get(
   "/evaluacion-publica/:token",
   obtenerPruebaPublicaEmpleado
@@ -67,6 +83,7 @@ router.get(
 
 // POST
 // /api/empleados/evaluacion-publica/:token/respuestas
+
 router.post(
   "/evaluacion-publica/:token/respuestas",
   guardarRespuestasPruebaEmpleado
@@ -75,6 +92,7 @@ router.post(
 
 // POST
 // /api/empleados/evaluacion-publica/:token/finalizar
+
 router.post(
   "/evaluacion-publica/:token/finalizar",
   finalizarPruebaEmpleado
@@ -84,12 +102,14 @@ router.post(
 // ==================================================
 // NOM-035 PÚBLICA
 // SIN LOGIN
+//
 // IMPORTANTE:
 // ESTAS RUTAS VAN ANTES DE /:id
 // ==================================================
 
 // GET
 // /api/empleados/nom035-publica/:token
+
 router.get(
   "/nom035-publica/:token",
   obtenerNom035Publica
@@ -98,6 +118,7 @@ router.get(
 
 // POST
 // /api/empleados/nom035-publica/:token/respuestas
+
 router.post(
   "/nom035-publica/:token/respuestas",
   guardarRespuestasNom035
@@ -106,6 +127,7 @@ router.post(
 
 // POST
 // /api/empleados/nom035-publica/:token/finalizar
+
 router.post(
   "/nom035-publica/:token/finalizar",
   finalizarNom035
@@ -121,7 +143,48 @@ router.post(
 router.get(
   "/",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   listarEmpleados
+);
+
+
+// ==================================================
+// DOCUMENTOS DEL EMPLEADO
+// ==================================================
+
+// GET
+// /api/empleados/:id/documentos
+
+router.get(
+  "/:id/documentos",
+  verifyToken,
+  verificarSuscripcionOrganizacion,
+  listarDocumentosEmpleado
+);
+
+
+// POST
+// /api/empleados/:id/documentos
+
+router.post(
+  "/:id/documentos",
+  verifyToken,
+  verificarSuscripcionOrganizacion,
+  uploadDocumentoEmpleado.single(
+    "file"
+  ),
+  subirDocumentoEmpleado
+);
+
+
+// DELETE
+// /api/empleados/:id/documentos/:idDocumento
+
+router.delete(
+  "/:id/documentos/:idDocumento",
+  verifyToken,
+  verificarSuscripcionOrganizacion,
+  eliminarDocumentoEmpleado
 );
 
 
@@ -131,37 +194,85 @@ router.get(
 
 // GET
 // /api/empleados/:id/seguimiento
+
 router.get(
   "/:id/seguimiento",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   listarSeguimientoEmpleado
 );
 
 
 // POST
 // /api/empleados/:id/seguimiento
+
 router.post(
   "/:id/seguimiento",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   registrarSeguimientoEmpleado
 );
 
 
 // PUT
 // /api/empleados/:id/seguimiento/:idSeguimiento
+
 router.put(
   "/:id/seguimiento/:idSeguimiento",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   actualizarSeguimientoEmpleado
 );
 
 
-// DELETE
+// DELETE = ANULAR
 // /api/empleados/:id/seguimiento/:idSeguimiento
+
 router.delete(
   "/:id/seguimiento/:idSeguimiento",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   eliminarSeguimientoEmpleado
+);
+
+
+// ==================================================
+// EVIDENCIAS DEL SEGUIMIENTO LABORAL
+// ==================================================
+
+// GET
+// /api/empleados/:id/seguimiento/:idSeguimiento/evidencias
+
+router.get(
+  "/:id/seguimiento/:idSeguimiento/evidencias",
+  verifyToken,
+  verificarSuscripcionOrganizacion,
+  listarEvidenciasSeguimiento
+);
+
+
+// POST
+// /api/empleados/:id/seguimiento/:idSeguimiento/evidencias
+
+router.post(
+  "/:id/seguimiento/:idSeguimiento/evidencias",
+  verifyToken,
+  verificarSuscripcionOrganizacion,
+  uploadEvidenciaSeguimiento.single(
+    "file"
+  ),
+  subirEvidenciaSeguimiento
+);
+
+
+// DELETE = ANULAR EVIDENCIA
+// /api/empleados/:id/seguimiento/:idSeguimiento/evidencias/:idEvidencia
+
+router.delete(
+  "/:id/seguimiento/:idSeguimiento/evidencias/:idEvidencia",
+  verifyToken,
+  verificarSuscripcionOrganizacion,
+  anularEvidenciaSeguimiento
 );
 
 
@@ -171,45 +282,64 @@ router.delete(
 
 // GET
 // /api/empleados/:id/evaluaciones/disponibles
+
 router.get(
   "/:id/evaluaciones/disponibles",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   listarPruebasDisponiblesEmpleado
 );
 
 
 // POST
 // /api/empleados/:id/evaluaciones/habilitar
+
 router.post(
   "/:id/evaluaciones/habilitar",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   habilitarPruebaEmpleado
 );
 
 
 // GET
 // /api/empleados/:id/evaluaciones/resultados
+
 router.get(
   "/:id/evaluaciones/resultados",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   obtenerResultadosPruebasEmpleado
 );
 
 
 // PUT
 // /api/empleados/:id/evaluaciones/:idHabilitacion/cancelar
+
 router.put(
   "/:id/evaluaciones/:idHabilitacion/cancelar",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   cancelarPruebaEmpleado
 );
 
+// PUT
+// /api/empleados/:id/evaluaciones/:idHabilitacion/eliminar
+
+router.delete(
+  "/:id/evaluaciones/:idHabilitacion",
+  verifyToken,
+  verificarSuscripcionOrganizacion,
+  eliminarPruebaCanceladaEmpleado
+);
 
 // GET
 // /api/empleados/:id/evaluaciones
+
 router.get(
   "/:id/evaluaciones",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   listarPruebasEmpleado
 );
 
@@ -220,45 +350,55 @@ router.get(
 
 // GET
 // /api/empleados/:id/bienestar
+
 router.get(
   "/:id/bienestar",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   obtenerPanelBienestarEmpleado
 );
 
 
 // GET
 // /api/empleados/:id/bienestar/acciones
+
 router.get(
   "/:id/bienestar/acciones",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   listarAccionesPreventivasEmpleado
 );
 
 
 // POST
 // /api/empleados/:id/bienestar/acciones
+
 router.post(
   "/:id/bienestar/acciones",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   registrarAccionPreventivaEmpleado
 );
 
 
 // PUT
 // /api/empleados/:id/bienestar/acciones/:idAccion
+
 router.put(
   "/:id/bienestar/acciones/:idAccion",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   actualizarAccionPreventivaEmpleado
 );
 
 
 // DELETE
 // /api/empleados/:id/bienestar/acciones/:idAccion
+
 router.delete(
   "/:id/bienestar/acciones/:idAccion",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   eliminarAccionPreventivaEmpleado
 );
 
@@ -269,45 +409,55 @@ router.delete(
 
 // GET
 // /api/empleados/:id/nom035/cuestionarios
+
 router.get(
   "/:id/nom035/cuestionarios",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   listarCuestionariosNom035
 );
 
 
 // POST
 // /api/empleados/:id/nom035/habilitar
+
 router.post(
   "/:id/nom035/habilitar",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   habilitarNom035Empleado
 );
 
 
 // GET
 // /api/empleados/:id/nom035/resultados
+
 router.get(
   "/:id/nom035/resultados",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   obtenerResultadosNom035Empleado
 );
 
 
 // PUT
 // /api/empleados/:id/nom035/:idAplicacion/cancelar
+
 router.put(
   "/:id/nom035/:idAplicacion/cancelar",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   cancelarNom035Empleado
 );
 
 
 // GET
 // /api/empleados/:id/nom035
+
 router.get(
   "/:id/nom035",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   listarAplicacionesNom035Empleado
 );
 
@@ -315,12 +465,18 @@ router.get(
 // ==================================================
 // OBTENER EMPLEADO
 //
-// GET /api/empleados/:id
+// IMPORTANTE:
+// ESTA RUTA GENÉRICA VA DESPUÉS DE TODAS LAS
+// RUTAS ESPECÍFICAS /:id/...
 // ==================================================
+
+// GET
+// /api/empleados/:id
 
 router.get(
   "/:id",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   obtenerEmpleado
 );
 
@@ -334,8 +490,15 @@ router.get(
 router.put(
   "/:id",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   actualizarEmpleado
 );
 
+
+// ==================================================
+// EXPORTAR ROUTER
+//
+// SIEMPRE AL FINAL
+// ==================================================
 
 export default router;

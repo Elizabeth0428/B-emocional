@@ -135,7 +135,7 @@ const RegisterAdmin = ({ onBack }) => {
       // -------------------------------------------------
 
       const response = await fetch(
-        "https://reflejoyalma.com/api/admin/register",
+        "https://www.reflejoyalma.com/api/admin/register",
         {
           method: "POST",
 

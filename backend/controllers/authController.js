@@ -1,649 +1,746 @@
+// ============================================================
 // backend/controllers/authController.js
+// ============================================================
 
 import pool from "../config/database.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
+import generarMatricula from "../utils/generarMatricula.js";
 
 
-/* ==================================================
-   REGISTRO DE USUARIO POR ADMINISTRADOR
-
-   REGLAS:
-
-   MASTER:
-   - Puede registrar:
-     psicologo
-     rh
-     educativo
-     independiente
-
-   ADMIN NORMAL:
-   - Solamente puede registrar usuarios
-     correspondientes a su propia área.
-   - El usuario queda asociado mediante
-     id_admin_padre.
-
-   IMPORTANTE:
-   id_admin_padre es la propiedad principal
-   para saber quién creó al usuario.
-================================================== */
+// ============================================================
+// REGISTRAR PSICÓLOGO
+// ============================================================
 
 export async function registerPsicologo(req, res) {
 
+  let connection;
+
   try {
 
-    /* ==================================================
-       VERIFICAR QUE SEA ADMIN
-    ================================================== */
+    // --------------------------------------------------------
+    // SOLO ADMINISTRADORES
+    // --------------------------------------------------------
 
-    if (req.user?.role !== 1) {
-
+    if (Number(req.user?.role) !== 1) {
       return res.status(403).json({
-        message:
-          "Acceso denegado: solo administradores"
+        success: false,
+        message: "Acceso denegado: solo administradores"
       });
-
     }
 
-
-    /* ==================================================
-       DATOS RECIBIDOS
-    ================================================== */
-
-    const {
-      rol,
-      cedula_profesional,
-      nombre,
-      correo,
-      password,
-      especialidad,
-      area
-    } = req.body;
-
-
-    /* ==================================================
-       ADMIN QUE CREA AL USUARIO
-    ================================================== */
-
-    const id_admin_padre =
-      req.user?.id_usuario || null;
+    const idAdmin =
+      Number(req.user?.id_usuario) || null;
 
     const tipoAdmin =
       req.user?.tipo_admin
-        ? String(req.user.tipo_admin)
-            .trim()
-            .toLowerCase()
+        ? String(req.user.tipo_admin).trim().toLowerCase()
         : null;
 
     const areaAdmin =
       req.user?.area
-        ? String(req.user.area)
-            .trim()
-            .toLowerCase()
+        ? String(req.user.area).trim().toLowerCase()
         : null;
 
 
-    /* ==================================================
-       VALIDAR ID DEL ADMIN
-    ================================================== */
-
-    if (!id_admin_padre) {
-
+    if (!idAdmin) {
       return res.status(403).json({
-        message:
-          "No se pudo identificar al administrador que realiza el registro"
+        success: false,
+        message: "No se pudo identificar al administrador"
       });
-
     }
-
-
-    /* ==================================================
-       NORMALIZAR ROL
-    ================================================== */
-
-    const rolSolicitado =
-      rol
-        ? String(rol)
-            .trim()
-            .toLowerCase()
-        : "psicologo";
-
-
-    const rolesPermitidos = [
-      "psicologo",
-      "rh",
-      "educativo",
-      "independiente"
-    ];
 
 
     if (
-      !rolesPermitidos.includes(
-        rolSolicitado
-      )
+      tipoAdmin !== "master" &&
+      tipoAdmin !== "normal"
     ) {
-
-      return res.status(400).json({
-        message:
-          "El tipo de usuario seleccionado no es válido"
-      });
-
-    }
-
-
-    /* ==================================================
-       ÁREAS PERMITIDAS
-    ================================================== */
-
-    const areasPermitidas = [
-      "clinica",
-      "rh",
-      "educativo",
-      "independiente"
-    ];
-
-
-    /* ==================================================
-       DETERMINAR ROL Y ÁREA FINAL
-
-       MASTER:
-       - Puede seleccionar cualquier rol.
-       - Puede seleccionar cualquier área.
-
-       ADMIN NORMAL:
-       - NO puede cambiar de área.
-       - Su usuario queda ligado a su admin padre.
-       - Clínica -> psicólogo
-       - RH -> usuario RH
-       - Educativo -> usuario educativo
-       - Independiente -> usuario independiente
-    ================================================== */
-
-    let areaFinal = null;
-    let rolFinal = rolSolicitado;
-
-
-    /* ==================================================
-       MASTER
-    ================================================== */
-
-    if (tipoAdmin === "master") {
-
-      areaFinal =
-        area
-          ? String(area)
-              .trim()
-              .toLowerCase()
-          : null;
-
-
-      /* -----------------------------------------------
-         SI ES PSICÓLOGO, SIEMPRE ES CLÍNICA
-      ----------------------------------------------- */
-
-      if (
-        rolFinal === "psicologo"
-      ) {
-
-        areaFinal = "clinica";
-
-      }
-
-    }
-
-
-    /* ==================================================
-       ADMIN NORMAL
-    ================================================== */
-
-    else if (tipoAdmin === "normal") {
-
-      /* -----------------------------------------------
-         EL ADMIN NORMAL DEBE TENER ÁREA
-      ----------------------------------------------- */
-
-      if (!areaAdmin) {
-
-        return res.status(403).json({
-          message:
-            "Tu administrador no tiene un área asignada"
-        });
-
-      }
-
-
-      /* -----------------------------------------------
-         EL ADMIN NORMAL NO PUEDE ELEGIR OTRA ÁREA
-
-         LA FUENTE DE VERDAD ES SU PROPIA ÁREA.
-      ----------------------------------------------- */
-
-      areaFinal = areaAdmin;
-
-
-      /* -----------------------------------------------
-         EL ROL DEPENDE DE SU ÁREA
-      ----------------------------------------------- */
-
-      if (
-        areaAdmin === "clinica"
-      ) {
-
-        rolFinal = "psicologo";
-
-      }
-
-      else if (
-        areaAdmin === "rh"
-      ) {
-
-        rolFinal = "rh";
-
-      }
-
-      else if (
-        areaAdmin === "educativo"
-      ) {
-
-        rolFinal = "educativo";
-
-      }
-
-      else if (
-        areaAdmin === "independiente"
-      ) {
-
-        rolFinal = "independiente";
-
-      }
-
-      else {
-
-        return res.status(403).json({
-          message:
-            "El área de tu administrador no es válida"
-        });
-
-      }
-
-    }
-
-
-    /* ==================================================
-       TIPO DE ADMINISTRADOR INVÁLIDO
-    ================================================== */
-
-    else {
-
       return res.status(403).json({
-        message:
-          "Tipo de administrador inválido"
+        success: false,
+        message: "Tipo de administrador inválido"
       });
-
     }
 
 
-    /* ==================================================
-       VALIDAR ÁREA FINAL
-    ================================================== */
-
+    // Admin normal solo Clínica
     if (
-      !areaFinal ||
-      !areasPermitidas.includes(
-        areaFinal
-      )
+      tipoAdmin === "normal" &&
+      areaAdmin !== "clinica"
     ) {
-
-      return res.status(400).json({
+      return res.status(403).json({
+        success: false,
         message:
-          "El área seleccionada no es válida"
+          "Solo un administrador de Clínica puede registrar psicólogos"
       });
-
     }
 
 
-    /* ==================================================
-       REGLA DEFINITIVA:
+    // --------------------------------------------------------
+    // DATOS
+    // --------------------------------------------------------
 
-       PSICÓLOGO = CLÍNICA
-    ================================================== */
+    const {
+      nombre,
+      cedula_profesional,
+      especialidad,
+      telefono,
+      direccion,
+      fecha_nacimiento,
+      id_organizacion
+    } = req.body;
 
-    if (
-      rolFinal === "psicologo"
-    ) {
-
-      areaFinal = "clinica";
-
-    }
-
-
-    /* ==================================================
-       VALIDACIONES BÁSICAS
-    ================================================== */
 
     if (
       !nombre ||
-      !correo ||
-      !password
+      String(nombre).trim().length < 2
     ) {
-
       return res.status(400).json({
-        message:
-          "Faltan datos obligatorios"
+        success: false,
+        message: "El nombre no es válido"
       });
-
     }
 
-
-    /* ==================================================
-       VALIDAR NOMBRE
-    ================================================== */
 
     if (
-      String(nombre)
-        .trim()
-        .length < 2
+      !cedula_profesional ||
+      String(cedula_profesional).trim().length < 5
     ) {
-
       return res.status(400).json({
+        success: false,
         message:
-          "El nombre no es válido"
+          "La cédula profesional es obligatoria y debe ser válida"
       });
-
     }
 
 
-    /* ==================================================
-       VALIDAR PASSWORD
-    ================================================== */
-
-    if (
-      String(password).length < 6
-    ) {
-
-      return res.status(400).json({
-        message:
-          "La contraseña debe tener al menos 6 caracteres"
-      });
-
-    }
-
-
-    /* ==================================================
-       CÉDULA
-       SOLO PSICÓLOGOS
-    ================================================== */
-
-    if (
-      rolFinal === "psicologo"
-    ) {
-
-      if (
-        !cedula_profesional
-      ) {
-
-        return res.status(400).json({
-          message:
-            "La cédula profesional es obligatoria para los psicólogos"
-        });
-
-      }
-
-
-      if (
-        String(cedula_profesional)
-          .trim()
-          .length < 5
-      ) {
-
-        return res.status(400).json({
-          message:
-            "La cédula profesional no es válida"
-        });
-
-      }
-
-    }
-
-
-    /* ==================================================
-       NORMALIZAR DATOS
-    ================================================== */
+    // --------------------------------------------------------
+    // NORMALIZAR
+    // --------------------------------------------------------
 
     const nombreNormalizado =
       String(nombre).trim();
 
-
-    const correoNormalizado =
-      String(correo)
-        .trim()
-        .toLowerCase();
-
-
     const cedulaNormalizada =
-      cedula_profesional
-        ? String(
-            cedula_profesional
-          ).trim()
+      String(cedula_profesional).trim();
+
+    const especialidadNormalizada =
+      especialidad &&
+      String(especialidad).trim()
+        ? String(especialidad).trim()
+        : null;
+
+    const telefonoNormalizado =
+      telefono &&
+      String(telefono).trim()
+        ? String(telefono).trim()
+        : null;
+
+    const direccionNormalizada =
+      direccion &&
+      String(direccion).trim()
+        ? String(direccion).trim()
+        : null;
+
+    const fechaNacimientoNormalizada =
+      fecha_nacimiento &&
+      String(fecha_nacimiento).trim()
+        ? String(fecha_nacimiento).trim()
         : null;
 
 
-    /* ==================================================
-       VERIFICAR CORREO
-    ================================================== */
+    // --------------------------------------------------------
+    // TELÉFONO
+    // --------------------------------------------------------
 
-    const [uExist] =
-      await pool.query(
+    if (telefonoNormalizado) {
 
-        `
-        SELECT
-          id_usuario
-        FROM usuarios
-        WHERE correo = ?
-        LIMIT 1
-        `,
+      const telefonoDigitos =
+        telefonoNormalizado.replace(/\D/g, "");
 
-        [
-          correoNormalizado
-        ]
-
-      );
-
-
-    if (
-      uExist.length
-    ) {
-
-      return res.status(400).json({
-        message:
-          "El correo ya está registrado"
-      });
+      if (
+        telefonoDigitos.length < 10 ||
+        telefonoDigitos.length > 15
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "El teléfono no es válido"
+        });
+      }
 
     }
 
 
-    /* ==================================================
-       VERIFICAR CÉDULA
-       SOLO PSICÓLOGOS
-    ================================================== */
+    // --------------------------------------------------------
+    // TRANSACCIÓN
+    // --------------------------------------------------------
+
+    connection =
+      await pool.getConnection();
+
+    await connection.beginTransaction();
+
+
+    // --------------------------------------------------------
+    // ADMINISTRADOR REAL
+    // --------------------------------------------------------
+
+    const [administradores] =
+      await connection.query(
+        `
+          SELECT
+            id_usuario,
+            rol,
+            tipo_admin,
+            area,
+            id_organizacion,
+            estado
+          FROM usuarios
+          WHERE id_usuario = ?
+          LIMIT 1
+          FOR UPDATE
+        `,
+        [idAdmin]
+      );
+
+
+    if (!administradores.length) {
+
+      await connection.rollback();
+
+      return res.status(403).json({
+        success: false,
+        message:
+          "No se encontró el administrador que realiza el registro"
+      });
+    }
+
+
+    const adminBD =
+      administradores[0];
+
 
     if (
-      rolFinal === "psicologo"
+      String(adminBD.estado || "")
+        .trim()
+        .toLowerCase() !== "activo"
     ) {
 
-      const [cExist] =
-        await pool.query(
+      await connection.rollback();
 
-          `
+      return res.status(403).json({
+        success: false,
+        code: "USUARIO_INACTIVO",
+        message:
+          "La cuenta del administrador está inactiva"
+      });
+    }
+
+
+    // Validación adicional del área real del admin
+    if (
+      tipoAdmin === "normal" &&
+      String(adminBD.area || "")
+        .trim()
+        .toLowerCase() !== "clinica"
+    ) {
+
+      await connection.rollback();
+
+      return res.status(403).json({
+        success: false,
+        message:
+          "Solo un administrador de Clínica puede registrar psicólogos"
+      });
+    }
+
+
+    // --------------------------------------------------------
+    // ORGANIZACIÓN
+    // --------------------------------------------------------
+
+    let idOrganizacionFinal = null;
+
+
+    if (tipoAdmin === "normal") {
+
+      idOrganizacionFinal =
+        Number(adminBD.id_organizacion) || null;
+
+
+      if (!idOrganizacionFinal) {
+
+        await connection.rollback();
+
+        return res.status(403).json({
+          success: false,
+          message:
+            "Tu cuenta de administrador no está asociada a una organización"
+        });
+      }
+
+    } else {
+
+      idOrganizacionFinal =
+        Number(id_organizacion) || null;
+
+
+      if (!idOrganizacionFinal) {
+
+        await connection.rollback();
+
+        return res.status(400).json({
+          success: false,
+          message:
+            "El Administrador Master debe indicar id_organizacion para registrar un psicólogo"
+        });
+      }
+
+    }
+
+
+    // --------------------------------------------------------
+    // VALIDAR ORGANIZACIÓN CLÍNICA
+    // --------------------------------------------------------
+
+    const [organizaciones] =
+      await connection.query(
+        `
+          SELECT
+            id_organizacion,
+            nombre,
+            nombre_comercial,
+            tipo,
+            estado
+          FROM organizaciones
+          WHERE id_organizacion = ?
+          LIMIT 1
+          FOR UPDATE
+        `,
+        [idOrganizacionFinal]
+      );
+
+
+    if (!organizaciones.length) {
+
+      await connection.rollback();
+
+      return res.status(404).json({
+        success: false,
+        message: "La organización no existe"
+      });
+    }
+
+
+    const organizacion =
+      organizaciones[0];
+
+
+    if (
+      String(organizacion.estado || "")
+        .trim()
+        .toLowerCase() !== "activa"
+    ) {
+
+      await connection.rollback();
+
+      return res.status(403).json({
+        success: false,
+        code: "ORGANIZACION_NO_ACTIVA",
+        message:
+          "La organización no está activa"
+      });
+    }
+
+
+    if (
+      String(organizacion.tipo || "")
+        .trim()
+        .toLowerCase() !== "clinica"
+    ) {
+
+      await connection.rollback();
+
+      return res.status(403).json({
+        success: false,
+        message:
+          "La organización seleccionada no corresponde al área Clínica"
+      });
+    }
+
+
+    // --------------------------------------------------------
+    // CÉDULA DUPLICADA
+    // --------------------------------------------------------
+
+    const [cedulasExistentes] =
+      await connection.query(
+        `
           SELECT
             id_psicologo
           FROM psicologos
           WHERE cedula_profesional = ?
           LIMIT 1
-          `,
-
-          [
-            cedulaNormalizada
-          ]
-
-        );
+          FOR UPDATE
+        `,
+        [cedulaNormalizada]
+      );
 
 
-      if (
-        cExist.length
-      ) {
+    if (cedulasExistentes.length) {
 
-        return res.status(400).json({
-          message:
-            "La cédula ya está registrada"
-        });
+      await connection.rollback();
 
-      }
-
+      return res.status(409).json({
+        success: false,
+        code: "CEDULA_EXISTENTE",
+        message:
+          "La cédula profesional ya está registrada"
+      });
     }
 
 
-    /* ==================================================
-       ENCRIPTAR CONTRASEÑA
-    ================================================== */
+    // --------------------------------------------------------
+    // SUSCRIPCIÓN
+    // --------------------------------------------------------
 
-    const hashedPassword =
+    const [suscripciones] =
+      await connection.query(
+        `
+          SELECT
+            s.id_suscripcion,
+            s.id_organizacion,
+            s.id_plan,
+            s.estado,
+            s.proxima_renovacion,
+            s.licencias_totales
+          FROM suscripciones s
+          WHERE
+            s.id_organizacion = ?
+            AND s.estado IN ('activa', 'prueba')
+            AND (
+              s.proxima_renovacion IS NULL
+              OR CURDATE() <= DATE_ADD(
+                s.proxima_renovacion,
+                INTERVAL 3 DAY
+              )
+            )
+          ORDER BY
+            s.id_suscripcion DESC
+          LIMIT 1
+          FOR UPDATE
+        `,
+        [idOrganizacionFinal]
+      );
+
+
+    if (!suscripciones.length) {
+
+      await connection.rollback();
+
+      return res.status(403).json({
+        success: false,
+        code: "SUSCRIPCION_NO_ACTIVA",
+        message:
+          "La organización no tiene una suscripción Clínica activa"
+      });
+    }
+
+
+    const suscripcion =
+      suscripciones[0];
+
+
+    // --------------------------------------------------------
+    // LICENCIA PSICÓLOGO
+    // --------------------------------------------------------
+
+    const [licencias] =
+      await connection.query(
+        `
+          SELECT
+            id_licencia,
+            id_suscripcion,
+            id_usuario,
+            tipo,
+            estado
+          FROM licencias
+          WHERE
+            id_suscripcion = ?
+            AND tipo = 'psicologo'
+            AND estado = 'disponible'
+            AND id_usuario IS NULL
+          ORDER BY
+            id_licencia ASC
+          LIMIT 1
+          FOR UPDATE
+        `,
+        [suscripcion.id_suscripcion]
+      );
+
+
+    if (!licencias.length) {
+
+      await connection.rollback();
+
+      return res.status(409).json({
+        success: false,
+        code: "SIN_LICENCIAS",
+        message:
+          "Has utilizado todas las licencias de tu plan. Amplía tu paquete para agregar más psicólogos."
+      });
+    }
+
+
+    const licencia =
+      licencias[0];
+
+
+    // --------------------------------------------------------
+    // MATRÍCULA
+    // Ejemplo: MS-CLI-001-0001
+    // --------------------------------------------------------
+
+    const matricula =
+      await generarMatricula({
+        idOrganizacion:
+          idOrganizacionFinal,
+        area:
+          "clinica",
+        connection
+      });
+
+
+    // --------------------------------------------------------
+    // CONTRASEÑA TEMPORAL
+    // --------------------------------------------------------
+
+    const passwordTemporal =
+      `Ms!${
+        crypto
+          .randomBytes(4)
+          .toString("hex")
+          .toUpperCase()
+      }`;
+
+
+    const passwordHash =
       await bcrypt.hash(
-        password,
+        passwordTemporal,
         10
       );
 
 
-    /* ==================================================
-       CREAR USUARIO
+    // --------------------------------------------------------
+    // CREAR USUARIO
+    // --------------------------------------------------------
 
-       IMPORTANTE:
-
-       id_admin_padre = ADMIN QUE LO CREÓ
-
-       Esta columna será la base para controlar
-       posteriormente qué usuarios puede ver cada
-       administrador normal.
-    ================================================== */
-
-    const [uIns] =
-      await pool.query(
-
+    const [usuarioInsertado] =
+      await connection.query(
         `
-        INSERT INTO usuarios
-        (
-          nombre,
-          correo,
-          password,
-          rol,
-          tipo_admin,
-          area,
-          id_admin_padre
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO usuarios
+          (
+            nombre,
+            correo,
+            matricula,
+            password,
+            debe_cambiar_password,
+            rol,
+            tipo_admin,
+            area,
+            id_admin_padre,
+            id_organizacion,
+            estado,
+            telefono,
+            direccion
+          )
+          VALUES
+          (
+            ?,
+            NULL,
+            ?,
+            ?,
+            1,
+            'psicologo',
+            NULL,
+            'clinica',
+            ?,
+            ?,
+            'activo',
+            ?,
+            ?
+          )
         `,
-
         [
           nombreNormalizado,
-          correoNormalizado,
-          hashedPassword,
-          rolFinal,
-          null,
-          areaFinal,
-          id_admin_padre
+          matricula,
+          passwordHash,
+          idAdmin,
+          idOrganizacionFinal,
+          telefonoNormalizado,
+          direccionNormalizada
         ]
-
       );
 
 
-    /* ==================================================
-       CREAR REGISTRO EN PSICÓLOGOS
-
-       ÚNICAMENTE SI ES PSICÓLOGO
-    ================================================== */
-
-    let id_psicologo = null;
+    const idUsuarioNuevo =
+      usuarioInsertado.insertId;
 
 
-    if (
-      rolFinal === "psicologo"
-    ) {
+    // --------------------------------------------------------
+    // CREAR PSICÓLOGO
+    // --------------------------------------------------------
 
-      const [pIns] =
-        await pool.query(
-
-          `
+    const [psicologoInsertado] =
+      await connection.query(
+        `
           INSERT INTO psicologos
           (
             id_usuario,
             cedula_profesional,
-            especialidad
+            especialidad,
+            telefono,
+            direccion,
+            fecha_nacimiento
           )
-          VALUES (?, ?, ?)
-          `,
+          VALUES
+          (
+            ?,
+            ?,
+            ?,
+            ?,
+            ?,
+            ?
+          )
+        `,
+        [
+          idUsuarioNuevo,
+          cedulaNormalizada,
+          especialidadNormalizada,
+          telefonoNormalizado,
+          direccionNormalizada,
+          fechaNacimientoNormalizada
+        ]
+      );
 
-          [
-            uIns.insertId,
 
-            cedulaNormalizada,
-
-            especialidad
-              ? String(
-                  especialidad
-                ).trim()
-              : null
-          ]
-
-        );
+    const idPsicologo =
+      psicologoInsertado.insertId;
 
 
-      id_psicologo =
-        pIns.insertId;
+    // --------------------------------------------------------
+    // ASIGNAR LICENCIA
+    // --------------------------------------------------------
 
+    const [licenciaActualizada] =
+      await connection.query(
+        `
+          UPDATE licencias
+          SET
+            id_usuario = ?,
+            estado = 'asignada',
+            fecha_asignacion = NOW(),
+            fecha_liberacion = NULL
+          WHERE
+            id_licencia = ?
+            AND estado = 'disponible'
+            AND id_usuario IS NULL
+        `,
+        [
+          idUsuarioNuevo,
+          licencia.id_licencia
+        ]
+      );
+
+
+    if (
+      licenciaActualizada.affectedRows !== 1
+    ) {
+
+      await connection.rollback();
+
+      return res.status(409).json({
+        success: false,
+        code: "LICENCIA_NO_DISPONIBLE",
+        message:
+          "La licencia ya no está disponible. Intenta nuevamente."
+      });
     }
 
 
-    /* ==================================================
-       RESPUESTA
-    ================================================== */
+    // --------------------------------------------------------
+    // COMMIT
+    // --------------------------------------------------------
+
+    await connection.commit();
+
 
     return res.status(201).json({
 
+      success: true,
+
       message:
-        "Usuario registrado correctamente",
+        "Psicólogo registrado correctamente y licencia asignada",
 
       usuario: {
 
         id_usuario:
-          uIns.insertId,
+          idUsuarioNuevo,
 
-        id_psicologo,
+        id_psicologo:
+          idPsicologo,
 
         nombre:
           nombreNormalizado,
 
         correo:
-          correoNormalizado,
+          null,
+
+        matricula,
 
         rol:
-          rolFinal,
+          "psicologo",
 
         area:
-          areaFinal,
+          "clinica",
 
         especialidad:
-          rolFinal === "psicologo"
-            ? (
-                especialidad
-                  ? String(
-                      especialidad
-                    ).trim()
-                  : null
-              )
-            : null,
+          especialidadNormalizada,
 
-        id_admin_padre
+        cedula_profesional:
+          cedulaNormalizada,
 
+        telefono:
+          telefonoNormalizado,
+
+        direccion:
+          direccionNormalizada,
+
+        fecha_nacimiento:
+          fechaNacimientoNormalizada,
+
+        id_admin_padre:
+          idAdmin,
+
+        id_organizacion:
+          idOrganizacionFinal,
+
+        id_licencia:
+          licencia.id_licencia,
+
+        estado:
+          "activo",
+
+        debe_cambiar_password:
+          1
+      },
+
+      credenciales: {
+
+        matricula,
+
+        password_temporal:
+          passwordTemporal
       }
 
     });
@@ -651,16 +748,44 @@ export async function registerPsicologo(req, res) {
 
   } catch (err) {
 
+    if (connection) {
+
+      try {
+        await connection.rollback();
+      } catch (rollbackError) {
+        console.error(
+          "❌ Error haciendo rollback psicólogo:",
+          rollbackError
+        );
+      }
+
+    }
+
+
     console.error(
-      "❌ Error en registro de usuario:",
+      "❌ Error registrando psicólogo:",
       err
     );
 
 
+    if (
+      err?.code === "ER_DUP_ENTRY"
+    ) {
+
+      return res.status(409).json({
+        success: false,
+        message:
+          "No fue posible generar una matrícula única. Intenta nuevamente."
+      });
+    }
+
+
     return res.status(500).json({
 
+      success: false,
+
       message:
-        "Error interno en registro de usuario",
+        "Error interno al registrar psicólogo",
 
       error:
         process.env.NODE_ENV === "development"
@@ -669,22 +794,21 @@ export async function registerPsicologo(req, res) {
 
     });
 
+
+  } finally {
+
+    if (connection) {
+      connection.release();
+    }
+
   }
 
 }
 
 
-/* ==================================================
-   REGISTRO DE ADMINISTRADOR NORMAL
-
-   SOLO ADMIN MASTER
-
-   El Master puede crear administradores de
-   cualquier área.
-
-   El administrador creado queda ligado al Master
-   mediante id_admin_padre.
-================================================== */
+// ============================================================
+// REGISTRAR ADMINISTRADOR NORMAL
+// ============================================================
 
 export async function registerAdmin(
   req,
@@ -693,25 +817,21 @@ export async function registerAdmin(
 
   try {
 
-    /* ==================================================
-       VERIFICAR ADMIN
-    ================================================== */
+    // --------------------------------------------------------
+    // SOLO ADMIN
+    // --------------------------------------------------------
 
     if (
-      req.user?.role !== 1
+      Number(req.user?.role) !== 1
     ) {
 
       return res.status(403).json({
+        success: false,
         message:
           "Acceso denegado: solo administradores"
       });
-
     }
 
-
-    /* ==================================================
-       VERIFICAR MASTER
-    ================================================== */
 
     const tipoAdmin =
       req.user?.tipo_admin
@@ -726,28 +846,25 @@ export async function registerAdmin(
     ) {
 
       return res.status(403).json({
+        success: false,
         message:
           "Acceso denegado: solo el Administrador Master puede crear administradores"
       });
-
     }
 
 
-    /* ==================================================
-       DATOS
-    ================================================== */
+    // --------------------------------------------------------
+    // DATOS
+    // --------------------------------------------------------
 
     const {
       nombre,
       correo,
       password,
-      area
+      area,
+      id_organizacion
     } = req.body;
 
-
-    /* ==================================================
-       VALIDACIONES
-    ================================================== */
 
     if (
       !nombre ||
@@ -756,58 +873,20 @@ export async function registerAdmin(
     ) {
 
       return res.status(400).json({
+        success: false,
         message:
           "Faltan datos obligatorios"
       });
-
     }
 
 
     const nombreNormalizado =
       String(nombre).trim();
 
-
     const correoNormalizado =
       String(correo)
         .trim()
         .toLowerCase();
-
-
-    if (
-      nombreNormalizado.length < 2
-    ) {
-
-      return res.status(400).json({
-        message:
-          "El nombre no es válido"
-      });
-
-    }
-
-
-    if (
-      String(password).length < 6
-    ) {
-
-      return res.status(400).json({
-        message:
-          "La contraseña debe tener al menos 6 caracteres"
-      });
-
-    }
-
-
-    /* ==================================================
-       ÁREAS PERMITIDAS
-    ================================================== */
-
-    const areasPermitidas = [
-      "clinica",
-      "rh",
-      "educativo",
-      "independiente"
-    ];
-
 
     const areaNormalizada =
       area
@@ -818,6 +897,37 @@ export async function registerAdmin(
 
 
     if (
+      nombreNormalizado.length < 2
+    ) {
+
+      return res.status(400).json({
+        success: false,
+        message:
+          "El nombre no es válido"
+      });
+    }
+
+
+    if (
+      String(password).length < 6
+    ) {
+
+      return res.status(400).json({
+        success: false,
+        message:
+          "La contraseña debe tener al menos 6 caracteres"
+      });
+    }
+
+
+    const areasPermitidas = [
+      "clinica",
+      "rh",
+      "educativo"
+    ];
+
+
+    if (
       !areaNormalizada ||
       !areasPermitidas.includes(
         areaNormalizada
@@ -825,100 +935,175 @@ export async function registerAdmin(
     ) {
 
       return res.status(400).json({
+        success: false,
         message:
           "El área seleccionada no es válida"
       });
-
     }
 
 
-    /* ==================================================
-       VERIFICAR CORREO
-    ================================================== */
+    // --------------------------------------------------------
+    // CORREO DUPLICADO
+    // --------------------------------------------------------
 
-    const [uExist] =
+    const [usuariosExistentes] =
       await pool.query(
-
         `
-        SELECT
-          id_usuario
-        FROM usuarios
-        WHERE correo = ?
-        LIMIT 1
+          SELECT
+            id_usuario
+          FROM usuarios
+          WHERE correo = ?
+          LIMIT 1
         `,
-
-        [
-          correoNormalizado
-        ]
-
+        [correoNormalizado]
       );
 
 
     if (
-      uExist.length
+      usuariosExistentes.length
     ) {
 
-      return res.status(400).json({
+      return res.status(409).json({
+        success: false,
         message:
           "El correo ya está registrado"
       });
+    }
+
+
+    // --------------------------------------------------------
+    // ORGANIZACIÓN OPCIONAL
+    //
+    // Si se envía, verificamos que corresponda al área.
+    // --------------------------------------------------------
+
+    let idOrganizacionFinal =
+      Number(id_organizacion) || null;
+
+
+    if (
+      idOrganizacionFinal
+    ) {
+
+      const [organizaciones] =
+        await pool.query(
+          `
+            SELECT
+              id_organizacion,
+              tipo,
+              estado
+            FROM organizaciones
+            WHERE id_organizacion = ?
+            LIMIT 1
+          `,
+          [idOrganizacionFinal]
+        );
+
+
+      if (!organizaciones.length) {
+
+        return res.status(404).json({
+          success: false,
+          message:
+            "La organización no existe"
+        });
+      }
+
+
+      const organizacion =
+        organizaciones[0];
+
+
+      if (
+        String(organizacion.estado || "")
+          .trim()
+          .toLowerCase() !== "activa"
+      ) {
+
+        return res.status(403).json({
+          success: false,
+          message:
+            "La organización no está activa"
+        });
+      }
+
+
+      if (
+        String(organizacion.tipo || "")
+          .trim()
+          .toLowerCase() !==
+        areaNormalizada
+      ) {
+
+        return res.status(400).json({
+          success: false,
+          message:
+            "El área del administrador no corresponde al tipo de organización"
+        });
+      }
 
     }
 
 
-    /* ==================================================
-       ENCRIPTAR
-    ================================================== */
+    // --------------------------------------------------------
+    // PASSWORD
+    // --------------------------------------------------------
 
-    const hashedPassword =
+    const passwordHash =
       await bcrypt.hash(
         password,
         10
       );
 
 
-    /* ==================================================
-       CREAR ADMIN NORMAL
+    // --------------------------------------------------------
+    // INSERTAR ADMIN
+    // --------------------------------------------------------
 
-       id_admin_padre =
-       ID DEL MASTER QUE LO CREÓ
-    ================================================== */
-
-    const [uIns] =
+    const [resultado] =
       await pool.query(
-
         `
-        INSERT INTO usuarios
-        (
-          nombre,
-          correo,
-          password,
-          rol,
-          tipo_admin,
-          area,
-          id_admin_padre
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO usuarios
+          (
+            nombre,
+            correo,
+            password,
+            debe_cambiar_password,
+            rol,
+            tipo_admin,
+            area,
+            id_admin_padre,
+            id_organizacion,
+            estado
+          )
+          VALUES
+          (
+            ?,
+            ?,
+            ?,
+            0,
+            'admin',
+            'normal',
+            ?,
+            ?,
+            ?,
+            'activo'
+          )
         `,
-
         [
           nombreNormalizado,
           correoNormalizado,
-          hashedPassword,
-          "admin",
-          "normal",
+          passwordHash,
           areaNormalizada,
-          req.user.id_usuario
+          req.user.id_usuario,
+          idOrganizacionFinal
         ]
-
       );
 
 
-    /* ==================================================
-       RESPUESTA
-    ================================================== */
-
     return res.status(201).json({
+
+      success: true,
 
       message:
         "Administrador normal creado correctamente",
@@ -926,7 +1111,7 @@ export async function registerAdmin(
       administrador: {
 
         id_usuario:
-          uIns.insertId,
+          resultado.insertId,
 
         nombre:
           nombreNormalizado,
@@ -944,8 +1129,13 @@ export async function registerAdmin(
           areaNormalizada,
 
         id_admin_padre:
-          req.user.id_usuario
+          req.user.id_usuario,
 
+        id_organizacion:
+          idOrganizacionFinal,
+
+        estado:
+          "activo"
       }
 
     });
@@ -960,6 +1150,8 @@ export async function registerAdmin(
 
 
     return res.status(500).json({
+
+      success: false,
 
       message:
         "Error interno al registrar administrador",
@@ -976,9 +1168,21 @@ export async function registerAdmin(
 }
 
 
-/* ==================================================
-   LOGIN
-================================================== */
+// ============================================================
+// LOGIN
+//
+// ADMINISTRADORES:
+// correo + contraseña
+//
+// PSICÓLOGO / RH / EDUCATIVO:
+// matrícula + contraseña
+//
+// INDEPENDIENTE:
+// correo + contraseña
+//
+// COMPATIBILIDAD:
+// todavía acepta "correo" desde frontend anterior.
+// ============================================================
 
 export async function login(
   req,
@@ -988,76 +1192,137 @@ export async function login(
   try {
 
     const {
+      identificador,
       correo,
       password
     } = req.body;
 
 
-    /* ==================================================
-       VALIDAR DATOS
-    ================================================== */
+    const acceso =
+      identificador ||
+      correo;
+
+
+    // --------------------------------------------------------
+    // VALIDAR
+    // --------------------------------------------------------
 
     if (
-      !correo ||
+      !acceso ||
       !password
     ) {
 
       return res.status(400).json({
+        success: false,
         message:
-          "Faltan correo y contraseña"
+          "Faltan correo o matrícula y contraseña"
       });
 
     }
 
 
-    /* ==================================================
-       NORMALIZAR CORREO
-    ================================================== */
-
-    const correoNormalizado =
-      String(correo)
-        .trim()
-        .toLowerCase();
+    const accesoNormalizado =
+      String(
+        acceso
+      ).trim();
 
 
-    /* ==================================================
-       BUSCAR USUARIO
-    ================================================== */
+    if (
+      !accesoNormalizado
+    ) {
+
+      return res.status(400).json({
+        success: false,
+        message:
+          "Ingresa tu correo o matrícula"
+      });
+
+    }
+
+
+    // --------------------------------------------------------
+    // BUSCAR POR CORREO O MATRÍCULA
+    //
+    // AHORA TAMBIÉN LEEMOS LA ORGANIZACIÓN.
+    // --------------------------------------------------------
 
     const [rows] =
       await pool.query(
-
         `
-        SELECT
-          id_usuario,
-          nombre,
-          correo,
-          password,
-          rol,
-          tipo_admin,
-          area,
-          id_admin_padre
-        FROM usuarios
-        WHERE correo = ?
-        LIMIT 1
+          SELECT
+
+            u.id_usuario,
+            u.nombre,
+            u.correo,
+            u.matricula,
+            u.password,
+            u.debe_cambiar_password,
+            u.rol,
+            u.tipo_admin,
+            u.area,
+            u.id_admin_padre,
+            u.id_organizacion,
+            u.estado,
+
+            o.tipo AS tipo_organizacion,
+
+            o.perfil_independiente,
+
+            o.estado AS estado_organizacion
+
+          FROM usuarios u
+
+          LEFT JOIN organizaciones o
+            ON o.id_organizacion =
+               u.id_organizacion
+
+          WHERE
+
+            (
+              u.correo IS NOT NULL
+
+              AND LOWER(
+                TRIM(
+                  u.correo
+                )
+              ) =
+              LOWER(
+                TRIM(
+                  ?
+                )
+              )
+            )
+
+            OR
+
+            (
+              u.matricula IS NOT NULL
+
+              AND UPPER(
+                TRIM(
+                  u.matricula
+                )
+              ) =
+              UPPER(
+                TRIM(
+                  ?
+                )
+              )
+            )
+
+          LIMIT 1
         `,
-
         [
-          correoNormalizado
+          accesoNormalizado,
+          accesoNormalizado
         ]
-
       );
 
 
-    /* ==================================================
-       USUARIO NO EXISTE
-    ================================================== */
-
-    if (
-      !rows.length
-    ) {
+    if (!rows.length) {
 
       return res.status(401).json({
+        success: false,
         message:
           "Credenciales inválidas"
       });
@@ -1069,17 +1334,100 @@ export async function login(
       rows[0];
 
 
-    /* ==================================================
-       VERIFICAR PASSWORD
-    ================================================== */
+    // --------------------------------------------------------
+    // NORMALIZACIONES
+    // --------------------------------------------------------
+
+    const rolNormalizado =
+      String(
+        user.rol ||
+        ""
+      )
+        .trim()
+        .toLowerCase();
+
+
+    const areaNormalizada =
+      user.area
+        ? String(
+            user.area
+          )
+            .trim()
+            .toLowerCase()
+        : null;
+
+
+    const tipoAdminNormalizado =
+      user.tipo_admin
+        ? String(
+            user.tipo_admin
+          )
+            .trim()
+            .toLowerCase()
+        : null;
+
+
+    const tipoOrganizacion =
+      user.tipo_organizacion
+        ? String(
+            user.tipo_organizacion
+          )
+            .trim()
+            .toLowerCase()
+        : null;
+
+
+    const perfilIndependiente =
+      user.perfil_independiente
+        ? String(
+            user.perfil_independiente
+          )
+            .trim()
+            .toLowerCase()
+        : null;
+
+
+    const estadoOrganizacion =
+      user.estado_organizacion
+        ? String(
+            user.estado_organizacion
+          )
+            .trim()
+            .toLowerCase()
+        : null;
+
+
+    // --------------------------------------------------------
+    // ESTADO
+    // --------------------------------------------------------
+
+    if (
+      String(
+        user.estado ||
+        "activo"
+      )
+        .trim()
+        .toLowerCase() !== "activo"
+    ) {
+
+      return res.status(403).json({
+        success: false,
+        code: "USUARIO_INACTIVO",
+        message:
+          "Tu cuenta está inactiva. Contacta al administrador de tu organización."
+      });
+
+    }
+
+
+    // --------------------------------------------------------
+    // PASSWORD
+    // --------------------------------------------------------
 
     const passwordCorrecta =
       await bcrypt.compare(
-
         password,
-
         user.password
-
       );
 
 
@@ -1088,6 +1436,7 @@ export async function login(
     ) {
 
       return res.status(401).json({
+        success: false,
         message:
           "Credenciales inválidas"
       });
@@ -1095,87 +1444,176 @@ export async function login(
     }
 
 
-    /* ==================================================
-       BUSCAR PSICÓLOGO
-    ================================================== */
+    // --------------------------------------------------------
+    // PSICÓLOGO
+    // --------------------------------------------------------
 
-    let id_psicologo = null;
+    let id_psicologo =
+      null;
 
 
     if (
-      user.rol === "psicologo"
+      rolNormalizado ===
+      "psicologo"
     ) {
 
-      const [p] =
+      const [psicologos] =
         await pool.query(
-
           `
-          SELECT
-            id_psicologo
-          FROM psicologos
-          WHERE id_usuario = ?
-          LIMIT 1
+            SELECT
+              id_psicologo
+            FROM psicologos
+            WHERE id_usuario = ?
+            LIMIT 1
           `,
-
           [
             user.id_usuario
           ]
-
         );
 
 
       id_psicologo =
-        p[0]?.id_psicologo ||
+        psicologos[0]
+          ?.id_psicologo ||
         null;
 
     }
 
 
-    /* ==================================================
-       CONVERTIR ROL PARA FRONTEND
-
-       admin = 1
-       demás = 2
-    ================================================== */
+    // --------------------------------------------------------
+    // ROLE NUMÉRICO
+    // --------------------------------------------------------
 
     const roleNumber =
-      user.rol === "admin"
+      rolNormalizado ===
+      "admin"
         ? 1
         : 2;
 
 
-    /* ==================================================
-       CREAR JWT
-
-       SE INCLUYEN TODOS LOS DATOS NECESARIOS
-       PARA CONTROLAR PROPIEDAD Y PERMISOS.
-    ================================================== */
-
-    const token = jwt.sign(
-  {
-    id_usuario: user.id_usuario,
-    role: roleNumber,
-    id_psicologo,
-    rol: user.rol,
-    tipo_admin: user.tipo_admin || null,
-    area: user.area || null,
-    id_admin_padre: user.id_admin_padre || null
-  },
-  process.env.JWT_SECRET,
-  {
-    expiresIn: "8h"
-  }
-);
+    const debeCambiarPassword =
+      Number(
+        user.debe_cambiar_password ||
+        0
+      ) === 1;
 
 
-    /* ==================================================
-       RESPUESTA
-    ================================================== */
+    // --------------------------------------------------------
+    // JWT
+    //
+    // IMPORTANTE:
+    // perfil_independiente se guarda en el token.
+    // --------------------------------------------------------
+
+    const token =
+      jwt.sign(
+        {
+
+          id_usuario:
+            user.id_usuario,
+
+          role:
+            roleNumber,
+
+          id_psicologo,
+
+          rol:
+            rolNormalizado,
+
+          tipo_admin:
+            tipoAdminNormalizado,
+
+          area:
+            areaNormalizada,
+
+          id_admin_padre:
+            user.id_admin_padre ||
+            null,
+
+          id_organizacion:
+            user.id_organizacion ||
+            null,
+
+          perfil_independiente:
+            perfilIndependiente,
+
+          tipo_organizacion:
+            tipoOrganizacion,
+
+          estado_organizacion:
+            estadoOrganizacion,
+
+          estado:
+            user.estado ||
+            "activo",
+
+          matricula:
+            user.matricula ||
+            null,
+
+          debe_cambiar_password:
+            debeCambiarPassword
+              ? 1
+              : 0
+
+        },
+
+        process.env.JWT_SECRET,
+
+        {
+          expiresIn:
+            "8h"
+        }
+      );
+
+
+    // --------------------------------------------------------
+    // LOG LOGIN
+    // --------------------------------------------------------
+
+    console.log(
+      "🔐 LOGIN:",
+      {
+
+        id_usuario:
+          user.id_usuario,
+
+        rol:
+          rolNormalizado,
+
+        area:
+          areaNormalizada,
+
+        id_organizacion:
+          user.id_organizacion ||
+          null,
+
+        tipo_organizacion:
+          tipoOrganizacion,
+
+        perfil_independiente:
+          perfilIndependiente,
+
+        estado_organizacion:
+          estadoOrganizacion
+
+      }
+    );
+
+
+    // --------------------------------------------------------
+    // RESPUESTA
+    // --------------------------------------------------------
 
     return res.json({
 
+      success: true,
+
       message:
         "Login exitoso",
+
+      requiere_cambio_password:
+        debeCambiarPassword,
 
       user: {
 
@@ -1186,25 +1624,50 @@ export async function login(
           user.nombre,
 
         correo:
-          user.correo,
+          user.correo ||
+          null,
+
+        matricula:
+          user.matricula ||
+          null,
 
         role:
           roleNumber,
 
         rol:
-          user.rol,
+          rolNormalizado,
 
         tipo_admin:
-          user.tipo_admin ||
-          null,
+          tipoAdminNormalizado,
 
         area:
-          user.area ||
-          null,
+          areaNormalizada,
 
         id_admin_padre:
           user.id_admin_padre ||
           null,
+
+        id_organizacion:
+          user.id_organizacion ||
+          null,
+
+        perfil_independiente:
+          perfilIndependiente,
+
+        tipo_organizacion:
+          tipoOrganizacion,
+
+        estado_organizacion:
+          estadoOrganizacion,
+
+        estado:
+          user.estado ||
+          "activo",
+
+        debe_cambiar_password:
+          debeCambiarPassword
+            ? 1
+            : 0,
 
         id_psicologo
 
@@ -1225,8 +1688,16 @@ export async function login(
 
     return res.status(500).json({
 
+      success: false,
+
       message:
-        "Error en login"
+        "Error en login",
+
+      error:
+        process.env.NODE_ENV ===
+        "development"
+          ? err.message
+          : undefined
 
     });
 
@@ -1235,9 +1706,12 @@ export async function login(
 }
 
 
-/* ==================================================
-   CAMBIAR CONTRASEÑA
-================================================== */
+// ============================================================
+// CAMBIAR CONTRASEÑA
+//
+// Si era contraseña temporal:
+// debe_cambiar_password pasa de 1 a 0.
+// ============================================================
 
 export async function changePassword(
   req,
@@ -1252,14 +1726,26 @@ export async function changePassword(
     } = req.body;
 
 
-    const {
-      id_usuario
-    } = req.user;
+    const id_usuario =
+      req.user?.id_usuario;
 
 
-    /* ==================================================
-       VALIDAR DATOS
-    ================================================== */
+    if (
+      !id_usuario
+    ) {
+
+      return res.status(401).json({
+        success: false,
+        message:
+          "Usuario no autenticado"
+      });
+
+    }
+
+
+    // --------------------------------------------------------
+    // VALIDAR
+    // --------------------------------------------------------
 
     if (
       !oldPassword ||
@@ -1267,6 +1753,7 @@ export async function changePassword(
     ) {
 
       return res.status(400).json({
+        success: false,
         message:
           "Faltan datos"
       });
@@ -1274,43 +1761,51 @@ export async function changePassword(
     }
 
 
-    /* ==================================================
-       VALIDAR NUEVA CONTRASEÑA
-    ================================================== */
-
     if (
       String(newPassword).length < 6
     ) {
 
       return res.status(400).json({
-
+        success: false,
         message:
           "La nueva contraseña debe tener al menos 6 caracteres"
-
       });
 
     }
 
 
-    /* ==================================================
-       BUSCAR USUARIO
-    ================================================== */
+    if (
+      String(oldPassword) ===
+      String(newPassword)
+    ) {
+
+      return res.status(400).json({
+        success: false,
+        message:
+          "La nueva contraseña debe ser diferente a la contraseña temporal o actual"
+      });
+
+    }
+
+
+    // --------------------------------------------------------
+    // USUARIO
+    // --------------------------------------------------------
 
     const [rows] =
       await pool.query(
-
         `
-        SELECT
-          password
-        FROM usuarios
-        WHERE id_usuario = ?
-        LIMIT 1
+          SELECT
+            password,
+            estado,
+            debe_cambiar_password
+          FROM usuarios
+          WHERE id_usuario = ?
+          LIMIT 1
         `,
-
         [
           id_usuario
         ]
-
       );
 
 
@@ -1319,26 +1814,46 @@ export async function changePassword(
     ) {
 
       return res.status(404).json({
-
+        success: false,
         message:
           "Usuario no encontrado"
-
       });
 
     }
 
 
-    /* ==================================================
-       VERIFICAR PASSWORD ACTUAL
-    ================================================== */
+    const usuario =
+      rows[0];
+
+
+    if (
+      String(
+        usuario.estado ||
+        "activo"
+      )
+        .trim()
+        .toLowerCase() !== "activo"
+    ) {
+
+      return res.status(403).json({
+        success: false,
+        code:
+          "USUARIO_INACTIVO",
+        message:
+          "La cuenta está inactiva"
+      });
+
+    }
+
+
+    // --------------------------------------------------------
+    // PASSWORD ACTUAL
+    // --------------------------------------------------------
 
     const passwordCorrecta =
       await bcrypt.compare(
-
         oldPassword,
-
-        rows[0].password
-
+        usuario.password
       );
 
 
@@ -1347,57 +1862,49 @@ export async function changePassword(
     ) {
 
       return res.status(401).json({
-
+        success: false,
         message:
           "La contraseña actual es incorrecta"
-
       });
 
     }
 
 
-    /* ==================================================
-       ENCRIPTAR NUEVA PASSWORD
-    ================================================== */
+    // --------------------------------------------------------
+    // NUEVA PASSWORD
+    // --------------------------------------------------------
 
-    const hashedPassword =
+    const passwordHash =
       await bcrypt.hash(
-
         newPassword,
-
         10
-
       );
 
 
-    /* ==================================================
-       ACTUALIZAR
-    ================================================== */
-
     await pool.query(
-
       `
-      UPDATE usuarios
-      SET password = ?
-      WHERE id_usuario = ?
+        UPDATE usuarios
+        SET
+          password = ?,
+          debe_cambiar_password = 0
+        WHERE id_usuario = ?
       `,
-
       [
-        hashedPassword,
+        passwordHash,
         id_usuario
       ]
-
     );
 
 
-    /* ==================================================
-       RESPUESTA
-    ================================================== */
-
     return res.json({
 
+      success: true,
+
       message:
-        "Contraseña actualizada"
+        "Contraseña actualizada correctamente",
+
+      debe_cambiar_password:
+        0
 
     });
 
@@ -1411,10 +1918,9 @@ export async function changePassword(
 
 
     return res.status(500).json({
-
+      success: false,
       message:
         "Error interno al cambiar contraseña"
-
     });
 
   }

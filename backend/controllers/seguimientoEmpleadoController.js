@@ -1,128 +1,553 @@
 import pool from "../config/database.js";
 
+// ==================================================
+// AUXILIARES
+// ==================================================
+
+const normalizar = valor =>
+  valor
+    ? String(valor).trim().toLowerCase()
+    : "";
+
+const texto = valor => {
+  if (
+    valor === undefined ||
+    valor === null
+  ) {
+    return null;
+  }
+
+  const limpio =
+    String(valor).trim();
+
+  return limpio || null;
+};
+
+const serializar = valor => {
+  try {
+    return JSON.stringify(
+      valor ?? null
+    );
+  } catch {
+    return null;
+  }
+};
 
 // ==================================================
-// AUXILIAR: VALIDAR ACCESO RH AL EMPLEADO
+// CONTEXTO REAL DEL USUARIO
+// ==================================================
+
+const obtenerContextoUsuario = async (
+  user,
+  connection = pool
+) => {
+  const idUsuario =
+    Number(
+      user?.id_usuario
+    ) || null;
+
+  if (!idUsuario) {
+    return {
+      idUsuario: null,
+      tipoAdmin: "",
+      area: "",
+      rol: "",
+      idAdminPadre: null,
+      idOrganizacion: null,
+      perfilIndependiente: "",
+      estadoOrganizacion: ""
+    };
+  }
+
+  const [rows] =
+    await connection.query(
+      `
+        SELECT
+          u.id_usuario,
+          u.tipo_admin,
+          u.area,
+          u.rol,
+          u.id_admin_padre,
+          u.id_organizacion,
+
+          o.perfil_independiente,
+          o.estado AS estado_organizacion
+
+        FROM usuarios u
+
+        LEFT JOIN organizaciones o
+          ON o.id_organizacion =
+             u.id_organizacion
+
+        WHERE
+          u.id_usuario = ?
+
+        LIMIT 1
+      `,
+      [idUsuario]
+    );
+
+  if (!rows.length) {
+    return {
+      idUsuario,
+
+      tipoAdmin:
+        normalizar(
+          user?.tipo_admin
+        ),
+
+      area:
+        normalizar(
+          user?.area
+        ),
+
+      rol:
+        normalizar(
+          user?.rol
+        ),
+
+      idAdminPadre:
+        Number(
+          user?.id_admin_padre
+        ) || null,
+
+      idOrganizacion:
+        Number(
+          user?.id_organizacion
+        ) || null,
+
+      perfilIndependiente:
+        normalizar(
+          user?.perfil_independiente
+        ),
+
+      estadoOrganizacion:
+        normalizar(
+          user?.estado_organizacion
+        )
+    };
+  }
+
+  const u =
+    rows[0];
+
+  return {
+    idUsuario:
+      Number(
+        u.id_usuario
+      ) || null,
+
+    tipoAdmin:
+      normalizar(
+        u.tipo_admin
+      ),
+
+    area:
+      normalizar(
+        u.area
+      ),
+
+    rol:
+      normalizar(
+        u.rol
+      ),
+
+    idAdminPadre:
+      Number(
+        u.id_admin_padre
+      ) || null,
+
+    idOrganizacion:
+      Number(
+        u.id_organizacion
+      ) || null,
+
+    perfilIndependiente:
+      normalizar(
+        u.perfil_independiente
+      ),
+
+    estadoOrganizacion:
+      normalizar(
+        u.estado_organizacion
+      )
+  };
+};
+
+// ==================================================
+// VALIDAR ACCESO AL EMPLEADO
+//
+// MASTER:
+// todos.
+//
+// ADMIN RH:
+// toda su organización.
+//
+// USUARIO RH:
+// asignados actuales +
+// registros antiguos.
+//
+// INDEPENDIENTE RH:
+// únicamente sus propios empleados.
 // ==================================================
 
 const validarAccesoEmpleado = async (
   idEmpleado,
-  user
+  user,
+  connection = pool
 ) => {
+  const contexto =
+    await obtenerContextoUsuario(
+      user,
+      connection
+    );
 
-  const idUsuario =
-    user?.id_usuario;
-
-  const tipoAdmin =
-    user?.tipo_admin
-      ? String(user.tipo_admin)
-          .trim()
-          .toLowerCase()
-      : null;
-
-  const area =
-    user?.area
-      ? String(user.area)
-          .trim()
-          .toLowerCase()
-      : null;
-
-
-  if (!idUsuario) {
-
+  if (!contexto.idUsuario) {
     return {
       ok: false,
       status: 401,
       message:
         "No se pudo identificar al usuario"
     };
-
   }
 
+  const esMaster =
+    contexto.tipoAdmin ===
+    "master";
+
+  const esAdminRH =
+    contexto.tipoAdmin ===
+      "normal" &&
+    contexto.area ===
+      "rh";
+
+  const esUsuarioRH =
+    contexto.rol ===
+      "rh" &&
+    contexto.area ===
+      "rh";
+
+  const esIndependienteRH =
+    contexto.rol ===
+      "independiente" &&
+    contexto.area ===
+      "independiente" &&
+    contexto.perfilIndependiente ===
+      "rh" &&
+    contexto.estadoOrganizacion ===
+      "activa";
 
   if (
-    tipoAdmin !== "master" &&
-    area !== "rh"
+    !esMaster &&
+    !esAdminRH &&
+    !esUsuarioRH &&
+    !esIndependienteRH
   ) {
-
     return {
       ok: false,
       status: 403,
       message:
         "No tienes permiso para acceder al seguimiento laboral"
     };
-
   }
-
 
   let query = `
     SELECT
-      id_empleado,
-      id_admin_padre,
-      id_mirror,
-      nombre,
-      puesto,
-      departamento,
-      estatus
-    FROM empleados
-    WHERE id_empleado = ?
+      e.id_empleado,
+      e.id_admin_padre,
+      e.id_usuario_responsable,
+      e.id_mirror,
+      e.nombre,
+      e.puesto,
+      e.departamento,
+      e.estatus,
+
+      ur.nombre
+        AS responsable_actual
+
+    FROM empleados e
+
+    LEFT JOIN usuarios ur
+      ON ur.id_usuario =
+         e.id_usuario_responsable
+
+    WHERE
+      e.id_empleado = ?
   `;
 
   const params = [
     idEmpleado
   ];
 
+  // ADMIN RH
 
-  if (
-    tipoAdmin !== "master"
-  ) {
-
+  if (esAdminRH) {
     query += `
-      AND id_admin_padre = ?
+      AND
+      (
+        e.id_admin_padre = ?
+
+        OR
+
+        (
+          e.id_usuario_responsable IS NULL
+
+          AND e.id_admin_padre IN
+          (
+            SELECT
+              u.id_usuario
+
+            FROM usuarios u
+
+            WHERE
+              u.id_admin_padre = ?
+
+              AND u.rol = 'rh'
+
+              AND LOWER(
+                TRIM(
+                  COALESCE(
+                    u.area,
+                    ''
+                  )
+                )
+              ) = 'rh'
+          )
+        )
+      )
     `;
 
     params.push(
-      idUsuario
+      contexto.idUsuario,
+      contexto.idUsuario
     );
-
   }
 
+  // USUARIO RH / INDEPENDIENTE RH
+
+  else if (
+    esUsuarioRH ||
+    esIndependienteRH
+  ) {
+    query += `
+      AND
+      (
+        e.id_usuario_responsable = ?
+
+        OR
+
+        (
+          e.id_usuario_responsable IS NULL
+          AND e.id_admin_padre = ?
+        )
+      )
+    `;
+
+    params.push(
+      contexto.idUsuario,
+      contexto.idUsuario
+    );
+  }
 
   query += `
     LIMIT 1
   `;
 
-
   const [rows] =
-    await pool.query(
+    await connection.query(
       query,
       params
     );
 
-
   if (!rows.length) {
-
     return {
       ok: false,
       status: 404,
       message:
         "Empleado no encontrado o no tienes permiso para acceder a él"
     };
-
   }
-
 
   return {
     ok: true,
+    contexto,
+    esMaster,
+    esAdminRH,
+    esUsuarioRH,
+    esIndependienteRH,
     empleado:
       rows[0]
   };
-
 };
 
+// ==================================================
+// VALORES PERMITIDOS
+// ==================================================
+
+const tiposPermitidos = [
+  "general",
+  "desempeno",
+  "bienestar",
+  "incidencia",
+  "adaptacion",
+  "seguimiento",
+  "prevencion"
+];
+
+const prioridadesPermitidas = [
+  "baja",
+  "media",
+  "alta"
+];
+
+const resultadosPermitidos = [
+  "pendiente",
+  "continua",
+  "resuelto",
+  "requiere_atencion",
+  "canalizacion_sugerida"
+];
+
+const estadosPermitidos = [
+  "abierto",
+  "en_seguimiento",
+  "cerrado"
+];
 
 // ==================================================
-// REGISTRAR SEGUIMIENTO LABORAL
+// OBTENER SEGUIMIENTO
+// ==================================================
+
+const obtenerSeguimientoPorId = async (
+  idSeguimiento,
+  idEmpleado,
+  connection = pool
+) => {
+  const [rows] =
+    await connection.query(
+      `
+        SELECT
+          *
+        FROM seguimiento_empleados
+        WHERE id_seguimiento = ?
+          AND id_empleado = ?
+        LIMIT 1
+      `,
+      [
+        idSeguimiento,
+        idEmpleado
+      ]
+    );
+
+  return rows[0] || null;
+};
+
+// ==================================================
+// AUDITORÍA
+// ==================================================
+
+const registrarAuditoria = async (
+  {
+    idSeguimiento,
+    idEmpleado,
+    idUsuario,
+    accion,
+    anterior = null,
+    nuevo = null,
+    motivo = null
+  },
+  connection = pool
+) => {
+  await connection.query(
+    `
+      INSERT INTO auditoria_seguimiento_empleados
+      (
+        id_seguimiento,
+        id_empleado,
+        id_usuario,
+        accion,
+        datos_anteriores,
+        datos_nuevos,
+        motivo,
+        fecha
+      )
+
+      VALUES
+      (
+        ?,
+        ?,
+        ?,
+        ?,
+        ?,
+        ?,
+        ?,
+        NOW()
+      )
+    `,
+    [
+      idSeguimiento,
+      idEmpleado,
+      idUsuario || null,
+      accion,
+      serializar(anterior),
+      serializar(nuevo),
+      motivo
+    ]
+  );
+};
+
+// ==================================================
+// SELECT COMPLETO
+// ==================================================
+
+const consultarSeguimientoCompleto = async (
+  idSeguimiento,
+  connection = pool
+) => {
+  const [rows] =
+    await connection.query(
+      `
+        SELECT
+          s.*,
+
+          u.nombre
+            AS usuario_registro,
+
+          uc.nombre
+            AS usuario_cierre,
+
+          ua.nombre
+            AS usuario_anulacion
+
+        FROM seguimiento_empleados s
+
+        LEFT JOIN usuarios u
+          ON u.id_usuario =
+             s.id_usuario_registro
+
+        LEFT JOIN usuarios uc
+          ON uc.id_usuario =
+             s.id_usuario_cierre
+
+        LEFT JOIN usuarios ua
+          ON ua.id_usuario =
+             s.id_usuario_anulacion
+
+        WHERE
+          s.id_seguimiento = ?
+
+        LIMIT 1
+      `,
+      [
+        idSeguimiento
+      ]
+    );
+
+  return rows[0] || null;
+};
+
+// ==================================================
+// REGISTRAR SEGUIMIENTO
 //
 // POST /api/empleados/:id/seguimiento
 // ==================================================
@@ -132,14 +557,13 @@ export const registrarSeguimientoEmpleado =
     req,
     res
   ) => {
+    let connection;
 
     try {
-
       const idEmpleado =
         Number(
           req.params.id
         );
-
 
       if (
         !Number.isInteger(
@@ -147,24 +571,30 @@ export const registrarSeguimientoEmpleado =
         ) ||
         idEmpleado <= 0
       ) {
-
-        return res.status(400).json({
-          success: false,
-          message:
-            "ID de empleado inválido"
-        });
-
+        return res
+          .status(400)
+          .json({
+            success: false,
+            message:
+              "ID de empleado inválido"
+          });
       }
 
+      connection =
+        await pool.getConnection();
+
+      await connection
+        .beginTransaction();
 
       const acceso =
         await validarAccesoEmpleado(
           idEmpleado,
-          req.user
+          req.user,
+          connection
         );
 
-
       if (!acceso.ok) {
+        await connection.rollback();
 
         return res
           .status(
@@ -175,133 +605,129 @@ export const registrarSeguimientoEmpleado =
             message:
               acceso.message
           });
-
       }
 
-
-      const tiposPermitidos = [
-        "general",
-        "desempeno",
-        "bienestar",
-        "incidencia",
-        "adaptacion",
-        "seguimiento",
-        "prevencion"
-      ];
-
-
-      const resultadosPermitidos = [
-        "pendiente",
-        "continua",
-        "resuelto",
-        "requiere_atencion",
-        "canalizacion_sugerida"
-      ];
-
-
       const tipo =
-        String(
+        normalizar(
           req.body?.tipo ||
           "seguimiento"
-        )
-          .trim()
-          .toLowerCase();
+        );
 
+      const prioridad =
+        normalizar(
+          req.body?.prioridad ||
+          "media"
+        );
 
       const resultado =
-        String(
+        normalizar(
           req.body?.resultado ||
           "pendiente"
-        )
-          .trim()
-          .toLowerCase();
+        );
 
-
-      const motivo =
-        req.body?.motivo
-          ? String(
-              req.body.motivo
-            ).trim()
-          : null;
-
+      const estado =
+        normalizar(
+          req.body?.estado ||
+          "abierto"
+        );
 
       const observacion =
-        req.body?.observacion
-          ? String(
-              req.body.observacion
-            ).trim()
-          : "";
-
-
-      const accionRealizada =
-        req.body?.accion_realizada
-          ? String(
-              req.body.accion_realizada
-            ).trim()
-          : null;
-
-
-      const proximaAccion =
-        req.body?.proxima_accion
-          ? String(
-              req.body.proxima_accion
-            ).trim()
-          : null;
-
-
-      const fecha =
-        req.body?.fecha ||
-        null;
-
-
-      const fechaProximaAccion =
-        req.body?.fecha_proxima_accion ||
-        null;
-
+        texto(
+          req.body?.observacion
+        );
 
       if (
         !tiposPermitidos.includes(
           tipo
         )
       ) {
+        await connection.rollback();
 
-        return res.status(400).json({
-          success: false,
-          message:
-            "Tipo de seguimiento inválido"
-        });
-
+        return res
+          .status(400)
+          .json({
+            success: false,
+            message:
+              "Tipo de seguimiento inválido"
+          });
       }
 
+      if (
+        !prioridadesPermitidas.includes(
+          prioridad
+        )
+      ) {
+        await connection.rollback();
+
+        return res
+          .status(400)
+          .json({
+            success: false,
+            message:
+              "Prioridad inválida"
+          });
+      }
 
       if (
         !resultadosPermitidos.includes(
           resultado
         )
       ) {
+        await connection.rollback();
 
-        return res.status(400).json({
-          success: false,
-          message:
-            "Resultado de seguimiento inválido"
-        });
-
+        return res
+          .status(400)
+          .json({
+            success: false,
+            message:
+              "Resultado de seguimiento inválido"
+          });
       }
 
+      if (
+        !estadosPermitidos.includes(
+          estado
+        )
+      ) {
+        await connection.rollback();
+
+        return res
+          .status(400)
+          .json({
+            success: false,
+            message:
+              "Estado de seguimiento inválido"
+          });
+      }
 
       if (!observacion) {
+        await connection.rollback();
 
-        return res.status(400).json({
-          success: false,
-          message:
-            "La observación es obligatoria"
-        });
-
+        return res
+          .status(400)
+          .json({
+            success: false,
+            message:
+              "La descripción de la situación es obligatoria"
+          });
       }
 
+      const participantes =
+        Array.isArray(
+          req.body?.participantes
+        )
+          ? JSON.stringify(
+              req.body.participantes
+            )
+          : texto(
+              req.body?.participantes
+            );
+
+      const cerrar =
+        estado === "cerrado";
 
       const [result] =
-        await pool.query(
+        await connection.query(
           `
             INSERT INTO seguimiento_empleados
             (
@@ -309,13 +735,24 @@ export const registrarSeguimientoEmpleado =
               id_usuario_registro,
               fecha,
               tipo,
+              prioridad,
               motivo,
+              participantes,
+              version_empleado,
+              version_supervisor,
               observacion,
               accion_realizada,
+              acuerdo,
+              compromiso_empresa,
+              compromiso_empleado,
               resultado,
+              estado,
               proxima_accion,
-              fecha_proxima_accion
+              fecha_proxima_accion,
+              fecha_cierre,
+              id_usuario_cierre
             )
+
             VALUES
             (
               ?,
@@ -327,97 +764,170 @@ export const registrarSeguimientoEmpleado =
               ?,
               ?,
               ?,
+              ?,
+              ?,
+              ?,
+              ?,
+              ?,
+              ?,
+              ?,
+              ?,
+              ?,
+              ?,
               ?
             )
           `,
           [
             idEmpleado,
-            req.user?.id_usuario ||
+
+            acceso.contexto
+              .idUsuario,
+
+            req.body?.fecha ||
               null,
-            fecha,
+
             tipo,
-            motivo,
+            prioridad,
+
+            texto(
+              req.body?.motivo
+            ),
+
+            participantes,
+
+            texto(
+              req.body
+                ?.version_empleado
+            ),
+
+            texto(
+              req.body
+                ?.version_supervisor
+            ),
+
             observacion,
-            accionRealizada,
+
+            texto(
+              req.body
+                ?.accion_realizada
+            ),
+
+            texto(
+              req.body?.acuerdo
+            ),
+
+            texto(
+              req.body
+                ?.compromiso_empresa
+            ),
+
+            texto(
+              req.body
+                ?.compromiso_empleado
+            ),
+
             resultado,
-            proximaAccion,
-            fechaProximaAccion
+            estado,
+
+            texto(
+              req.body
+                ?.proxima_accion
+            ),
+
+            req.body
+              ?.fecha_proxima_accion ||
+              null,
+
+            cerrar
+              ? new Date()
+              : null,
+
+            cerrar
+              ? acceso.contexto
+                  .idUsuario
+              : null
           ]
         );
 
-
-      const [rows] =
-        await pool.query(
-          `
-            SELECT
-              s.id_seguimiento,
-              s.id_empleado,
-              s.id_usuario_registro,
-              s.fecha,
-              s.tipo,
-              s.motivo,
-              s.observacion,
-              s.accion_realizada,
-              s.resultado,
-              s.proxima_accion,
-              s.fecha_proxima_accion,
-              s.creado_en,
-              s.actualizado_en,
-
-              u.nombre AS usuario_registro
-
-            FROM seguimiento_empleados s
-
-            LEFT JOIN usuarios u
-              ON u.id_usuario =
-                 s.id_usuario_registro
-
-            WHERE s.id_seguimiento = ?
-
-            LIMIT 1
-          `,
-          [
-            result.insertId
-          ]
+      const seguimiento =
+        await consultarSeguimientoCompleto(
+          result.insertId,
+          connection
         );
 
+      await registrarAuditoria(
+        {
+          idSeguimiento:
+            result.insertId,
 
-      return res.status(201).json({
-        success: true,
-        message:
-          "Seguimiento laboral registrado correctamente",
-        seguimiento:
-          rows[0] || null
-      });
+          idEmpleado,
 
+          idUsuario:
+            acceso.contexto
+              .idUsuario,
+
+          accion:
+            cerrar
+              ? "cerrar"
+              : "crear",
+
+          nuevo:
+            seguimiento
+        },
+        connection
+      );
+
+      await connection.commit();
+
+      return res
+        .status(201)
+        .json({
+          success: true,
+
+          message:
+            cerrar
+              ? "Seguimiento registrado y cerrado correctamente"
+              : "Seguimiento laboral registrado correctamente",
+
+          seguimiento
+        });
 
     } catch (error) {
+      if (connection) {
+        try {
+          await connection.rollback();
+        } catch {}
+      }
 
       console.error(
         "❌ Error registrando seguimiento laboral:",
         error
       );
 
+      return res
+        .status(500)
+        .json({
+          success: false,
 
-      return res.status(500).json({
-        success: false,
-        message:
-          "Error interno al registrar el seguimiento laboral",
+          message:
+            "Error interno al registrar el seguimiento laboral",
 
-        error:
-          process.env.NODE_ENV ===
-          "development"
-            ? error.message
-            : undefined
-      });
+          error:
+            process.env.NODE_ENV ===
+            "development"
+              ? error.message
+              : undefined
+        });
 
+    } finally {
+      if (connection) {
+        connection.release();
+      }
     }
-
   };
 
-
 // ==================================================
-// LISTAR SEGUIMIENTO DEL EMPLEADO
+// LISTAR SEGUIMIENTOS
 //
 // GET /api/empleados/:id/seguimiento
 // ==================================================
@@ -427,14 +937,11 @@ export const listarSeguimientoEmpleado =
     req,
     res
   ) => {
-
     try {
-
       const idEmpleado =
         Number(
           req.params.id
         );
-
 
       if (
         !Number.isInteger(
@@ -442,15 +949,14 @@ export const listarSeguimientoEmpleado =
         ) ||
         idEmpleado <= 0
       ) {
-
-        return res.status(400).json({
-          success: false,
-          message:
-            "ID de empleado inválido"
-        });
-
+        return res
+          .status(400)
+          .json({
+            success: false,
+            message:
+              "ID de empleado inválido"
+          });
       }
-
 
       const acceso =
         await validarAccesoEmpleado(
@@ -458,9 +964,7 @@ export const listarSeguimientoEmpleado =
           req.user
         );
 
-
       if (!acceso.ok) {
-
         return res
           .status(
             acceso.status
@@ -470,29 +974,22 @@ export const listarSeguimientoEmpleado =
             message:
               acceso.message
           });
-
       }
-
 
       const [seguimientos] =
         await pool.query(
           `
             SELECT
-              s.id_seguimiento,
-              s.id_empleado,
-              s.id_usuario_registro,
-              s.fecha,
-              s.tipo,
-              s.motivo,
-              s.observacion,
-              s.accion_realizada,
-              s.resultado,
-              s.proxima_accion,
-              s.fecha_proxima_accion,
-              s.creado_en,
-              s.actualizado_en,
+              s.*,
 
-              u.nombre AS usuario_registro
+              u.nombre
+                AS usuario_registro,
+
+              uc.nombre
+                AS usuario_cierre,
+
+              ua.nombre
+                AS usuario_anulacion
 
             FROM seguimiento_empleados s
 
@@ -500,7 +997,16 @@ export const listarSeguimientoEmpleado =
               ON u.id_usuario =
                  s.id_usuario_registro
 
-            WHERE s.id_empleado = ?
+            LEFT JOIN usuarios uc
+              ON uc.id_usuario =
+                 s.id_usuario_cierre
+
+            LEFT JOIN usuarios ua
+              ON ua.id_usuario =
+                 s.id_usuario_anulacion
+
+            WHERE
+              s.id_empleado = ?
 
             ORDER BY
               s.fecha DESC,
@@ -511,40 +1017,83 @@ export const listarSeguimientoEmpleado =
           ]
         );
 
+      const lista =
+        seguimientos.map(
+          seguimiento => {
+            let participantes =
+              seguimiento.participantes;
+
+            if (
+              typeof participantes ===
+              "string"
+            ) {
+              try {
+                participantes =
+                  JSON.parse(
+                    participantes
+                  );
+              } catch {
+                // Conservamos texto antiguo.
+              }
+            }
+
+            return {
+              ...seguimiento,
+              participantes
+            };
+          }
+        );
 
       return res.json({
         success: true,
+
         empleado:
           acceso.empleado,
+
         total:
-          seguimientos.length,
-        seguimientos
+          lista.length,
+
+        abiertos:
+          lista.filter(
+            s =>
+              s.estado ===
+                "abierto" ||
+              s.estado ===
+                "en_seguimiento"
+          ).length,
+
+        cerrados:
+          lista.filter(
+            s =>
+              s.estado ===
+              "cerrado"
+          ).length,
+
+        seguimientos:
+          lista
       });
 
-
     } catch (error) {
-
       console.error(
         "❌ Error listando seguimiento laboral:",
         error
       );
 
-
-      return res.status(500).json({
-        success: false,
-        message:
-          "Error interno al obtener el seguimiento laboral"
-      });
-
+      return res
+        .status(500)
+        .json({
+          success: false,
+          message:
+            "Error interno al obtener el seguimiento laboral"
+        });
     }
-
   };
-
 
 // ==================================================
 // ACTUALIZAR SEGUIMIENTO
 //
-// PUT /api/empleados/:id/seguimiento/:idSeguimiento
+// PUT
+// /api/empleados/:id/seguimiento/:idSeguimiento
 // ==================================================
 
 export const actualizarSeguimientoEmpleado =
@@ -552,9 +1101,9 @@ export const actualizarSeguimientoEmpleado =
     req,
     res
   ) => {
+    let connection;
 
     try {
-
       const idEmpleado =
         Number(
           req.params.id
@@ -562,9 +1111,9 @@ export const actualizarSeguimientoEmpleado =
 
       const idSeguimiento =
         Number(
-          req.params.idSeguimiento
+          req.params
+            .idSeguimiento
         );
-
 
       if (
         !Number.isInteger(
@@ -576,24 +1125,30 @@ export const actualizarSeguimientoEmpleado =
         ) ||
         idSeguimiento <= 0
       ) {
-
-        return res.status(400).json({
-          success: false,
-          message:
-            "Datos de seguimiento inválidos"
-        });
-
+        return res
+          .status(400)
+          .json({
+            success: false,
+            message:
+              "Datos de seguimiento inválidos"
+          });
       }
 
+      connection =
+        await pool.getConnection();
+
+      await connection
+        .beginTransaction();
 
       const acceso =
         await validarAccesoEmpleado(
           idEmpleado,
-          req.user
+          req.user,
+          connection
         );
 
-
       if (!acceso.ok) {
+        await connection.rollback();
 
         return res
           .status(
@@ -604,360 +1159,433 @@ export const actualizarSeguimientoEmpleado =
             message:
               acceso.message
           });
-
       }
 
-
-      const [existentes] =
-        await pool.query(
-          `
-            SELECT
-              id_seguimiento
-            FROM seguimiento_empleados
-            WHERE id_seguimiento = ?
-              AND id_empleado = ?
-            LIMIT 1
-          `,
-          [
-            idSeguimiento,
-            idEmpleado
-          ]
+      const anterior =
+        await obtenerSeguimientoPorId(
+          idSeguimiento,
+          idEmpleado,
+          connection
         );
 
+      if (!anterior) {
+        await connection.rollback();
 
-      if (!existentes.length) {
-
-        return res.status(404).json({
-          success: false,
-          message:
-            "Seguimiento no encontrado"
-        });
-
+        return res
+          .status(404)
+          .json({
+            success: false,
+            message:
+              "Seguimiento no encontrado"
+          });
       }
 
+      if (
+        anterior.estado ===
+        "anulado"
+      ) {
+        await connection.rollback();
 
-      const tiposPermitidos = [
-        "general",
-        "desempeno",
-        "bienestar",
-        "incidencia",
-        "adaptacion",
-        "seguimiento",
-        "prevencion"
-      ];
+        return res
+          .status(409)
+          .json({
+            success: false,
+            message:
+              "Un seguimiento anulado no puede modificarse"
+          });
+      }
 
+      if (
+        anterior.estado ===
+        "cerrado"
+      ) {
+        await connection.rollback();
 
-      const resultadosPermitidos = [
-        "pendiente",
-        "continua",
-        "resuelto",
-        "requiere_atencion",
-        "canalizacion_sugerida"
-      ];
-
+        return res
+          .status(409)
+          .json({
+            success: false,
+            message:
+              "Un seguimiento cerrado ya no puede modificarse. Registra un nuevo seguimiento para agregar información."
+          });
+      }
 
       const campos = [];
       const valores = [];
 
+      const agregar =
+        (
+          campo,
+          valor
+        ) => {
+          campos.push(
+            `${campo} = ?`
+          );
+
+          valores.push(
+            valor
+          );
+        };
 
       if (
         req.body?.fecha !==
         undefined
       ) {
-
-        campos.push(
-          "fecha = ?"
-        );
-
-        valores.push(
+        agregar(
+          "fecha",
           req.body.fecha ||
           null
         );
-
       }
-
 
       if (
         req.body?.tipo !==
         undefined
       ) {
-
-        const tipo =
-          String(
-            req.body.tipo || ""
-          )
-            .trim()
-            .toLowerCase();
-
+        const valor =
+          normalizar(
+            req.body.tipo
+          );
 
         if (
           !tiposPermitidos.includes(
-            tipo
+            valor
           )
         ) {
+          await connection.rollback();
 
-          return res.status(400).json({
-            success: false,
-            message:
-              "Tipo de seguimiento inválido"
-          });
-
+          return res
+            .status(400)
+            .json({
+              success: false,
+              message:
+                "Tipo de seguimiento inválido"
+            });
         }
 
-
-        campos.push(
-          "tipo = ?"
+        agregar(
+          "tipo",
+          valor
         );
-
-        valores.push(
-          tipo
-        );
-
       }
 
-
       if (
-        req.body?.motivo !==
+        req.body?.prioridad !==
         undefined
       ) {
+        const valor =
+          normalizar(
+            req.body.prioridad
+          );
 
-        campos.push(
-          "motivo = ?"
+        if (
+          !prioridadesPermitidas
+            .includes(
+              valor
+            )
+        ) {
+          await connection.rollback();
+
+          return res
+            .status(400)
+            .json({
+              success: false,
+              message:
+                "Prioridad inválida"
+            });
+        }
+
+        agregar(
+          "prioridad",
+          valor
         );
-
-        valores.push(
-          String(
-            req.body.motivo || ""
-          ).trim() || null
-        );
-
       }
 
+      const camposTexto = [
+        "motivo",
+        "version_empleado",
+        "version_supervisor",
+        "accion_realizada",
+        "acuerdo",
+        "compromiso_empresa",
+        "compromiso_empleado",
+        "proxima_accion"
+      ];
+
+      camposTexto.forEach(
+        campo => {
+          if (
+            req.body?.[campo] !==
+            undefined
+          ) {
+            agregar(
+              campo,
+              texto(
+                req.body[campo]
+              )
+            );
+          }
+        }
+      );
 
       if (
-        req.body?.observacion !==
+        req.body
+          ?.participantes !==
         undefined
       ) {
+        const participantes =
+          Array.isArray(
+            req.body.participantes
+          )
+            ? JSON.stringify(
+                req.body
+                  .participantes
+              )
+            : texto(
+                req.body
+                  .participantes
+              );
 
+        agregar(
+          "participantes",
+          participantes
+        );
+      }
+
+      if (
+        req.body
+          ?.observacion !==
+        undefined
+      ) {
         const observacion =
-          String(
-            req.body.observacion || ""
-          ).trim();
-
+          texto(
+            req.body
+              .observacion
+          );
 
         if (!observacion) {
+          await connection.rollback();
 
-          return res.status(400).json({
-            success: false,
-            message:
-              "La observación es obligatoria"
-          });
-
+          return res
+            .status(400)
+            .json({
+              success: false,
+              message:
+                "La descripción de la situación es obligatoria"
+            });
         }
 
-
-        campos.push(
-          "observacion = ?"
-        );
-
-        valores.push(
+        agregar(
+          "observacion",
           observacion
         );
-
       }
-
-
-      if (
-        req.body?.accion_realizada !==
-        undefined
-      ) {
-
-        campos.push(
-          "accion_realizada = ?"
-        );
-
-        valores.push(
-          String(
-            req.body.accion_realizada || ""
-          ).trim() || null
-        );
-
-      }
-
 
       if (
         req.body?.resultado !==
         undefined
       ) {
-
-        const resultado =
-          String(
-            req.body.resultado || ""
-          )
-            .trim()
-            .toLowerCase();
-
+        const valor =
+          normalizar(
+            req.body.resultado
+          );
 
         if (
-          !resultadosPermitidos.includes(
-            resultado
-          )
+          !resultadosPermitidos
+            .includes(
+              valor
+            )
         ) {
+          await connection.rollback();
 
-          return res.status(400).json({
-            success: false,
-            message:
-              "Resultado de seguimiento inválido"
-          });
-
+          return res
+            .status(400)
+            .json({
+              success: false,
+              message:
+                "Resultado inválido"
+            });
         }
 
-
-        campos.push(
-          "resultado = ?"
+        agregar(
+          "resultado",
+          valor
         );
-
-        valores.push(
-          resultado
-        );
-
       }
 
+      let cerrar = false;
 
       if (
-        req.body?.proxima_accion !==
+        req.body?.estado !==
         undefined
       ) {
+        const valor =
+          normalizar(
+            req.body.estado
+          );
 
-        campos.push(
-          "proxima_accion = ?"
+        if (
+          !estadosPermitidos
+            .includes(
+              valor
+            )
+        ) {
+          await connection.rollback();
+
+          return res
+            .status(400)
+            .json({
+              success: false,
+              message:
+                "Estado inválido"
+            });
+        }
+
+        agregar(
+          "estado",
+          valor
         );
 
-        valores.push(
-          String(
-            req.body.proxima_accion || ""
-          ).trim() || null
-        );
+        if (
+          valor === "cerrado"
+        ) {
+          cerrar = true;
 
+          agregar(
+            "fecha_cierre",
+            new Date()
+          );
+
+          agregar(
+            "id_usuario_cierre",
+            acceso.contexto
+              .idUsuario
+          );
+        }
       }
 
-
       if (
-        req.body?.fecha_proxima_accion !==
+        req.body
+          ?.fecha_proxima_accion !==
         undefined
       ) {
-
-        campos.push(
-          "fecha_proxima_accion = ?"
-        );
-
-        valores.push(
-          req.body.fecha_proxima_accion ||
+        agregar(
+          "fecha_proxima_accion",
+          req.body
+            .fecha_proxima_accion ||
           null
         );
-
       }
-
 
       if (!campos.length) {
+        await connection.rollback();
 
-        return res.status(400).json({
-          success: false,
-          message:
-            "No se enviaron datos para actualizar"
-        });
-
+        return res
+          .status(400)
+          .json({
+            success: false,
+            message:
+              "No se enviaron datos para actualizar"
+          });
       }
-
 
       valores.push(
         idSeguimiento,
         idEmpleado
       );
 
-
-      await pool.query(
+      await connection.query(
         `
           UPDATE seguimiento_empleados
 
           SET
             ${campos.join(", ")}
 
-          WHERE id_seguimiento = ?
+          WHERE
+            id_seguimiento = ?
+
             AND id_empleado = ?
         `,
         valores
       );
 
-
-      const [rows] =
-        await pool.query(
-          `
-            SELECT
-              s.id_seguimiento,
-              s.id_empleado,
-              s.id_usuario_registro,
-              s.fecha,
-              s.tipo,
-              s.motivo,
-              s.observacion,
-              s.accion_realizada,
-              s.resultado,
-              s.proxima_accion,
-              s.fecha_proxima_accion,
-              s.creado_en,
-              s.actualizado_en,
-
-              u.nombre AS usuario_registro
-
-            FROM seguimiento_empleados s
-
-            LEFT JOIN usuarios u
-              ON u.id_usuario =
-                 s.id_usuario_registro
-
-            WHERE s.id_seguimiento = ?
-
-            LIMIT 1
-          `,
-          [
-            idSeguimiento
-          ]
+      const nuevo =
+        await consultarSeguimientoCompleto(
+          idSeguimiento,
+          connection
         );
 
+      await registrarAuditoria(
+        {
+          idSeguimiento,
+          idEmpleado,
+
+          idUsuario:
+            acceso.contexto
+              .idUsuario,
+
+          accion:
+            cerrar
+              ? "cerrar"
+              : "actualizar",
+
+          anterior,
+          nuevo
+        },
+        connection
+      );
+
+      await connection.commit();
 
       return res.json({
         success: true,
+
         message:
-          "Seguimiento laboral actualizado correctamente",
+          cerrar
+            ? "Seguimiento cerrado correctamente"
+            : "Seguimiento laboral actualizado correctamente",
+
         seguimiento:
-          rows[0] || null
+          nuevo
       });
 
-
     } catch (error) {
+      if (connection) {
+        try {
+          await connection.rollback();
+        } catch {}
+      }
 
       console.error(
         "❌ Error actualizando seguimiento laboral:",
         error
       );
 
+      return res
+        .status(500)
+        .json({
+          success: false,
+          message:
+            "Error interno al actualizar el seguimiento laboral"
+        });
 
-      return res.status(500).json({
-        success: false,
-        message:
-          "Error interno al actualizar el seguimiento laboral"
-      });
-
+    } finally {
+      if (connection) {
+        connection.release();
+      }
     }
-
   };
 
-
 // ==================================================
-// ELIMINAR SEGUIMIENTO
+// ANULAR SEGUIMIENTO
 //
-// DELETE /api/empleados/:id/seguimiento/:idSeguimiento
+// Conservamos la ruta DELETE para no romper frontend:
+//
+// DELETE
+// /api/empleados/:id/seguimiento/:idSeguimiento
+//
+// IMPORTANTE:
+// YA NO BORRA EL REGISTRO.
 // ==================================================
 
 export const eliminarSeguimientoEmpleado =
@@ -965,9 +1593,9 @@ export const eliminarSeguimientoEmpleado =
     req,
     res
   ) => {
+    let connection;
 
     try {
-
       const idEmpleado =
         Number(
           req.params.id
@@ -975,9 +1603,9 @@ export const eliminarSeguimientoEmpleado =
 
       const idSeguimiento =
         Number(
-          req.params.idSeguimiento
+          req.params
+            .idSeguimiento
         );
-
 
       if (
         !Number.isInteger(
@@ -989,24 +1617,46 @@ export const eliminarSeguimientoEmpleado =
         ) ||
         idSeguimiento <= 0
       ) {
-
-        return res.status(400).json({
-          success: false,
-          message:
-            "Datos de seguimiento inválidos"
-        });
-
+        return res
+          .status(400)
+          .json({
+            success: false,
+            message:
+              "Datos de seguimiento inválidos"
+          });
       }
 
+      const motivo =
+        texto(
+          req.body
+            ?.motivo_anulacion
+        );
+
+      if (!motivo) {
+        return res
+          .status(400)
+          .json({
+            success: false,
+            message:
+              "Debes indicar el motivo de la anulación"
+          });
+      }
+
+      connection =
+        await pool.getConnection();
+
+      await connection
+        .beginTransaction();
 
       const acceso =
         await validarAccesoEmpleado(
           idEmpleado,
-          req.user
+          req.user,
+          connection
         );
 
-
       if (!acceso.ok) {
+        await connection.rollback();
 
         return res
           .status(
@@ -1017,59 +1667,129 @@ export const eliminarSeguimientoEmpleado =
             message:
               acceso.message
           });
-
       }
 
-
-      const [result] =
-        await pool.query(
-          `
-            DELETE FROM seguimiento_empleados
-
-            WHERE id_seguimiento = ?
-              AND id_empleado = ?
-          `,
-          [
-            idSeguimiento,
-            idEmpleado
-          ]
+      const anterior =
+        await obtenerSeguimientoPorId(
+          idSeguimiento,
+          idEmpleado,
+          connection
         );
 
+      if (!anterior) {
+        await connection.rollback();
 
-      if (
-        result.affectedRows === 0
-      ) {
-
-        return res.status(404).json({
-          success: false,
-          message:
-            "Seguimiento no encontrado"
-        });
-
+        return res
+          .status(404)
+          .json({
+            success: false,
+            message:
+              "Seguimiento no encontrado"
+          });
       }
 
+      if (
+        anterior.estado ===
+        "anulado"
+      ) {
+        await connection.rollback();
+
+        return res
+          .status(409)
+          .json({
+            success: false,
+            message:
+              "Este seguimiento ya se encuentra anulado"
+          });
+      }
+
+      await connection.query(
+        `
+          UPDATE seguimiento_empleados
+
+          SET
+            estado = 'anulado',
+            motivo_anulacion = ?,
+            fecha_anulacion = NOW(),
+            id_usuario_anulacion = ?
+
+          WHERE
+            id_seguimiento = ?
+
+            AND id_empleado = ?
+        `,
+        [
+          motivo,
+
+          acceso.contexto
+            .idUsuario,
+
+          idSeguimiento,
+          idEmpleado
+        ]
+      );
+
+      const nuevo =
+        await consultarSeguimientoCompleto(
+          idSeguimiento,
+          connection
+        );
+
+      await registrarAuditoria(
+        {
+          idSeguimiento,
+          idEmpleado,
+
+          idUsuario:
+            acceso.contexto
+              .idUsuario,
+
+          accion:
+            "anular",
+
+          anterior,
+          nuevo,
+          motivo
+        },
+        connection
+      );
+
+      await connection.commit();
 
       return res.json({
         success: true,
+
         message:
-          "Seguimiento laboral eliminado correctamente"
+          "Seguimiento anulado correctamente. El registro se conserva en el historial.",
+
+        seguimiento:
+          nuevo
       });
 
-
     } catch (error) {
+      if (connection) {
+        try {
+          await connection.rollback();
+        } catch {}
+      }
 
       console.error(
-        "❌ Error eliminando seguimiento laboral:",
+        "❌ Error anulando seguimiento laboral:",
         error
       );
 
+      return res
+        .status(500)
+        .json({
+          success: false,
 
-      return res.status(500).json({
-        success: false,
-        message:
-          "Error interno al eliminar el seguimiento laboral"
-      });
+          message:
+            "Error interno al anular el seguimiento laboral"
+        });
 
+    } finally {
+      if (connection) {
+        connection.release();
+      }
     }
-
   };

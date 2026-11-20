@@ -1,137 +1,283 @@
 // src/views/UsuariosIndependiente.jsx
 
-import React, { useEffect, useState } from "react";
+import React, {
+  useEffect,
+  useState
+} from "react";
+
 
 const API_URL =
   import.meta.env.VITE_API_URL ||
-  "https://reflejoyalma.com";
+  "https://www.reflejoyalma.com";
 
-const UsuariosIndependiente = ({ onBack }) => {
 
-  const [usuarios, setUsuarios] =
+const UsuariosIndependiente = ({
+  onBack
+}) => {
+
+  const [
+    usuarios,
+    setUsuarios
+  ] =
     useState([]);
 
-  const [busqueda, setBusqueda] =
+
+  const [
+    busqueda,
+    setBusqueda
+  ] =
     useState("");
 
-  const [loading, setLoading] =
+
+  const [
+    loading,
+    setLoading
+  ] =
     useState(true);
 
-  const [error, setError] =
+
+  const [
+    error,
+    setError
+  ] =
     useState("");
 
-  const cargarUsuarios = async () => {
 
-    try {
+  // ==================================================
+  // CARGAR USUARIOS INDEPENDIENTES
+  // ==================================================
 
-      setLoading(true);
+  const cargarUsuarios =
+    async () => {
 
-      const token =
-        localStorage.getItem("token");
+      try {
 
-      const response =
-        await fetch(
-          `${API_URL}/api/usuarios-independiente`,
-          {
-            headers: {
-              Authorization:
-                `Bearer ${token}`,
-            },
-          }
+        setLoading(
+          true
         );
 
-      const data =
-        await response.json();
+        setError(
+          ""
+        );
 
-      if (!response.ok) {
 
-        throw new Error(
-          data.message ||
-          "Error al obtener usuarios"
+        const token =
+          localStorage.getItem(
+            "token"
+          );
+
+
+        const response =
+          await fetch(
+            `${API_URL}/api/usuario-independiente`,
+            {
+              headers: {
+                Authorization:
+                  `Bearer ${token}`
+              }
+            }
+          );
+
+
+        const data =
+          await response.json();
+
+
+        if (
+          !response.ok
+        ) {
+
+          throw new Error(
+            data.message ||
+            "Error al obtener usuarios"
+          );
+
+        }
+
+
+        setUsuarios(
+          Array.isArray(
+            data
+          )
+            ? data
+            : Array.isArray(
+                data?.usuarios
+              )
+            ? data.usuarios
+            : []
         );
 
       }
 
-      setUsuarios(
-        Array.isArray(data)
-          ? data
-          : data.usuarios || []
-      );
+      catch (
+        err
+      ) {
 
-    } catch (err) {
+        console.error(
+          "❌ Error cargando usuarios independientes:",
+          err
+        );
 
-      setError(err.message);
 
-    } finally {
+        setError(
+          err.message ||
+          "No se pudieron cargar los usuarios independientes."
+        );
 
-      setLoading(false);
+      }
 
-    }
+      finally {
 
-  };
+        setLoading(
+          false
+        );
 
-  useEffect(() => {
+      }
 
-    cargarUsuarios();
+    };
 
-  }, []);
+
+  // ==================================================
+  // CARGA INICIAL
+  // ==================================================
+
+  useEffect(
+    () => {
+
+      cargarUsuarios();
+
+    },
+    []
+  );
+
+
+  // ==================================================
+  // FILTRAR USUARIOS
+  // ==================================================
 
   const filtrados =
-    usuarios.filter((usuario) => {
+    usuarios.filter(
+      usuario => {
 
-      const texto =
-        busqueda
-          .toLowerCase()
-          .trim();
+        const texto =
+          busqueda
+            .toLowerCase()
+            .trim();
 
-      return (
 
-        !texto ||
+        if (
+          !texto
+        ) {
 
-        String(usuario.nombre || "")
-          .toLowerCase()
-          .includes(texto)
+          return true;
 
-        ||
+        }
 
-        String(usuario.correo || "")
-          .toLowerCase()
-          .includes(texto)
 
-        ||
+        return (
 
-        String(
-          usuario.especialidad || ""
-        )
-          .toLowerCase()
-          .includes(texto)
+          String(
+            usuario.nombre ||
+            ""
+          )
+            .toLowerCase()
+            .includes(
+              texto
+            )
 
-      );
+          ||
 
-    });
+          String(
+            usuario.correo ||
+            ""
+          )
+            .toLowerCase()
+            .includes(
+              texto
+            )
+
+          ||
+
+          String(
+            usuario.especialidad ||
+            usuario.puesto ||
+            ""
+          )
+            .toLowerCase()
+            .includes(
+              texto
+            )
+
+          ||
+
+          String(
+            usuario.telefono ||
+            ""
+          )
+            .toLowerCase()
+            .includes(
+              texto
+            )
+
+        );
+
+      }
+    );
+
+
+  // ==================================================
+  // RENDER
+  // ==================================================
 
   return (
 
-    <div style={container}>
+    <div
+      style={
+        container
+      }
+    >
 
-      <div style={header}>
+      {/* ==================================================
+          HEADER
+      ================================================== */}
+
+      <div
+        style={
+          header
+        }
+      >
 
         <button
-          onClick={onBack}
-          style={backButton}
+          type="button"
+          onClick={
+            onBack
+          }
+          style={
+            backButton
+          }
         >
           ← Volver
         </button>
 
+
         <div>
 
-          <h2 style={title}>
+          <h2
+            style={
+              title
+            }
+          >
             👤 Usuarios independientes
           </h2>
 
-          <p style={subtitle}>
+
+          <p
+            style={
+              subtitle
+            }
+          >
             Usuarios independientes registrados
-            por tu administración.
+            en MirrorSoul.
           </p>
 
         </div>
@@ -139,44 +285,104 @@ const UsuariosIndependiente = ({ onBack }) => {
       </div>
 
 
+      {/* ==================================================
+          BUSCADOR
+      ================================================== */}
+
       <input
-        value={busqueda}
-        onChange={(e) =>
-          setBusqueda(e.target.value)
+        type="text"
+        value={
+          busqueda
+        }
+        onChange={
+          e =>
+            setBusqueda(
+              e.target.value
+            )
         }
         placeholder="🔎 Buscar usuario..."
-        style={searchInput}
+        style={
+          searchInput
+        }
       />
 
 
-      <p style={counter}>
+      {/* ==================================================
+          CONTADOR
+      ================================================== */}
+
+      <p
+        style={
+          counter
+        }
+      >
+
         Mostrando{" "}
-        <strong>{filtrados.length}</strong>
+
+        <strong>
+          {filtrados.length}
+        </strong>
+
         {" "}de{" "}
-        <strong>{usuarios.length}</strong>
+
+        <strong>
+          {usuarios.length}
+        </strong>
+
         {" "}usuarios
+
       </p>
 
 
+      {/* ==================================================
+          CARGANDO
+      ================================================== */}
+
       {loading && (
-        <div style={empty}>
+
+        <div
+          style={
+            empty
+          }
+        >
           Cargando usuarios...
         </div>
+
       )}
 
 
-      {error && (
-        <div style={errorBox}>
+      {/* ==================================================
+          ERROR
+      ================================================== */}
+
+      {!loading &&
+        error && (
+
+        <div
+          style={
+            errorBox
+          }
+        >
           ❌ {error}
         </div>
+
       )}
 
+
+      {/* ==================================================
+          SIN RESULTADOS
+      ================================================== */}
 
       {!loading &&
         !error &&
-        filtrados.length === 0 && (
+        filtrados.length ===
+          0 && (
 
-          <div style={empty}>
+          <div
+            style={
+              empty
+            }
+          >
             👤 No hay usuarios independientes
             registrados.
           </div>
@@ -184,48 +390,140 @@ const UsuariosIndependiente = ({ onBack }) => {
         )}
 
 
+      {/* ==================================================
+          LISTADO
+      ================================================== */}
+
       {!loading &&
         !error &&
-        filtrados.length > 0 && (
+        filtrados.length >
+          0 && (
 
-          <div style={grid}>
+          <div
+            style={
+              grid
+            }
+          >
 
             {filtrados.map(
-              (usuario) => (
+              usuario => (
 
                 <div
-                  key={usuario.id_usuario}
-                  style={card}
+                  key={
+                    usuario.id_usuario
+                  }
+                  style={
+                    card
+                  }
                 >
 
-                  <div style={avatar}>
-                    👤
+                  <div
+                    style={
+                      cardTop
+                    }
+                  >
+
+                    <div
+                      style={
+                        avatar
+                      }
+                    >
+                      👤
+                    </div>
+
+
+                    <span
+                      style={
+                        badge
+                      }
+                    >
+                      Independiente
+                    </span>
+
                   </div>
 
-                  <h3 style={name}>
-                    {usuario.nombre}
+
+                  <h3
+                    style={
+                      name
+                    }
+                  >
+                    {usuario.nombre ||
+                      "Sin nombre"}
                   </h3>
 
-                  <p style={data}>
-                    📧 {usuario.correo}
-                  </p>
 
-                  <p style={data}>
-                    🧠{" "}
-                    {usuario.especialidad ||
-                      usuario.puesto ||
-                      "Sin especialidad"}
-                  </p>
+                  <div
+                    style={
+                      infoGroup
+                    }
+                  >
 
-                  <p style={data}>
-                    📞{" "}
-                    {usuario.telefono ||
-                      "Sin teléfono"}
-                  </p>
+                    <p
+                      style={
+                        data
+                      }
+                    >
+                      📧{" "}
+                      {usuario.correo ||
+                        "Sin correo"}
+                    </p>
 
-                  <span style={badge}>
-                    👤 Independiente
-                  </span>
+
+                    <p
+                      style={
+                        data
+                      }
+                    >
+                      🧠{" "}
+                      {usuario.especialidad ||
+                        usuario.puesto ||
+                        "Profesional independiente"}
+                    </p>
+
+
+                    <p
+                      style={
+                        data
+                      }
+                    >
+                      📞{" "}
+                      {usuario.telefono ||
+                        "Sin teléfono"}
+                    </p>
+
+
+                    {usuario.direccion && (
+
+                      <p
+                        style={
+                          data
+                        }
+                      >
+                        📍{" "}
+                        {usuario.direccion}
+                      </p>
+
+                    )}
+
+
+                    {usuario.estado && (
+
+                      <p
+                        style={
+                          data
+                        }
+                      >
+                        Estado:{" "}
+
+                        <strong>
+                          {usuario.estado}
+                        </strong>
+                      </p>
+
+                    )}
+
+                  </div>
 
                 </div>
 
@@ -242,113 +540,276 @@ const UsuariosIndependiente = ({ onBack }) => {
 
 };
 
+
+// ==================================================
+// ESTILOS
+// ==================================================
+
 const container = {
-  maxWidth: "1150px",
-  margin: "0 auto",
-  padding: "40px",
+  maxWidth:
+    "1150px",
+
+  margin:
+    "0 auto",
+
+  padding:
+    "40px",
+
   fontFamily:
-    "'Segoe UI', Arial, sans-serif",
+    "'Segoe UI', Arial, sans-serif"
 };
+
 
 const header = {
-  display: "flex",
-  alignItems: "center",
-  gap: "20px",
-  marginBottom: "30px",
+  display:
+    "flex",
+
+  alignItems:
+    "center",
+
+  gap:
+    "20px",
+
+  marginBottom:
+    "30px"
 };
+
 
 const backButton = {
-  border: "none",
-  background: "#EEF4FF",
-  color: "#2167D5",
-  padding: "10px 16px",
-  borderRadius: "10px",
-  cursor: "pointer",
-  fontWeight: "700",
+  border:
+    "none",
+
+  background:
+    "#EEF4FF",
+
+  color:
+    "#2167D5",
+
+  padding:
+    "10px 16px",
+
+  borderRadius:
+    "10px",
+
+  cursor:
+    "pointer",
+
+  fontWeight:
+    "700"
 };
+
 
 const title = {
-  margin: 0,
-  color: "#172B4D",
+  margin:
+    0,
+
+  color:
+    "#172B4D"
 };
+
 
 const subtitle = {
-  color: "#718096",
+  margin:
+    "6px 0 0",
+
+  color:
+    "#718096"
 };
+
 
 const searchInput = {
-  width: "100%",
-  boxSizing: "border-box",
-  padding: "14px",
-  borderRadius: "10px",
-  border: "1px solid #D9E2EF",
-  fontSize: "15px",
+  width:
+    "100%",
+
+  boxSizing:
+    "border-box",
+
+  padding:
+    "14px",
+
+  borderRadius:
+    "10px",
+
+  border:
+    "1px solid #D9E2EF",
+
+  fontSize:
+    "15px",
+
+  outline:
+    "none"
 };
+
 
 const counter = {
-  margin: "18px 0",
-  color: "#596B82",
+  margin:
+    "18px 0",
+
+  color:
+    "#596B82"
 };
+
 
 const grid = {
-  display: "grid",
+  display:
+    "grid",
+
   gridTemplateColumns:
     "repeat(auto-fit, minmax(260px, 1fr))",
-  gap: "22px",
+
+  gap:
+    "22px"
 };
+
 
 const card = {
-  background: "#FFFFFF",
-  padding: "25px",
-  borderRadius: "18px",
+  background:
+    "#FFFFFF",
+
+  padding:
+    "25px",
+
+  borderRadius:
+    "18px",
+
   boxShadow:
     "0 8px 22px rgba(40,80,140,0.08)",
+
+  border:
+    "1px solid #EDF2F7",
+
   borderBottom:
-    "4px solid #4A7FF5",
+    "4px solid #4A7FF5"
 };
+
+
+const cardTop = {
+  display:
+    "flex",
+
+  alignItems:
+    "center",
+
+  justifyContent:
+    "space-between",
+
+  gap:
+    "12px"
+};
+
 
 const avatar = {
-  width: "65px",
-  height: "65px",
-  borderRadius: "50%",
-  background: "#EAF1FF",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  fontSize: "30px",
+  width:
+    "65px",
+
+  height:
+    "65px",
+
+  borderRadius:
+    "50%",
+
+  background:
+    "#EAF1FF",
+
+  display:
+    "flex",
+
+  alignItems:
+    "center",
+
+  justifyContent:
+    "center",
+
+  fontSize:
+    "30px"
 };
+
 
 const name = {
-  color: "#2167D5",
+  margin:
+    "18px 0 12px",
+
+  color:
+    "#2167D5"
 };
+
+
+const infoGroup = {
+  display:
+    "grid",
+
+  gap:
+    "3px"
+};
+
 
 const data = {
-  color: "#596B82",
-  fontSize: "14px",
+  margin:
+    "5px 0",
+
+  color:
+    "#596B82",
+
+  fontSize:
+    "14px",
+
+  lineHeight:
+    1.5,
+
+  wordBreak:
+    "break-word"
 };
+
 
 const badge = {
-  display: "inline-block",
-  marginTop: "8px",
-  padding: "7px 10px",
-  borderRadius: "20px",
-  background: "#EEF7FF",
-  color: "#2167D5",
-  fontSize: "12px",
-  fontWeight: "700",
+  display:
+    "inline-block",
+
+  padding:
+    "7px 10px",
+
+  borderRadius:
+    "20px",
+
+  background:
+    "#EEF7FF",
+
+  color:
+    "#2167D5",
+
+  fontSize:
+    "12px",
+
+  fontWeight:
+    "700"
 };
+
 
 const empty = {
-  padding: "50px",
-  textAlign: "center",
-  color: "#718096",
+  padding:
+    "50px",
+
+  textAlign:
+    "center",
+
+  color:
+    "#718096"
 };
 
+
 const errorBox = {
-  padding: "15px",
-  borderRadius: "10px",
-  background: "#FFF1F1",
-  color: "#C62828",
+  padding:
+    "15px",
+
+  borderRadius:
+    "10px",
+
+  background:
+    "#FFF1F1",
+
+  color:
+    "#C62828"
 };
+
 
 export default UsuariosIndependiente;

@@ -12,7 +12,8 @@ import {
 } from "../controllers/documentosProspectoController.js";
 
 import {
-  verifyToken
+  verifyToken,
+  verificarSuscripcionOrganizacion
 } from "../middlewares/authMiddleware.js";
 
 import {
@@ -32,6 +33,7 @@ const router =
 router.get(
   "/:id/documentos",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   listarDocumentosProspecto
 );
 
@@ -49,6 +51,7 @@ router.get(
 router.post(
   "/:id/documentos",
   verifyToken,
+  verificarSuscripcionOrganizacion,
 
   (
     req,
@@ -104,6 +107,7 @@ router.post(
 router.get(
   "/:id/documentos/:idDocumento/archivo",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   obtenerArchivoDocumentoProspecto
 );
 
@@ -117,6 +121,7 @@ router.get(
 router.delete(
   "/:id/documentos/:idDocumento",
   verifyToken,
+  verificarSuscripcionOrganizacion,
   eliminarDocumentoProspecto
 );
 

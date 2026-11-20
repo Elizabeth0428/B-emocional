@@ -1,11 +1,14 @@
 // src/views/RegisterUsuarioRH.jsx
 
 import React, { useState } from "react";
-import { getCurrentUser } from "../services/AuthService";
+import {
+  getCurrentUser,
+  getToken
+} from "../services/AuthService";
 
 const API_URL =
   import.meta.env.VITE_API_URL ||
-  "https://reflejoyalma.com";
+  `http://${window.location.hostname}:5000`;
 
 const RegisterUsuarioRH = ({ onBack }) => {
 
@@ -13,8 +16,6 @@ const RegisterUsuarioRH = ({ onBack }) => {
 
   const [form, setForm] = useState({
     nombre: "",
-    correo: "",
-    password: "",
     puesto: "",
     telefono: "",
     direccion: "",
@@ -22,7 +23,7 @@ const RegisterUsuarioRH = ({ onBack }) => {
 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
-
+  const [credenciales, setCredenciales] = useState(null);
 
   // =====================================================
   // CAMBIAR FORMULARIO
@@ -39,7 +40,6 @@ const RegisterUsuarioRH = ({ onBack }) => {
 
   };
 
-
   // =====================================================
   // REGISTRAR USUARIO RH
   // =====================================================
@@ -54,8 +54,13 @@ const RegisterUsuarioRH = ({ onBack }) => {
     try {
 
       const token =
-        localStorage.getItem("token");
+        getToken();
 
+      if (!token) {
+        throw new Error(
+          "No hay una sesión activa."
+        );
+      }
 
       // =================================================
       // IMPORTANTE:
@@ -84,10 +89,10 @@ const RegisterUsuarioRH = ({ onBack }) => {
         }
       );
 
-
       const data =
-        await response.json();
-
+        await response
+          .json()
+          .catch(() => ({}));
 
       if (!response.ok) {
 
@@ -98,21 +103,21 @@ const RegisterUsuarioRH = ({ onBack }) => {
 
       }
 
-
       setMessage(
+        data.message ||
         "✅ Usuario RH registrado correctamente"
       );
 
+      setCredenciales(
+        data.credenciales || null
+      );
 
       setForm({
         nombre: "",
-        correo: "",
-        password: "",
         puesto: "",
         telefono: "",
         direccion: "",
       });
-
 
     } catch (error) {
 
@@ -125,7 +130,6 @@ const RegisterUsuarioRH = ({ onBack }) => {
         `❌ ${error.message}`
       );
 
-
     } finally {
 
       setLoading(false);
@@ -133,7 +137,6 @@ const RegisterUsuarioRH = ({ onBack }) => {
     }
 
   };
-
 
   // =====================================================
   // RETURN
@@ -157,7 +160,6 @@ const RegisterUsuarioRH = ({ onBack }) => {
           ← Volver
         </button>
 
-
         <div>
 
           <h2 style={title}>
@@ -173,7 +175,6 @@ const RegisterUsuarioRH = ({ onBack }) => {
 
       </div>
 
-
       {/* =================================================
           ADMINISTRADOR
       ================================================= */}
@@ -184,19 +185,16 @@ const RegisterUsuarioRH = ({ onBack }) => {
           🛡️
         </div>
 
-
         <div>
 
           <strong style={adminTitle}>
             Administrador
           </strong>
 
-
           <div style={adminName}>
             {user?.nombre ||
               "Administrador"}
           </div>
-
 
           <small style={adminArea}>
             Área: Recursos Humanos
@@ -205,7 +203,6 @@ const RegisterUsuarioRH = ({ onBack }) => {
         </div>
 
       </div>
-
 
       {/* =================================================
           FORMULARIO
@@ -219,7 +216,6 @@ const RegisterUsuarioRH = ({ onBack }) => {
         <h3 style={sectionTitle}>
           👤 Datos del usuario
         </h3>
-
 
         {/* NOMBRE */}
 
@@ -237,42 +233,6 @@ const RegisterUsuarioRH = ({ onBack }) => {
           required
         />
 
-
-        {/* CORREO */}
-
-        <label style={label}>
-          Correo electrónico
-        </label>
-
-        <input
-          type="email"
-          name="correo"
-          value={form.correo}
-          onChange={handleChange}
-          placeholder="correo@ejemplo.com"
-          style={input}
-          required
-        />
-
-
-        {/* PASSWORD */}
-
-        <label style={label}>
-          Contraseña
-        </label>
-
-        <input
-          type="password"
-          name="password"
-          value={form.password}
-          onChange={handleChange}
-          placeholder="Contraseña"
-          style={input}
-          minLength={6}
-          required
-        />
-
-
         {/* PUESTO */}
 
         <label style={label}>
@@ -287,7 +247,6 @@ const RegisterUsuarioRH = ({ onBack }) => {
           placeholder="Ej. Recursos Humanos"
           style={input}
         />
-
 
         {/* TELEFONO */}
 
@@ -304,7 +263,6 @@ const RegisterUsuarioRH = ({ onBack }) => {
           style={input}
         />
 
-
         {/* DIRECCION */}
 
         <label style={label}>
@@ -320,14 +278,37 @@ const RegisterUsuarioRH = ({ onBack }) => {
           style={input}
         />
 
-
         {/* INFORMACION */}
 
         <div style={infoBox}>
           👥 Este usuario será registrado en el
           área de <strong>Recursos Humanos</strong>.
+          MirrorSoul generará automáticamente su matrícula
+          y una contraseña temporal.
         </div>
 
+        {credenciales && (
+          <div style={credentialsBox}>
+            <div style={credentialsTitle}>
+              🔐 Credenciales generadas
+            </div>
+
+            <div style={credentialRow}>
+              <span>Matrícula</span>
+              <strong>{credenciales.matricula}</strong>
+            </div>
+
+            <div style={credentialRow}>
+              <span>Contraseña temporal</span>
+              <strong>{credenciales.password_temporal}</strong>
+            </div>
+
+            <div style={credentialsNotice}>
+              Entrega estas credenciales al usuario.
+              En su primer acceso deberá cambiar la contraseña.
+            </div>
+          </div>
+        )}
 
         {/* MENSAJE */}
 
@@ -357,7 +338,6 @@ const RegisterUsuarioRH = ({ onBack }) => {
           </div>
 
         )}
-
 
         {/* BOTON */}
 
@@ -393,7 +373,6 @@ const RegisterUsuarioRH = ({ onBack }) => {
 
 };
 
-
 // =====================================================
 // ESTILOS
 // =====================================================
@@ -407,14 +386,12 @@ const container = {
   color: "#1A2B4B",
 };
 
-
 const header = {
   display: "flex",
   alignItems: "center",
   gap: "20px",
   marginBottom: "30px",
 };
-
 
 const backButton = {
   border: "none",
@@ -426,19 +403,16 @@ const backButton = {
   fontWeight: "700",
 };
 
-
 const title = {
   margin: 0,
   fontSize: "30px",
   color: "#172B4D",
 };
 
-
 const subtitle = {
   margin: "6px 0 0",
   color: "#718096",
 };
-
 
 const adminBox = {
   display: "flex",
@@ -451,7 +425,6 @@ const adminBox = {
   marginBottom: "25px",
 };
 
-
 const adminIcon = {
   width: "52px",
   height: "52px",
@@ -463,25 +436,21 @@ const adminIcon = {
   fontSize: "25px",
 };
 
-
 const adminTitle = {
   display: "block",
   color: "#2167D5",
 };
-
 
 const adminName = {
   fontWeight: "700",
   marginTop: "3px",
 };
 
-
 const adminArea = {
   display: "block",
   marginTop: "4px",
   color: "#718096",
 };
-
 
 const form = {
   background: "#FFFFFF",
@@ -491,12 +460,10 @@ const form = {
     "0 8px 24px rgba(40,80,140,0.08)",
 };
 
-
 const sectionTitle = {
   marginTop: 0,
   color: "#2167D5",
 };
-
 
 const label = {
   display: "block",
@@ -505,7 +472,6 @@ const label = {
   fontWeight: "700",
   fontSize: "14px",
 };
-
 
 const input = {
   width: "100%",
@@ -517,7 +483,6 @@ const input = {
   outline: "none",
 };
 
-
 const infoBox = {
   marginTop: "22px",
   padding: "14px",
@@ -527,6 +492,35 @@ const infoBox = {
   fontSize: "14px",
 };
 
+const credentialsBox = {
+  marginTop: "18px",
+  padding: "18px",
+  borderRadius: "14px",
+  background: "#F7F5FF",
+  border: "1px solid #DCCFFB",
+};
+
+const credentialsTitle = {
+  fontWeight: "800",
+  color: "#5B3DB4",
+  marginBottom: "12px",
+};
+
+const credentialRow = {
+  display: "flex",
+  justifyContent: "space-between",
+  gap: "20px",
+  padding: "9px 0",
+  borderBottom: "1px solid #E8E0FA",
+  fontSize: "14px",
+};
+
+const credentialsNotice = {
+  marginTop: "12px",
+  color: "#6B7280",
+  fontSize: "13px",
+  lineHeight: 1.5,
+};
 
 const messageBox = {
   marginTop: "18px",
@@ -534,7 +528,6 @@ const messageBox = {
   borderRadius: "10px",
   fontWeight: "600",
 };
-
 
 const submitButton = {
   width: "100%",
@@ -547,6 +540,5 @@ const submitButton = {
   fontSize: "16px",
   fontWeight: "700",
 };
-
 
 export default RegisterUsuarioRH;

@@ -2,133 +2,409 @@ import pool from "../config/database.js";
 
 
 // ==================================================
-// AUXILIAR: VALIDAR ACCESO RH AL EMPLEADO
+// AUXILIARES
 // ==================================================
 
-const validarAccesoEmpleado = async (
-  idEmpleado,
-  user
-) => {
+const normalizar = valor =>
+  valor
+    ? String(valor)
+        .trim()
+        .toLowerCase()
+    : "";
 
-  const idUsuario =
-    user?.id_usuario;
-
-  const tipoAdmin =
-    user?.tipo_admin
-      ? String(user.tipo_admin)
-          .trim()
-          .toLowerCase()
-      : null;
-
-  const area =
-    user?.area
-      ? String(user.area)
-          .trim()
-          .toLowerCase()
-      : null;
-
-
-  if (!idUsuario) {
-
-    return {
-      ok: false,
-      status: 401,
-      message:
-        "No se pudo identificar al usuario"
-    };
-
-  }
-
+const texto = valor => {
 
   if (
-    tipoAdmin !== "master" &&
-    area !== "rh"
+    valor === undefined ||
+    valor === null
   ) {
-
-    return {
-      ok: false,
-      status: 403,
-      message:
-        "No tienes permiso para acceder al módulo de bienestar"
-    };
-
+    return null;
   }
 
+  const resultado =
+    String(valor).trim();
 
-  let query = `
-    SELECT
-      id_empleado,
-      id_prospecto,
-      id_admin_padre,
-      id_mirror,
-      nombre,
-      edad,
-      sexo,
-      correo,
-      telefono,
-      puesto,
-      departamento,
-      fecha_contratacion,
-      estatus
-    FROM empleados
-    WHERE id_empleado = ?
-  `;
-
-  const params = [
-    idEmpleado
-  ];
-
-
-  if (
-    tipoAdmin !== "master"
-  ) {
-
-    query += `
-      AND id_admin_padre = ?
-    `;
-
-    params.push(
-      idUsuario
-    );
-
-  }
-
-
-  query += `
-    LIMIT 1
-  `;
-
-
-  const [rows] =
-    await pool.query(
-      query,
-      params
-    );
-
-
-  if (!rows.length) {
-
-    return {
-      ok: false,
-      status: 404,
-      message:
-        "Empleado no encontrado o no tienes permiso para acceder a él"
-    };
-
-  }
-
-
-  return {
-    ok: true,
-    empleado:
-      rows[0]
-  };
-
+  return resultado || null;
 };
 
 
 // ==================================================
-// AUXILIAR: VALIDAR TIPO
+// CONTEXTO REAL DEL USUARIO
+// ==================================================
+
+const obtenerContextoUsuario =
+  async (
+    user,
+    connection = pool
+  ) => {
+
+    const idUsuario =
+      Number(
+        user?.id_usuario
+      ) || null;
+
+    if (!idUsuario) {
+
+      return {
+        idUsuario: null,
+        tipoAdmin: "",
+        area: "",
+        rol: "",
+        idAdminPadre: null,
+        idOrganizacion: null,
+        perfilIndependiente: "",
+        estadoOrganizacion: ""
+      };
+
+    }
+
+    const [rows] =
+      await connection.query(
+        `
+          SELECT
+            u.id_usuario,
+            u.tipo_admin,
+            u.area,
+            u.rol,
+            u.id_admin_padre,
+            u.id_organizacion,
+
+            o.perfil_independiente,
+            o.estado AS estado_organizacion
+
+          FROM usuarios u
+
+          LEFT JOIN organizaciones o
+            ON o.id_organizacion =
+               u.id_organizacion
+
+          WHERE
+            u.id_usuario = ?
+
+          LIMIT 1
+        `,
+        [
+          idUsuario
+        ]
+      );
+
+    if (!rows.length) {
+
+      return {
+
+        idUsuario,
+
+        tipoAdmin:
+          normalizar(
+            user?.tipo_admin
+          ),
+
+        area:
+          normalizar(
+            user?.area
+          ),
+
+        rol:
+          normalizar(
+            user?.rol
+          ),
+
+        idAdminPadre:
+          Number(
+            user?.id_admin_padre
+          ) || null,
+
+        idOrganizacion:
+          Number(
+            user?.id_organizacion
+          ) || null,
+
+        perfilIndependiente:
+          normalizar(
+            user?.perfil_independiente
+          ),
+
+        estadoOrganizacion:
+          normalizar(
+            user?.estado_organizacion
+          )
+      };
+
+    }
+
+    const usuario =
+      rows[0];
+
+    return {
+
+      idUsuario:
+        Number(
+          usuario.id_usuario
+        ) || null,
+
+      tipoAdmin:
+        normalizar(
+          usuario.tipo_admin
+        ),
+
+      area:
+        normalizar(
+          usuario.area
+        ),
+
+      rol:
+        normalizar(
+          usuario.rol
+        ),
+
+      idAdminPadre:
+        Number(
+          usuario.id_admin_padre
+        ) || null,
+
+      idOrganizacion:
+        Number(
+          usuario.id_organizacion
+        ) || null,
+
+      perfilIndependiente:
+        normalizar(
+          usuario.perfil_independiente
+        ),
+
+      estadoOrganizacion:
+        normalizar(
+          usuario.estado_organizacion
+        )
+    };
+
+  };
+
+
+// ==================================================
+// VALIDAR ACCESO
+// ==================================================
+
+const validarAccesoEmpleado =
+  async (
+    idEmpleado,
+    user,
+    connection = pool
+  ) => {
+
+    const contexto =
+      await obtenerContextoUsuario(
+        user,
+        connection
+      );
+
+    if (!contexto.idUsuario) {
+
+      return {
+        ok: false,
+        status: 401,
+        message:
+          "No se pudo identificar al usuario"
+      };
+
+    }
+
+    const esMaster =
+      contexto.tipoAdmin ===
+      "master";
+
+    const esAdminRH =
+      contexto.tipoAdmin ===
+        "normal" &&
+      contexto.area ===
+        "rh";
+
+    const esUsuarioRH =
+      contexto.rol ===
+        "rh" &&
+      contexto.area ===
+        "rh";
+
+    const esIndependienteRH =
+      contexto.rol ===
+        "independiente" &&
+      contexto.area ===
+        "independiente" &&
+      contexto.perfilIndependiente ===
+        "rh" &&
+      contexto.estadoOrganizacion ===
+        "activa";
+
+    if (
+      !esMaster &&
+      !esAdminRH &&
+      !esUsuarioRH &&
+      !esIndependienteRH
+    ) {
+
+      return {
+        ok: false,
+        status: 403,
+        message:
+          "No tienes permiso para acceder al módulo de bienestar"
+      };
+
+    }
+
+    let query = `
+      SELECT
+        e.id_empleado,
+        e.id_prospecto,
+        e.id_admin_padre,
+        e.id_usuario_responsable,
+        e.id_mirror,
+        e.nombre,
+        e.edad,
+        e.sexo,
+        e.correo,
+        e.telefono,
+        e.puesto,
+        e.departamento,
+        e.fecha_contratacion,
+        e.estatus,
+
+        ur.nombre
+          AS responsable_actual
+
+      FROM empleados e
+
+      LEFT JOIN usuarios ur
+        ON ur.id_usuario =
+           e.id_usuario_responsable
+
+      WHERE
+        e.id_empleado = ?
+    `;
+
+    const params = [
+      idEmpleado
+    ];
+
+    // ==================================================
+    // ADMIN RH
+    // ==================================================
+
+    if (esAdminRH) {
+
+      query += `
+        AND
+        (
+          e.id_admin_padre = ?
+
+          OR
+
+          (
+            e.id_usuario_responsable IS NULL
+
+            AND e.id_admin_padre IN
+            (
+              SELECT
+                u.id_usuario
+
+              FROM usuarios u
+
+              WHERE
+                u.id_admin_padre = ?
+
+                AND u.rol = 'rh'
+
+                AND LOWER(
+                  TRIM(
+                    COALESCE(
+                      u.area,
+                      ''
+                    )
+                  )
+                ) = 'rh'
+            )
+          )
+        )
+      `;
+
+      params.push(
+        contexto.idUsuario,
+        contexto.idUsuario
+      );
+
+    }
+
+    // ==================================================
+    // RH / INDEPENDIENTE RH
+    // ==================================================
+
+    else if (
+      esUsuarioRH ||
+      esIndependienteRH
+    ) {
+
+      query += `
+        AND
+        (
+          e.id_usuario_responsable = ?
+
+          OR
+
+          (
+            e.id_usuario_responsable IS NULL
+            AND e.id_admin_padre = ?
+          )
+        )
+      `;
+
+      params.push(
+        contexto.idUsuario,
+        contexto.idUsuario
+      );
+
+    }
+
+    query += `
+      LIMIT 1
+    `;
+
+    const [rows] =
+      await connection.query(
+        query,
+        params
+      );
+
+    if (!rows.length) {
+
+      return {
+        ok: false,
+        status: 404,
+        message:
+          "Empleado no encontrado o no tienes permiso para acceder a él"
+      };
+
+    }
+
+    return {
+
+      ok: true,
+
+      contexto: {
+        ...contexto,
+        esMaster,
+        esAdminRH,
+        esUsuarioRH,
+        esIndependienteRH
+      },
+
+      empleado:
+        rows[0]
+    };
+
+  };
+
+
+// ==================================================
+// VALORES PERMITIDOS
 // ==================================================
 
 const tiposPermitidos = [
@@ -143,39 +419,40 @@ const tiposPermitidos = [
   "otro"
 ];
 
-
-// ==================================================
-// AUXILIAR: VALIDAR ORIGEN
-// ==================================================
-
 const origenesPermitidos = [
   "seguimiento",
   "evaluacion",
   "observacion_rh",
+  "observacion",
   "solicitud_empleado",
+  "solicitud_supervisor",
   "iniciativa_rh",
   "otro"
 ];
 
-
-// ==================================================
-// AUXILIAR: VALIDAR RESULTADO
-// ==================================================
-
 const resultadosPermitidos = [
   "pendiente",
+  "en_revision",
   "en_seguimiento",
-  "completada",
   "sin_cambio",
+  "mejora",
   "mejora_observada",
+  "requiere_atencion",
+  "canalizacion_sugerida",
+  "completado",
+  "completada",
   "requiere_nueva_revision"
+];
+
+const estadosPermitidos = [
+  "abierto",
+  "en_seguimiento",
+  "cerrado"
 ];
 
 
 // ==================================================
-// OBTENER PANEL DE BIENESTAR
-//
-// GET /api/empleados/:id/bienestar
+// PANEL BIENESTAR
 // ==================================================
 
 export const obtenerPanelBienestarEmpleado =
@@ -191,7 +468,6 @@ export const obtenerPanelBienestarEmpleado =
           req.params.id
         );
 
-
       if (
         !Number.isInteger(
           idEmpleado
@@ -199,21 +475,21 @@ export const obtenerPanelBienestarEmpleado =
         idEmpleado <= 0
       ) {
 
-        return res.status(400).json({
-          success: false,
-          message:
-            "ID de empleado inválido"
-        });
+        return res
+          .status(400)
+          .json({
+            success: false,
+            message:
+              "ID de empleado inválido"
+          });
 
       }
-
 
       const acceso =
         await validarAccesoEmpleado(
           idEmpleado,
           req.user
         );
-
 
       if (!acceso.ok) {
 
@@ -229,9 +505,8 @@ export const obtenerPanelBienestarEmpleado =
 
       }
 
-
       // ==================================================
-      // SEGUIMIENTOS RECIENTES
+      // SEGUIMIENTOS
       // ==================================================
 
       const [seguimientos] =
@@ -241,15 +516,18 @@ export const obtenerPanelBienestarEmpleado =
               s.id_seguimiento,
               s.fecha,
               s.tipo,
+              s.prioridad,
               s.motivo,
               s.observacion,
               s.accion_realizada,
               s.resultado,
+              s.estado,
               s.proxima_accion,
               s.fecha_proxima_accion,
               s.creado_en,
 
-              u.nombre AS usuario_registro
+              u.nombre
+                AS usuario_registro
 
             FROM seguimiento_empleados s
 
@@ -257,7 +535,11 @@ export const obtenerPanelBienestarEmpleado =
               ON u.id_usuario =
                  s.id_usuario_registro
 
-            WHERE s.id_empleado = ?
+            WHERE
+              s.id_empleado = ?
+
+              AND s.estado <>
+                  'anulado'
 
             ORDER BY
               s.fecha DESC,
@@ -270,9 +552,8 @@ export const obtenerPanelBienestarEmpleado =
           ]
         );
 
-
       // ==================================================
-      // EVALUACIONES RECIENTES
+      // EVALUACIONES
       // ==================================================
 
       const [evaluaciones] =
@@ -288,7 +569,9 @@ export const obtenerPanelBienestarEmpleado =
               h.fecha_inicio,
               h.fecha_completada,
 
-              p.nombre AS prueba_nombre,
+              p.nombre
+                AS prueba_nombre,
+
               p.categoria,
               p.version,
 
@@ -312,7 +595,8 @@ export const obtenerPanelBienestarEmpleado =
               ON r.id_habilitacion =
                  h.id_habilitacion
 
-            WHERE h.id_empleado = ?
+            WHERE
+              h.id_empleado = ?
 
             ORDER BY
               h.fecha_habilitacion DESC,
@@ -325,40 +609,44 @@ export const obtenerPanelBienestarEmpleado =
           ]
         );
 
-
       // ==================================================
-      // ACCIONES PREVENTIVAS RECIENTES
+      // ACCIONES PREVENTIVAS
       // ==================================================
 
       const [acciones] =
         await pool.query(
           `
             SELECT
-              a.id_accion,
-              a.id_empleado,
-              a.id_usuario_registro,
-              a.fecha,
-              a.tipo,
-              a.origen,
-              a.descripcion,
-              a.accion_realizada,
-              a.responsable,
-              a.resultado,
-              a.proxima_accion,
-              a.fecha_proxima_revision,
-              a.observaciones,
-              a.creado_en,
-              a.actualizado_en,
+              a.*,
 
-              u.nombre AS usuario_registro
+              ur.nombre
+                AS usuario_registro,
+
+              ua.nombre
+                AS usuario_anulacion,
+
+              uc.nombre
+                AS usuario_cierre
 
             FROM acciones_preventivas_empleados a
 
-            LEFT JOIN usuarios u
-              ON u.id_usuario =
+            LEFT JOIN usuarios ur
+              ON ur.id_usuario =
                  a.id_usuario_registro
 
-            WHERE a.id_empleado = ?
+            LEFT JOIN usuarios ua
+              ON ua.id_usuario =
+                 a.id_usuario_anulacion
+
+            LEFT JOIN usuarios uc
+              ON uc.id_usuario =
+                 a.id_usuario_cierre
+
+            WHERE
+              a.id_empleado = ?
+
+              AND a.estado <>
+                  'anulada'
 
             ORDER BY
               a.fecha DESC,
@@ -371,7 +659,6 @@ export const obtenerPanelBienestarEmpleado =
           ]
         );
 
-
       // ==================================================
       // PRÓXIMAS REVISIONES
       // ==================================================
@@ -380,30 +667,66 @@ export const obtenerPanelBienestarEmpleado =
         await pool.query(
           `
             SELECT
-              'seguimiento' AS origen,
-              id_seguimiento AS id_registro,
-              proxima_accion AS descripcion,
-              fecha_proxima_accion AS fecha
+              'seguimiento'
+                AS origen,
+
+              id_seguimiento
+                AS id_registro,
+
+              proxima_accion
+                AS descripcion,
+
+              fecha_proxima_accion
+                AS fecha
 
             FROM seguimiento_empleados
 
-            WHERE id_empleado = ?
-              AND fecha_proxima_accion IS NOT NULL
+            WHERE
+              id_empleado = ?
+
+              AND estado <>
+                  'anulado'
+
+              AND fecha_proxima_accion
+                  IS NOT NULL
+
+              AND fecha_proxima_accion >=
+                  NOW()
 
             UNION ALL
 
             SELECT
-              'accion_preventiva' AS origen,
-              id_accion AS id_registro,
-              proxima_accion AS descripcion,
-              fecha_proxima_revision AS fecha
+              'accion_preventiva'
+                AS origen,
+
+              id_accion
+                AS id_registro,
+
+              proxima_accion
+                AS descripcion,
+
+              fecha_proxima_revision
+                AS fecha
 
             FROM acciones_preventivas_empleados
 
-            WHERE id_empleado = ?
-              AND fecha_proxima_revision IS NOT NULL
+            WHERE
+              id_empleado = ?
 
-            ORDER BY fecha ASC
+              AND estado IN (
+                'abierto',
+                'en_seguimiento',
+                'activa'
+              )
+
+              AND fecha_proxima_revision
+                  IS NOT NULL
+
+              AND fecha_proxima_revision >=
+                  NOW()
+
+            ORDER BY
+              fecha ASC
 
             LIMIT 20
           `,
@@ -413,9 +736,8 @@ export const obtenerPanelBienestarEmpleado =
           ]
         );
 
-
       // ==================================================
-      // RESUMEN
+      // RESUMEN SEGUIMIENTO
       // ==================================================
 
       const [
@@ -446,13 +768,20 @@ export const obtenerPanelBienestarEmpleado =
 
             FROM seguimiento_empleados
 
-            WHERE id_empleado = ?
+            WHERE
+              id_empleado = ?
+
+              AND estado <>
+                  'anulado'
           `,
           [
             idEmpleado
           ]
         );
 
+      // ==================================================
+      // RESUMEN ACCIONES
+      // ==================================================
 
       const [
         resumenAccionesRows
@@ -464,16 +793,18 @@ export const obtenerPanelBienestarEmpleado =
 
               SUM(
                 CASE
-                  WHEN resultado =
-                    'pendiente'
+                  WHEN estado IN (
+                    'abierto',
+                    'activa'
+                  )
                   THEN 1
                   ELSE 0
                 END
-              ) AS pendientes,
+              ) AS abiertas,
 
               SUM(
                 CASE
-                  WHEN resultado =
+                  WHEN estado =
                     'en_seguimiento'
                   THEN 1
                   ELSE 0
@@ -482,22 +813,47 @@ export const obtenerPanelBienestarEmpleado =
 
               SUM(
                 CASE
-                  WHEN resultado =
-                    'requiere_nueva_revision'
+                  WHEN estado =
+                    'cerrado'
                   THEN 1
                   ELSE 0
                 END
-              ) AS requieren_revision
+              ) AS cerradas,
+
+              SUM(
+                CASE
+                  WHEN resultado =
+                    'requiere_atencion'
+                  THEN 1
+                  ELSE 0
+                END
+              ) AS requiere_atencion,
+
+              SUM(
+                CASE
+                  WHEN resultado =
+                    'canalizacion_sugerida'
+                  THEN 1
+                  ELSE 0
+                END
+              ) AS canalizaciones_sugeridas
 
             FROM acciones_preventivas_empleados
 
-            WHERE id_empleado = ?
+            WHERE
+              id_empleado = ?
+
+              AND estado <>
+                  'anulada'
           `,
           [
             idEmpleado
           ]
         );
 
+      // ==================================================
+      // RESUMEN EVALUACIONES
+      // ==================================================
 
       const [
         resumenEvaluacionesRows
@@ -529,15 +885,16 @@ export const obtenerPanelBienestarEmpleado =
 
             FROM pruebas_empleados_habilitadas
 
-            WHERE id_empleado = ?
+            WHERE
+              id_empleado = ?
           `,
           [
             idEmpleado
           ]
         );
 
-
       return res.json({
+
         success: true,
 
         empleado:
@@ -546,81 +903,97 @@ export const obtenerPanelBienestarEmpleado =
         resumen: {
 
           seguimientos: {
+
             total:
               Number(
-                resumenSeguimientoRows[0]?.total ||
-                0
+                resumenSeguimientoRows[0]
+                  ?.total || 0
               ),
 
             requiere_atencion:
               Number(
-                resumenSeguimientoRows[0]?.requiere_atencion ||
-                0
+                resumenSeguimientoRows[0]
+                  ?.requiere_atencion || 0
               ),
 
             canalizaciones_sugeridas:
               Number(
-                resumenSeguimientoRows[0]?.canalizaciones_sugeridas ||
-                0
+                resumenSeguimientoRows[0]
+                  ?.canalizaciones_sugeridas || 0
               )
           },
 
           evaluaciones: {
+
             total:
               Number(
-                resumenEvaluacionesRows[0]?.total ||
-                0
+                resumenEvaluacionesRows[0]
+                  ?.total || 0
               ),
 
             completadas:
               Number(
-                resumenEvaluacionesRows[0]?.completadas ||
-                0
+                resumenEvaluacionesRows[0]
+                  ?.completadas || 0
               ),
 
             pendientes:
               Number(
-                resumenEvaluacionesRows[0]?.pendientes ||
-                0
+                resumenEvaluacionesRows[0]
+                  ?.pendientes || 0
+              ),
+
+            requiere_atencion:
+              Number(
+                resumenAccionesRows[0]
+                  ?.requiere_atencion || 0
+              ),
+
+            canalizaciones_sugeridas:
+              Number(
+                resumenAccionesRows[0]
+                  ?.canalizaciones_sugeridas || 0
               )
           },
 
           acciones_preventivas: {
+
             total:
               Number(
-                resumenAccionesRows[0]?.total ||
-                0
+                resumenAccionesRows[0]
+                  ?.total || 0
               ),
 
-            pendientes:
+            abiertas:
               Number(
-                resumenAccionesRows[0]?.pendientes ||
-                0
+                resumenAccionesRows[0]
+                  ?.abiertas || 0
               ),
 
             en_seguimiento:
               Number(
-                resumenAccionesRows[0]?.en_seguimiento ||
-                0
+                resumenAccionesRows[0]
+                  ?.en_seguimiento || 0
               ),
 
-            requieren_revision:
+            cerradas:
               Number(
-                resumenAccionesRows[0]?.requieren_revision ||
-                0
+                resumenAccionesRows[0]
+                  ?.cerradas || 0
               )
           }
-
         },
 
         seguimientos,
+
         evaluaciones,
+
         acciones_preventivas:
           acciones,
+
         proximas_revisiones:
           proximasRevisiones
       });
-
 
     } catch (error) {
 
@@ -629,28 +1002,27 @@ export const obtenerPanelBienestarEmpleado =
         error
       );
 
+      return res
+        .status(500)
+        .json({
 
-      return res.status(500).json({
-        success: false,
-        message:
-          "Error interno al obtener el panel de bienestar",
+          success: false,
 
-        error:
-          process.env.NODE_ENV ===
-          "development"
-            ? error.message
-            : undefined
-      });
+          message:
+            "Error interno al obtener el panel de bienestar",
 
+          error:
+            process.env.NODE_ENV ===
+            "development"
+              ? error.message
+              : undefined
+        });
     }
-
   };
 
 
 // ==================================================
-// LISTAR ACCIONES PREVENTIVAS
-//
-// GET /api/empleados/:id/bienestar/acciones
+// LISTAR ACCIONES
 // ==================================================
 
 export const listarAccionesPreventivasEmpleado =
@@ -666,7 +1038,6 @@ export const listarAccionesPreventivasEmpleado =
           req.params.id
         );
 
-
       if (
         !Number.isInteger(
           idEmpleado
@@ -674,21 +1045,20 @@ export const listarAccionesPreventivasEmpleado =
         idEmpleado <= 0
       ) {
 
-        return res.status(400).json({
-          success: false,
-          message:
-            "ID de empleado inválido"
-        });
-
+        return res
+          .status(400)
+          .json({
+            success: false,
+            message:
+              "ID de empleado inválido"
+          });
       }
-
 
       const acceso =
         await validarAccesoEmpleado(
           idEmpleado,
           req.user
         );
-
 
       if (!acceso.ok) {
 
@@ -701,39 +1071,39 @@ export const listarAccionesPreventivasEmpleado =
             message:
               acceso.message
           });
-
       }
-
 
       const [acciones] =
         await pool.query(
           `
             SELECT
-              a.id_accion,
-              a.id_empleado,
-              a.id_usuario_registro,
-              a.fecha,
-              a.tipo,
-              a.origen,
-              a.descripcion,
-              a.accion_realizada,
-              a.responsable,
-              a.resultado,
-              a.proxima_accion,
-              a.fecha_proxima_revision,
-              a.observaciones,
-              a.creado_en,
-              a.actualizado_en,
+              a.*,
 
-              u.nombre AS usuario_registro
+              ur.nombre
+                AS usuario_registro,
+
+              ua.nombre
+                AS usuario_anulacion,
+
+              uc.nombre
+                AS usuario_cierre
 
             FROM acciones_preventivas_empleados a
 
-            LEFT JOIN usuarios u
-              ON u.id_usuario =
+            LEFT JOIN usuarios ur
+              ON ur.id_usuario =
                  a.id_usuario_registro
 
-            WHERE a.id_empleado = ?
+            LEFT JOIN usuarios ua
+              ON ua.id_usuario =
+                 a.id_usuario_anulacion
+
+            LEFT JOIN usuarios uc
+              ON uc.id_usuario =
+                 a.id_usuario_cierre
+
+            WHERE
+              a.id_empleado = ?
 
             ORDER BY
               a.fecha DESC,
@@ -744,16 +1114,38 @@ export const listarAccionesPreventivasEmpleado =
           ]
         );
 
+      const activas =
+        acciones.filter(
+          item =>
+            item.estado !==
+            "anulada"
+        );
+
+      const anuladas =
+        acciones.filter(
+          item =>
+            item.estado ===
+            "anulada"
+        );
 
       return res.json({
+
         success: true,
+
         empleado:
           acceso.empleado,
+
         total:
           acciones.length,
+
+        activas:
+          activas.length,
+
+        anuladas:
+          anuladas.length,
+
         acciones
       });
-
 
     } catch (error) {
 
@@ -762,22 +1154,21 @@ export const listarAccionesPreventivasEmpleado =
         error
       );
 
+      return res
+        .status(500)
+        .json({
 
-      return res.status(500).json({
-        success: false,
-        message:
-          "Error interno al obtener las acciones preventivas"
-      });
+          success: false,
 
+          message:
+            "Error interno al obtener las acciones preventivas"
+        });
     }
-
   };
 
 
 // ==================================================
-// REGISTRAR ACCIÓN PREVENTIVA
-//
-// POST /api/empleados/:id/bienestar/acciones
+// REGISTRAR ACCIÓN
 // ==================================================
 
 export const registrarAccionPreventivaEmpleado =
@@ -793,7 +1184,6 @@ export const registrarAccionPreventivaEmpleado =
           req.params.id
         );
 
-
       if (
         !Number.isInteger(
           idEmpleado
@@ -801,21 +1191,20 @@ export const registrarAccionPreventivaEmpleado =
         idEmpleado <= 0
       ) {
 
-        return res.status(400).json({
-          success: false,
-          message:
-            "ID de empleado inválido"
-        });
-
+        return res
+          .status(400)
+          .json({
+            success: false,
+            message:
+              "ID de empleado inválido"
+          });
       }
-
 
       const acceso =
         await validarAccesoEmpleado(
           idEmpleado,
           req.user
         );
-
 
       if (!acceso.ok) {
 
@@ -828,84 +1217,65 @@ export const registrarAccionPreventivaEmpleado =
             message:
               acceso.message
           });
-
       }
 
-
       const tipo =
-        String(
+        normalizar(
           req.body?.tipo ||
           "prevencion"
-        )
-          .trim()
-          .toLowerCase();
-
+        );
 
       const origen =
-        String(
+        normalizar(
           req.body?.origen ||
           "iniciativa_rh"
-        )
-          .trim()
-          .toLowerCase();
-
+        );
 
       const resultado =
-        String(
+        normalizar(
           req.body?.resultado ||
           "pendiente"
-        )
-          .trim()
-          .toLowerCase();
+        );
 
+      const estado =
+        normalizar(
+          req.body?.estado ||
+          "abierto"
+        );
 
       const descripcion =
-        String(
-          req.body?.descripcion ||
-          ""
-        ).trim();
-
+        texto(
+          req.body?.descripcion
+        );
 
       const accionRealizada =
-        String(
-          req.body?.accion_realizada ||
-          ""
-        ).trim();
-
+        texto(
+          req.body?.accion_realizada
+        );
 
       const responsable =
-        req.body?.responsable
-          ? String(
-              req.body.responsable
-            ).trim()
-          : null;
-
+        texto(
+          req.body?.responsable
+        );
 
       const proximaAccion =
-        req.body?.proxima_accion
-          ? String(
-              req.body.proxima_accion
-            ).trim()
-          : null;
-
+        texto(
+          req.body?.proxima_accion
+        );
 
       const observaciones =
-        req.body?.observaciones
-          ? String(
-              req.body.observaciones
-            ).trim()
-          : null;
-
+        texto(
+          req.body?.observaciones
+        );
 
       const fecha =
         req.body?.fecha ||
         null;
 
-
       const fechaProximaRevision =
-        req.body?.fecha_proxima_revision ||
+        req.body
+          ?.fecha_proxima_revision ||
         null;
-
 
       if (
         !tiposPermitidos.includes(
@@ -913,14 +1283,14 @@ export const registrarAccionPreventivaEmpleado =
         )
       ) {
 
-        return res.status(400).json({
-          success: false,
-          message:
-            "Tipo de acción preventiva inválido"
-        });
-
+        return res
+          .status(400)
+          .json({
+            success: false,
+            message:
+              "Tipo de acción preventiva inválido"
+          });
       }
-
 
       if (
         !origenesPermitidos.includes(
@@ -928,14 +1298,14 @@ export const registrarAccionPreventivaEmpleado =
         )
       ) {
 
-        return res.status(400).json({
-          success: false,
-          message:
-            "Origen de la acción inválido"
-        });
-
+        return res
+          .status(400)
+          .json({
+            success: false,
+            message:
+              "Origen de la acción inválido"
+          });
       }
-
 
       if (
         !resultadosPermitidos.includes(
@@ -943,36 +1313,55 @@ export const registrarAccionPreventivaEmpleado =
         )
       ) {
 
-        return res.status(400).json({
-          success: false,
-          message:
-            "Resultado de la acción inválido"
-        });
-
+        return res
+          .status(400)
+          .json({
+            success: false,
+            message:
+              "Resultado de la acción inválido"
+          });
       }
 
+      if (
+        !estadosPermitidos.includes(
+          estado
+        )
+      ) {
+
+        return res
+          .status(400)
+          .json({
+            success: false,
+            message:
+              "Estado de la acción inválido"
+          });
+      }
 
       if (!descripcion) {
 
-        return res.status(400).json({
-          success: false,
-          message:
-            "La descripción es obligatoria"
-        });
-
+        return res
+          .status(400)
+          .json({
+            success: false,
+            message:
+              "La descripción es obligatoria"
+          });
       }
-
 
       if (!accionRealizada) {
 
-        return res.status(400).json({
-          success: false,
-          message:
-            "La acción realizada es obligatoria"
-        });
-
+        return res
+          .status(400)
+          .json({
+            success: false,
+            message:
+              "La acción realizada es obligatoria"
+          });
       }
 
+      const cerrar =
+        estado ===
+        "cerrado";
 
       const [result] =
         await pool.query(
@@ -988,10 +1377,14 @@ export const registrarAccionPreventivaEmpleado =
               accion_realizada,
               responsable,
               resultado,
+              estado,
               proxima_accion,
               fecha_proxima_revision,
+              fecha_cierre,
+              id_usuario_cierre,
               observaciones
             )
+
             VALUES
             (
               ?,
@@ -1005,13 +1398,18 @@ export const registrarAccionPreventivaEmpleado =
               ?,
               ?,
               ?,
+              ?,
+              ?,
+              ?,
               ?
             )
           `,
           [
             idEmpleado,
-            req.user?.id_usuario ||
-              null,
+
+            acceso.contexto
+              .idUsuario,
+
             fecha,
             tipo,
             origen,
@@ -1019,19 +1417,31 @@ export const registrarAccionPreventivaEmpleado =
             accionRealizada,
             responsable,
             resultado,
+            estado,
             proximaAccion,
             fechaProximaRevision,
+
+            cerrar
+              ? new Date()
+              : null,
+
+            cerrar
+              ? acceso.contexto
+                  .idUsuario
+              : null,
+
             observaciones
           ]
         );
-
 
       const [rows] =
         await pool.query(
           `
             SELECT
               a.*,
-              u.nombre AS usuario_registro
+
+              u.nombre
+                AS usuario_registro
 
             FROM acciones_preventivas_empleados a
 
@@ -1039,7 +1449,8 @@ export const registrarAccionPreventivaEmpleado =
               ON u.id_usuario =
                  a.id_usuario_registro
 
-            WHERE a.id_accion = ?
+            WHERE
+              a.id_accion = ?
 
             LIMIT 1
           `,
@@ -1048,15 +1459,20 @@ export const registrarAccionPreventivaEmpleado =
           ]
         );
 
+      return res
+        .status(201)
+        .json({
 
-      return res.status(201).json({
-        success: true,
-        message:
-          "Acción preventiva registrada correctamente",
-        accion:
-          rows[0] || null
-      });
+          success: true,
 
+          message:
+            cerrar
+              ? "Acción preventiva registrada y cerrada correctamente"
+              : "Acción preventiva registrada correctamente",
+
+          accion:
+            rows[0] || null
+        });
 
     } catch (error) {
 
@@ -1065,29 +1481,27 @@ export const registrarAccionPreventivaEmpleado =
         error
       );
 
+      return res
+        .status(500)
+        .json({
 
-      return res.status(500).json({
-        success: false,
-        message:
-          "Error interno al registrar la acción preventiva",
+          success: false,
 
-        error:
-          process.env.NODE_ENV ===
-          "development"
-            ? error.message
-            : undefined
-      });
+          message:
+            "Error interno al registrar la acción preventiva",
 
+          error:
+            process.env.NODE_ENV ===
+            "development"
+              ? error.message
+              : undefined
+        });
     }
-
   };
 
 
 // ==================================================
-// ACTUALIZAR ACCIÓN PREVENTIVA
-//
-// PUT
-// /api/empleados/:id/bienestar/acciones/:idAccion
+// ACTUALIZAR ACCIÓN
 // ==================================================
 
 export const actualizarAccionPreventivaEmpleado =
@@ -1108,7 +1522,6 @@ export const actualizarAccionPreventivaEmpleado =
           req.params.idAccion
         );
 
-
       if (
         !Number.isInteger(
           idEmpleado
@@ -1120,21 +1533,20 @@ export const actualizarAccionPreventivaEmpleado =
         idAccion <= 0
       ) {
 
-        return res.status(400).json({
-          success: false,
-          message:
-            "Datos de acción inválidos"
-        });
-
+        return res
+          .status(400)
+          .json({
+            success: false,
+            message:
+              "Datos de acción inválidos"
+          });
       }
-
 
       const acceso =
         await validarAccesoEmpleado(
           idEmpleado,
           req.user
         );
-
 
       if (!acceso.ok) {
 
@@ -1147,18 +1559,18 @@ export const actualizarAccionPreventivaEmpleado =
             message:
               acceso.message
           });
-
       }
-
 
       const [existentes] =
         await pool.query(
           `
-            SELECT id_accion
+            SELECT
+              *
 
             FROM acciones_preventivas_empleados
 
-            WHERE id_accion = ?
+            WHERE
+              id_accion = ?
               AND id_empleado = ?
 
             LIMIT 1
@@ -1169,320 +1581,344 @@ export const actualizarAccionPreventivaEmpleado =
           ]
         );
 
-
       if (!existentes.length) {
 
-        return res.status(404).json({
-          success: false,
-          message:
-            "Acción preventiva no encontrada"
-        });
-
+        return res
+          .status(404)
+          .json({
+            success: false,
+            message:
+              "Acción preventiva no encontrada"
+          });
       }
 
+      const actual =
+        existentes[0];
+
+      if (
+        actual.estado ===
+        "anulada"
+      ) {
+
+        return res
+          .status(409)
+          .json({
+            success: false,
+            message:
+              "Una acción preventiva anulada ya no puede modificarse"
+          });
+      }
+
+      if (
+        actual.estado ===
+        "cerrado"
+      ) {
+
+        return res
+          .status(409)
+          .json({
+            success: false,
+            message:
+              "Una acción preventiva cerrada ya no puede modificarse"
+          });
+      }
 
       const campos = [];
       const valores = [];
 
+      const agregar =
+        (
+          campo,
+          valor
+        ) => {
+
+          campos.push(
+            `${campo} = ?`
+          );
+
+          valores.push(
+            valor
+          );
+        };
 
       if (
         req.body?.fecha !==
         undefined
       ) {
 
-        campos.push(
-          "fecha = ?"
-        );
-
-        valores.push(
+        agregar(
+          "fecha",
           req.body.fecha ||
           null
         );
-
       }
-
 
       if (
         req.body?.tipo !==
         undefined
       ) {
 
-        const tipo =
-          String(
-            req.body.tipo ||
-            ""
-          )
-            .trim()
-            .toLowerCase();
-
+        const valor =
+          normalizar(
+            req.body.tipo
+          );
 
         if (
           !tiposPermitidos.includes(
-            tipo
+            valor
           )
         ) {
 
-          return res.status(400).json({
-            success: false,
-            message:
-              "Tipo de acción inválido"
-          });
-
+          return res
+            .status(400)
+            .json({
+              success: false,
+              message:
+                "Tipo de acción inválido"
+            });
         }
 
-
-        campos.push(
-          "tipo = ?"
+        agregar(
+          "tipo",
+          valor
         );
-
-        valores.push(
-          tipo
-        );
-
       }
-
 
       if (
         req.body?.origen !==
         undefined
       ) {
 
-        const origen =
-          String(
-            req.body.origen ||
-            ""
-          )
-            .trim()
-            .toLowerCase();
-
+        const valor =
+          normalizar(
+            req.body.origen
+          );
 
         if (
           !origenesPermitidos.includes(
-            origen
+            valor
           )
         ) {
 
-          return res.status(400).json({
-            success: false,
-            message:
-              "Origen de acción inválido"
-          });
-
+          return res
+            .status(400)
+            .json({
+              success: false,
+              message:
+                "Origen de acción inválido"
+            });
         }
 
-
-        campos.push(
-          "origen = ?"
+        agregar(
+          "origen",
+          valor
         );
-
-        valores.push(
-          origen
-        );
-
       }
-
 
       if (
         req.body?.descripcion !==
         undefined
       ) {
 
-        const descripcion =
-          String(
-            req.body.descripcion ||
-            ""
-          ).trim();
+        const valor =
+          texto(
+            req.body.descripcion
+          );
 
+        if (!valor) {
 
-        if (!descripcion) {
-
-          return res.status(400).json({
-            success: false,
-            message:
-              "La descripción es obligatoria"
-          });
-
+          return res
+            .status(400)
+            .json({
+              success: false,
+              message:
+                "La descripción es obligatoria"
+            });
         }
 
-
-        campos.push(
-          "descripcion = ?"
+        agregar(
+          "descripcion",
+          valor
         );
-
-        valores.push(
-          descripcion
-        );
-
       }
-
 
       if (
         req.body?.accion_realizada !==
         undefined
       ) {
 
-        const accionRealizada =
-          String(
-            req.body.accion_realizada ||
-            ""
-          ).trim();
+        const valor =
+          texto(
+            req.body
+              .accion_realizada
+          );
 
+        if (!valor) {
 
-        if (!accionRealizada) {
-
-          return res.status(400).json({
-            success: false,
-            message:
-              "La acción realizada es obligatoria"
-          });
-
+          return res
+            .status(400)
+            .json({
+              success: false,
+              message:
+                "La acción realizada es obligatoria"
+            });
         }
 
-
-        campos.push(
-          "accion_realizada = ?"
+        agregar(
+          "accion_realizada",
+          valor
         );
-
-        valores.push(
-          accionRealizada
-        );
-
       }
-
 
       if (
         req.body?.responsable !==
         undefined
       ) {
 
-        campos.push(
-          "responsable = ?"
+        agregar(
+          "responsable",
+          texto(
+            req.body.responsable
+          )
         );
-
-        valores.push(
-          String(
-            req.body.responsable ||
-            ""
-          ).trim() ||
-          null
-        );
-
       }
-
 
       if (
         req.body?.resultado !==
         undefined
       ) {
 
-        const resultado =
-          String(
-            req.body.resultado ||
-            ""
-          )
-            .trim()
-            .toLowerCase();
-
+        const valor =
+          normalizar(
+            req.body.resultado
+          );
 
         if (
           !resultadosPermitidos.includes(
-            resultado
+            valor
           )
         ) {
 
-          return res.status(400).json({
-            success: false,
-            message:
-              "Resultado de acción inválido"
-          });
-
+          return res
+            .status(400)
+            .json({
+              success: false,
+              message:
+                "Resultado de acción inválido"
+            });
         }
 
-
-        campos.push(
-          "resultado = ?"
+        agregar(
+          "resultado",
+          valor
         );
-
-        valores.push(
-          resultado
-        );
-
       }
 
+      if (
+        req.body?.estado !==
+        undefined
+      ) {
+
+        const valor =
+          normalizar(
+            req.body.estado
+          );
+
+        if (
+          !estadosPermitidos.includes(
+            valor
+          )
+        ) {
+
+          return res
+            .status(400)
+            .json({
+              success: false,
+              message:
+                "Estado de acción inválido"
+            });
+        }
+
+        agregar(
+          "estado",
+          valor
+        );
+
+        if (
+          valor ===
+          "cerrado"
+        ) {
+
+          agregar(
+            "fecha_cierre",
+            new Date()
+          );
+
+          agregar(
+            "id_usuario_cierre",
+            acceso.contexto
+              .idUsuario
+          );
+        }
+      }
 
       if (
         req.body?.proxima_accion !==
         undefined
       ) {
 
-        campos.push(
-          "proxima_accion = ?"
+        agregar(
+          "proxima_accion",
+          texto(
+            req.body
+              .proxima_accion
+          )
         );
-
-        valores.push(
-          String(
-            req.body.proxima_accion ||
-            ""
-          ).trim() ||
-          null
-        );
-
       }
 
-
       if (
-        req.body?.fecha_proxima_revision !==
+        req.body
+          ?.fecha_proxima_revision !==
         undefined
       ) {
 
-        campos.push(
-          "fecha_proxima_revision = ?"
-        );
-
-        valores.push(
-          req.body.fecha_proxima_revision ||
+        agregar(
+          "fecha_proxima_revision",
+          req.body
+            .fecha_proxima_revision ||
           null
         );
-
       }
-
 
       if (
         req.body?.observaciones !==
         undefined
       ) {
 
-        campos.push(
-          "observaciones = ?"
+        agregar(
+          "observaciones",
+          texto(
+            req.body
+              .observaciones
+          )
         );
-
-        valores.push(
-          String(
-            req.body.observaciones ||
-            ""
-          ).trim() ||
-          null
-        );
-
       }
-
 
       if (!campos.length) {
 
-        return res.status(400).json({
-          success: false,
-          message:
-            "No se enviaron datos para actualizar"
-        });
-
+        return res
+          .status(400)
+          .json({
+            success: false,
+            message:
+              "No se enviaron datos para actualizar"
+          });
       }
-
 
       valores.push(
         idAccion,
         idEmpleado
       );
-
 
       await pool.query(
         `
@@ -1491,27 +1927,37 @@ export const actualizarAccionPreventivaEmpleado =
           SET
             ${campos.join(", ")}
 
-          WHERE id_accion = ?
+          WHERE
+            id_accion = ?
             AND id_empleado = ?
         `,
         valores
       );
-
 
       const [rows] =
         await pool.query(
           `
             SELECT
               a.*,
-              u.nombre AS usuario_registro
+
+              ur.nombre
+                AS usuario_registro,
+
+              uc.nombre
+                AS usuario_cierre
 
             FROM acciones_preventivas_empleados a
 
-            LEFT JOIN usuarios u
-              ON u.id_usuario =
+            LEFT JOIN usuarios ur
+              ON ur.id_usuario =
                  a.id_usuario_registro
 
-            WHERE a.id_accion = ?
+            LEFT JOIN usuarios uc
+              ON uc.id_usuario =
+                 a.id_usuario_cierre
+
+            WHERE
+              a.id_accion = ?
 
             LIMIT 1
           `,
@@ -1520,15 +1966,19 @@ export const actualizarAccionPreventivaEmpleado =
           ]
         );
 
-
       return res.json({
+
         success: true,
+
         message:
-          "Acción preventiva actualizada correctamente",
+          req.body?.estado ===
+          "cerrado"
+            ? "Acción preventiva cerrada correctamente"
+            : "Acción preventiva actualizada correctamente",
+
         accion:
           rows[0] || null
       });
-
 
     } catch (error) {
 
@@ -1537,23 +1987,27 @@ export const actualizarAccionPreventivaEmpleado =
         error
       );
 
+      return res
+        .status(500)
+        .json({
 
-      return res.status(500).json({
-        success: false,
-        message:
-          "Error interno al actualizar la acción preventiva"
-      });
+          success: false,
 
+          message:
+            "Error interno al actualizar la acción preventiva",
+
+          error:
+            process.env.NODE_ENV ===
+            "development"
+              ? error.message
+              : undefined
+        });
     }
-
   };
 
 
 // ==================================================
-// ELIMINAR ACCIÓN PREVENTIVA
-//
-// DELETE
-// /api/empleados/:id/bienestar/acciones/:idAccion
+// ANULAR ACCIÓN
 // ==================================================
 
 export const eliminarAccionPreventivaEmpleado =
@@ -1574,7 +2028,6 @@ export const eliminarAccionPreventivaEmpleado =
           req.params.idAccion
         );
 
-
       if (
         !Number.isInteger(
           idEmpleado
@@ -1586,21 +2039,20 @@ export const eliminarAccionPreventivaEmpleado =
         idAccion <= 0
       ) {
 
-        return res.status(400).json({
-          success: false,
-          message:
-            "Datos de acción inválidos"
-        });
-
+        return res
+          .status(400)
+          .json({
+            success: false,
+            message:
+              "Datos de acción inválidos"
+          });
       }
-
 
       const acceso =
         await validarAccesoEmpleado(
           idEmpleado,
           req.user
         );
-
 
       if (!acceso.ok) {
 
@@ -1613,17 +2065,39 @@ export const eliminarAccionPreventivaEmpleado =
             message:
               acceso.message
           });
-
       }
 
+      const motivoAnulacion =
+        texto(
+          req.body
+            ?.motivo_anulacion
+        );
 
-      const [result] =
+      if (!motivoAnulacion) {
+
+        return res
+          .status(400)
+          .json({
+            success: false,
+            message:
+              "Debes indicar el motivo de la anulación"
+          });
+      }
+
+      const [acciones] =
         await pool.query(
           `
-            DELETE FROM acciones_preventivas_empleados
+            SELECT
+              id_accion,
+              estado
 
-            WHERE id_accion = ?
+            FROM acciones_preventivas_empleados
+
+            WHERE
+              id_accion = ?
               AND id_empleado = ?
+
+            LIMIT 1
           `,
           [
             idAccion,
@@ -1631,41 +2105,84 @@ export const eliminarAccionPreventivaEmpleado =
           ]
         );
 
+      if (!acciones.length) {
 
-      if (
-        result.affectedRows === 0
-      ) {
-
-        return res.status(404).json({
-          success: false,
-          message:
-            "Acción preventiva no encontrada"
-        });
-
+        return res
+          .status(404)
+          .json({
+            success: false,
+            message:
+              "Acción preventiva no encontrada"
+          });
       }
 
+      if (
+        acciones[0].estado ===
+        "anulada"
+      ) {
+
+        return res
+          .status(409)
+          .json({
+            success: false,
+            message:
+              "La acción preventiva ya se encuentra anulada"
+          });
+      }
+
+      await pool.query(
+        `
+          UPDATE acciones_preventivas_empleados
+
+          SET
+            estado =
+              'anulada',
+
+            motivo_anulacion = ?,
+
+            fecha_anulacion =
+              NOW(),
+
+            id_usuario_anulacion = ?
+
+          WHERE
+            id_accion = ?
+            AND id_empleado = ?
+        `,
+        [
+          motivoAnulacion,
+
+          acceso.contexto
+            .idUsuario,
+
+          idAccion,
+          idEmpleado
+        ]
+      );
 
       return res.json({
-        success: true,
-        message:
-          "Acción preventiva eliminada correctamente"
-      });
 
+        success: true,
+
+        message:
+          "Acción preventiva anulada correctamente. El registro se conserva en el expediente."
+      });
 
     } catch (error) {
 
       console.error(
-        "❌ Error eliminando acción preventiva:",
+        "❌ Error anulando acción preventiva:",
         error
       );
 
+      return res
+        .status(500)
+        .json({
 
-      return res.status(500).json({
-        success: false,
-        message:
-          "Error interno al eliminar la acción preventiva"
-      });
+          success: false,
 
+          message:
+            "Error interno al anular la acción preventiva"
+        });
     }
-
   };
