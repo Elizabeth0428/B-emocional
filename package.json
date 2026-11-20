@@ -47,5 +47,11 @@
     "eslint-plugin-react-refresh": "^0.4.19",
     "globals": "^16.0.0",
     "vite": "^6.3.5"
+  },
+  "overrides": {
+    "websocket-driver": "^0.8.0",
+    "proxy-addr": "^2.0.8",
+    "protobufjs": "^7.5.5",
+    "fast-xml-parser": "^4.5.4"
   }
 }
