@@ -132,7 +132,7 @@ import passwordInicialRoutes from "./routes/passwordInicialRoutes.js";
 // ==================================================
 
 const app = express();
-
+app.set('trust proxy', 1);
 
 const PORT =
   process.env.PORT ||
@@ -203,6 +203,12 @@ app.use(
 // ==================================================
 
 const allowedOrigins = [
+
+  // Producción (Hostinger)
+  "https://reflejoyalma.com",
+  "https://www.reflejoyalma.com",
+  "https://red-caribou-571136.hostingersite.com", // <-- El nuevo dominio autorizado
+
 
   "http://localhost:5173",
   "http://localhost:5174",
