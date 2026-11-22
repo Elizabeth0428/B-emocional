@@ -159,41 +159,21 @@ const esProduccion =
 
 app.use(
   helmet({
-
-    contentSecurityPolicy:
-      esProduccion
-        ? undefined
-        : {
-
-            directives: {
-
-              "upgrade-insecure-requests":
-                null
-
-            }
-
-          },
-
+    contentSecurityPolicy: false,
 
     crossOriginOpenerPolicy:
       esProduccion
         ? undefined
         : false,
 
-
     originAgentCluster:
       esProduccion
         ? undefined
         : false,
 
-
     crossOriginResourcePolicy: {
-
-      policy:
-        "cross-origin"
-
+      policy: "cross-origin"
     }
-
   })
 );
 
@@ -987,22 +967,9 @@ app.use(
 // RUTA PRINCIPAL
 // ==================================================
 
-app.get(
-
-  "/",
-
-  (
-    _req,
-    res
-  ) => {
-
-    res.send(
-      "✅ Backend de B-emocional corriendo"
-    );
-
-  }
-
-);
+app.get("/api/health", (_req, res) => {
+  res.send("✅ Backend de B-emocional corriendo");
+});
 
 
 // ==================================================
@@ -1040,6 +1007,27 @@ app.use(
 console.log(
   "✅ Rutas de contraseña inicial cargadas"
 );
+
+// ==================================================
+// SERVIR FRONTEND COMPILADO (REACT / VITE)
+// ==================================================
+
+const distPath = path.join(__dirname, "dist");
+app.use(express.static(distPath));
+
+app.use((req, res, next) => {
+  if (
+    req.method === "GET" &&
+    !req.path.startsWith("/api") &&
+    !req.path.startsWith("/uploads") &&
+    !req.path.startsWith("/storage") &&
+    !req.path.startsWith("/peerjs") &&
+    !req.path.startsWith("/stream")
+  ) {
+    return res.sendFile(path.join(distPath, "index.html"));
+  }
+  next();
+});
 
 // ==================================================
 // MANEJO DE RUTA NO ENCONTRADA
