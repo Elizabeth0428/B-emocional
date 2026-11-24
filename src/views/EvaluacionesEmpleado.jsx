@@ -20,7 +20,7 @@ import {
 
 const API_URL =
   import.meta.env.VITE_API_URL ||
-  `http://${window.location.hostname}:5000`;
+  `${import.meta.env.VITE_API_URL || window.location.origin}`;
 
 const FORM_INICIAL = {
   id_prueba_rh: "",
@@ -1888,32 +1888,32 @@ const EvaluacionesEmpleado = () => {
                                   )}
 
                                   {evaluacion.interpretacion_laboral && (
-                                    <div style={styles.resultSection}>
-                                      <strong>
-                                        Interpretación laboral
-                                      </strong>
+  <div style={styles.resultSection}>
+    <strong>
+      Interpretación laboral
+    </strong>
 
-                                      <p style={styles.text}>
-                                        {
-                                          evaluacion.interpretacion_laboral
-                                        }
-                                      </p>
-                                    </div>
-                                  )}
+    <p style={styles.text}>
+      {
+        evaluacion.interpretacion_laboral
+      }
+    </p>
+  </div>
+)}
 
-                                  {evaluacion.interpretacion && (
-                                    <div style={styles.resultSection}>
-                                      <strong>
-                                        Interpretación
-                                      </strong>
+{evaluacion.interpretacion && (
+  <div style={styles.resultSection}>
+    <strong>
+      Interpretación
+    </strong>
 
-                                      <p style={styles.text}>
-                                        {
-                                          evaluacion.interpretacion
-                                        }
-                                      </p>
-                                    </div>
-                                  )}
+    <p style={styles.text}>
+      {
+        evaluacion.interpretacion
+      }
+    </p>
+  </div>
+)}
 
                                   {evaluacion.fortalezas && (
                                     <div style={styles.goodBox}>

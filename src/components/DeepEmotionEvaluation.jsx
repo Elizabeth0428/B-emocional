@@ -30,7 +30,7 @@ export default function ChatBot({
 
     try {
       const activeToken = token || getToken();
-      const res = await fetch("http://localhost:5000/api/reportes/generar", {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || window.location.origin}/api/reportes/generar`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

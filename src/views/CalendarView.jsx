@@ -286,7 +286,7 @@ export default function CalendarView({ onBack }) {
       const token = getToken();
 
       await axios.patch(
-        `http://localhost:5000/api/citas/${selectedEvent.id}/estado`,
+        `https://www.reflejoyalma.com/api/citas/${selectedEvent.id}/estado`,
         { estado },
         {
           headers: {

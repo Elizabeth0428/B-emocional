@@ -3,7 +3,7 @@ import axios from "axios";
 import { useNavigate, useParams } from "react-router-dom";
 import { getToken } from "../services/AuthService";
 
-const API_URL = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:5000`;
+const API_URL = import.meta.env.VITE_API_URL || `${import.meta.env.VITE_API_URL || window.location.origin}`;
 
 const FORM_INICIAL = {
   fecha: "",

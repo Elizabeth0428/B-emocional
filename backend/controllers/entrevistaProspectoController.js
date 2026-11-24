@@ -1243,7 +1243,7 @@ export const crearVideollamadaEntrevistaProspecto =
         originRequest ||
         String(
           process.env.FRONTEND_URL ||
-          "http://localhost:5175"
+          "https://www.reflejoyalma.com"
         )
           .trim()
           .replace(

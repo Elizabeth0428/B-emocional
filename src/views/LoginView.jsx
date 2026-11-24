@@ -19,7 +19,7 @@ import LogoMirrorSoul from "../components/public/LogoMirrorSoul";
 
 const API_URL =
   import.meta.env.VITE_API_URL ||
-  `http://${window.location.hostname}:5000`;
+  `${import.meta.env.VITE_API_URL || window.location.origin}`;
 
 
 // ============================================================

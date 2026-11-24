@@ -143,10 +143,40 @@ import {
 import PagoExitoso from "./views/public/PagoExitoso.jsx";
 import CrearPassword from "./views/public/CrearPassword.jsx";
 // ==================================================
+// NAVEGACIÓN CENTRAL DEL SISTEMA
+// Cambia la vista interna y después navega a /sistema.
+// ==================================================
+
+function irAVistaSistema(
+  navigate,
+  setView,
+  vista = "dashboard"
+) {
+  if (
+    typeof setView ===
+    "function"
+  ) {
+    setView(
+      vista
+    );
+  }
+
+  navigate(
+    "/sistema",
+    {
+      replace: true
+    }
+  );
+}
+
+
+// ==================================================
 // RUTA PRUEBAS DEL PACIENTE
 // ==================================================
 
-function PruebasPacienteRoute() {
+function PruebasPacienteRoute({
+  setView
+}) {
   const {
     idPaciente
   } = useParams();
@@ -160,7 +190,11 @@ function PruebasPacienteRoute() {
   return (
     <MainLayout
       onNavigate={() =>
-        navigate("/")
+        irAVistaSistema(
+          navigate,
+          setView,
+          "dashboard"
+        )
       }
     >
       <PruebasView
@@ -187,7 +221,9 @@ function PruebasPacienteRoute() {
 // PRUEBAS DE UNA SESIÓN
 // ==================================================
 
-function PruebasSesionRoute() {
+function PruebasSesionRoute({
+  setView
+}) {
   const {
     idPaciente,
     idSesion
@@ -202,7 +238,11 @@ function PruebasSesionRoute() {
   return (
     <MainLayout
       onNavigate={() =>
-        navigate("/")
+        irAVistaSistema(
+          navigate,
+          setView,
+          "dashboard"
+        )
       }
     >
       <PruebasView
@@ -234,7 +274,9 @@ function PruebasSesionRoute() {
 // REPORTES IA PACIENTE
 // ==================================================
 
-function ReportesPacienteRoute() {
+function ReportesPacienteRoute({
+  setView
+}) {
   const {
     idPaciente
   } = useParams();
@@ -245,7 +287,11 @@ function ReportesPacienteRoute() {
   return (
     <MainLayout
       onNavigate={() =>
-        navigate("/")
+        irAVistaSistema(
+          navigate,
+          setView,
+          "dashboard"
+        )
       }
     >
       <div style={reportesPage}>
@@ -284,7 +330,9 @@ function ReportesPacienteRoute() {
 // PREANÁLISIS DE SESIÓN
 // ==================================================
 
-function PreanalisisSesionRoute() {
+function PreanalisisSesionRoute({
+  setView
+}) {
   const {
     idPaciente,
     idSesion
@@ -296,7 +344,11 @@ function PreanalisisSesionRoute() {
   return (
     <MainLayout
       onNavigate={() =>
-        navigate("/")
+        irAVistaSistema(
+          navigate,
+          setView,
+          "dashboard"
+        )
       }
     >
       <div style={reportesPage}>
@@ -340,19 +392,29 @@ function PreanalisisSesionRoute() {
 // CITAS GENERALES
 // ==================================================
 
-function CitasRoute() {
+function CitasRoute({
+  setView
+}) {
   const navigate =
     useNavigate();
 
   return (
     <MainLayout
       onNavigate={() =>
-        navigate("/")
+        irAVistaSistema(
+          navigate,
+          setView,
+          "dashboard"
+        )
       }
     >
       <CalendarView
         onBack={() =>
-          navigate("/")
+          irAVistaSistema(
+            navigate,
+            setView,
+            "dashboard"
+          )
         }
       />
     </MainLayout>
@@ -363,7 +425,9 @@ function CitasRoute() {
 // VIDEOLLAMADA DEL PACIENTE
 // ==================================================
 
-function VideollamadaPacienteRoute() {
+function VideollamadaPacienteRoute({
+  setView
+}) {
   const {
     idPaciente
   } = useParams();
@@ -374,7 +438,11 @@ function VideollamadaPacienteRoute() {
   return (
     <MainLayout
       onNavigate={() =>
-        navigate("/")
+        irAVistaSistema(
+          navigate,
+          setView,
+          "dashboard"
+        )
       }
     >
       <div style={videollamadaPage}>
@@ -409,11 +477,19 @@ function VideollamadaPacienteRoute() {
 // UNA SOLA RUTA: /empleados
 // ==================================================
 
-function EmpleadosRHRoute() {
+function EmpleadosRHRoute({
+  setView
+}) {
+  const navigate =
+    useNavigate();
+
   const volverAlDashboard =
     () => {
-      window.location.href =
-        "/";
+      irAVistaSistema(
+        navigate,
+        setView,
+        "dashboard"
+      );
     };
 
   return (
@@ -428,6 +504,114 @@ function EmpleadosRHRoute() {
         }
       />
     </MainLayout>
+  );
+}
+
+
+
+// ==================================================
+// LAYOUT PARA RUTAS INTERNAS
+// Todas regresan al dashboard sin usar historial.
+// ==================================================
+
+function SystemRouteLayout({
+  children,
+  setView
+}) {
+  const navigate =
+    useNavigate();
+
+  const volverAlDashboard =
+    () => {
+      irAVistaSistema(
+        navigate,
+        setView,
+        "dashboard"
+      );
+    };
+
+  return (
+    <MainLayout
+      onNavigate={
+        volverAlDashboard
+      }
+    >
+      {children}
+    </MainLayout>
+  );
+}
+
+
+// ==================================================
+// LOGIN DEL SISTEMA
+// ==================================================
+
+function LoginSistemaRoute({
+  setUser,
+  setIsAdmin,
+  setView
+}) {
+  const navigate =
+    useNavigate();
+
+  return (
+    <LoginView
+      onLoginSuccess={
+        u => {
+          setUser(
+            u
+          );
+
+          setIsAdmin(
+            u?.role === 1
+          );
+
+          irAVistaSistema(
+            navigate,
+            setView,
+            "dashboard"
+          );
+        }
+      }
+      onBack={() =>
+        navigate(
+          "/",
+          {
+            replace: true
+          }
+        )
+      }
+    />
+  );
+}
+
+
+// ==================================================
+// EXPEDIENTE DEL PACIENTE
+// Volver = Pacientes registrados.
+// ==================================================
+
+function PacienteDetalleRoute({
+  setView
+}) {
+  const navigate =
+    useNavigate();
+
+  const volverAPacientes =
+    () => {
+      irAVistaSistema(
+        navigate,
+        setView,
+        "pacientes"
+      );
+    };
+
+  return (
+    <PacienteDetalle
+      onBack={
+        volverAPacientes
+      }
+    />
   );
 }
 
@@ -1343,11 +1527,10 @@ const MainApp = () => {
   // ==================================================
 
   function LegacyShell() {
+
     const publicView =
-      view ===
-        "landing" ||
-      view ===
-        "login";
+      view === "landing" ||
+      view === "login";
 
     return publicView
       ? (
@@ -1430,28 +1613,15 @@ const MainApp = () => {
         <Route
           path="/login"
           element={
-            <LoginView
-              onLoginSuccess={
-                u => {
-                  setUser(
-                    u
-                  );
-
-                  setIsAdmin(
-                    u?.role === 1
-                  );
-
-                  setView(
-                    "dashboard"
-                  );
-
-                  window.location.href =
-                    "/sistema";
-                }
+            <LoginSistemaRoute
+              setUser={
+                setUser
               }
-              onBack={() =>
-                window.location.href =
-                  "/"
+              setIsAdmin={
+                setIsAdmin
+              }
+              setView={
+                setView
               }
             />
           }
@@ -1596,9 +1766,9 @@ const MainApp = () => {
         <Route
           path="/paciente/:idPaciente"
           element={
-            <PacienteDetalle
-              onBack={() =>
-                window.history.back()
+            <PacienteDetalleRoute
+              setView={
+                setView
               }
             />
           }
@@ -1607,28 +1777,44 @@ const MainApp = () => {
         <Route
           path="/paciente/:idPaciente/pruebas"
           element={
-            <PruebasPacienteRoute />
+            <PruebasPacienteRoute
+              setView={
+                setView
+              }
+            />
           }
         />
 
         <Route
           path="/paciente/:idPaciente/sesion/:idSesion/pruebas"
           element={
-            <PruebasSesionRoute />
+            <PruebasSesionRoute
+              setView={
+                setView
+              }
+            />
           }
         />
 
         <Route
           path="/paciente/:idPaciente/reportes-ia"
           element={
-            <ReportesPacienteRoute />
+            <ReportesPacienteRoute
+              setView={
+                setView
+              }
+            />
           }
         />
 
         <Route
           path="/paciente/:idPaciente/sesion/:idSesion/preanalisis"
           element={
-            <PreanalisisSesionRoute />
+            <PreanalisisSesionRoute
+              setView={
+                setView
+              }
+            />
           }
         />
 
@@ -1642,7 +1828,11 @@ const MainApp = () => {
         <Route
           path="/paciente/:idPaciente/videollamada"
           element={
-            <VideollamadaPacienteRoute />
+            <VideollamadaPacienteRoute
+              setView={
+                setView
+              }
+            />
           }
         />
 
@@ -1680,7 +1870,11 @@ const MainApp = () => {
         <Route
           path="/citas"
           element={
-            <CitasRoute />
+            <CitasRoute
+              setView={
+                setView
+              }
+            />
           }
         />
 
@@ -1690,26 +1884,26 @@ const MainApp = () => {
         <Route
           path="/rh/usuarios"
           element={
-            <MainLayout
-              onNavigate={() =>
-                window.history.back()
+            <SystemRouteLayout
+              setView={
+                setView
               }
             >
               <UsuariosRH />
-            </MainLayout>
+            </SystemRouteLayout>
           }
         />
 
         <Route
           path="/rh/registrar-usuario"
           element={
-            <MainLayout
-              onNavigate={() =>
-                window.history.back()
+            <SystemRouteLayout
+              setView={
+                setView
               }
             >
               <RegisterUsuarioRH />
-            </MainLayout>
+            </SystemRouteLayout>
           }
         />
         
@@ -1728,26 +1922,26 @@ const MainApp = () => {
         <Route
           path="/prospectos"
           element={
-            <MainLayout
-              onNavigate={() =>
-                window.history.back()
+            <SystemRouteLayout
+              setView={
+                setView
               }
             >
               <ProspectosRH />
-            </MainLayout>
+            </SystemRouteLayout>
           }
         />
 
         <Route
           path="/registrar-prospecto"
           element={
-            <MainLayout
-              onNavigate={() =>
-                window.history.back()
+            <SystemRouteLayout
+              setView={
+                setView
               }
             >
               <RegistrarProspecto />
-            </MainLayout>
+            </SystemRouteLayout>
           }
         />
 
@@ -1761,104 +1955,104 @@ const MainApp = () => {
         <Route
           path="/prospecto/:idProspecto/seguimiento"
           element={
-            <MainLayout
-              onNavigate={() =>
-                window.history.back()
+            <SystemRouteLayout
+              setView={
+                setView
               }
             >
               <SeguimientoProspecto />
-            </MainLayout>
+            </SystemRouteLayout>
           }
         />
 
         <Route
           path="/prospecto/:idProspecto/entrevistas"
           element={
-            <MainLayout
-              onNavigate={() =>
-                window.history.back()
+            <SystemRouteLayout
+              setView={
+                setView
               }
             >
               <EntrevistasProspecto />
-            </MainLayout>
+            </SystemRouteLayout>
           }
         />
 
         <Route
           path="/prospecto/:idProspecto/pruebas"
           element={
-            <MainLayout
-              onNavigate={() =>
-                window.history.back()
+            <SystemRouteLayout
+              setView={
+                setView
               }
             >
               <PruebasProspecto />
-            </MainLayout>
+            </SystemRouteLayout>
           }
         />
 
         <Route
           path="/prospecto/:idProspecto/documentos"
           element={
-            <MainLayout
-              onNavigate={() =>
-                window.history.back()
+            <SystemRouteLayout
+              setView={
+                setView
               }
             >
               <DocumentosProspecto />
-            </MainLayout>
+            </SystemRouteLayout>
           }
         />
 
         <Route
           path="/prospecto/:idProspecto/observaciones"
           element={
-            <MainLayout
-              onNavigate={() =>
-                window.history.back()
+            <SystemRouteLayout
+              setView={
+                setView
               }
             >
               <ObservacionesProspecto />
-            </MainLayout>
+            </SystemRouteLayout>
           }
         />
 
         <Route
           path="/prospecto/:idProspecto/reporte-ia"
           element={
-            <MainLayout
-              onNavigate={() =>
-                window.history.back()
+            <SystemRouteLayout
+              setView={
+                setView
               }
             >
               <ReporteIAProspecto />
-            </MainLayout>
+            </SystemRouteLayout>
           }
         />
 
         <Route
           path="/prospecto/:idProspecto/expediente-seleccion"
           element={
-            <MainLayout
-              onNavigate={() =>
-                window.history.back()
+            <SystemRouteLayout
+              setView={
+                setView
               }
             >
               <ExpedienteSeleccionProspecto />
-            </MainLayout>
+            </SystemRouteLayout>
           }
         />
 
         <Route
           path="/prospecto/:idProspecto/decision"
           element={
-            <MainLayout
-              onNavigate={() =>
-                window.history.back()
+            <SystemRouteLayout
+              setView={
+                setView
               }
             >
               <DecisionProspecto />
-            </MainLayout>
+            </SystemRouteLayout>
           }
         />
 
@@ -1868,7 +2062,11 @@ const MainApp = () => {
         <Route
           path="/empleados"
           element={
-            <EmpleadosRHRoute />
+            <EmpleadosRHRoute
+              setView={
+                setView
+              }
+            />
           }
         />
 
@@ -1882,39 +2080,39 @@ const MainApp = () => {
         <Route
           path="/empleado/:idEmpleado/seguimiento"
           element={
-            <MainLayout
-              onNavigate={() =>
-                window.history.back()
+            <SystemRouteLayout
+              setView={
+                setView
               }
             >
               <SeguimientoEmpleado />
-            </MainLayout>
+            </SystemRouteLayout>
           }
         />
 
         <Route
           path="/empleado/:idEmpleado/evaluaciones"
           element={
-            <MainLayout
-              onNavigate={() =>
-                window.history.back()
+            <SystemRouteLayout
+              setView={
+                setView
               }
             >
               <EvaluacionesEmpleado />
-            </MainLayout>
+            </SystemRouteLayout>
           }
         />
 
         <Route
           path="/empleado/:idEmpleado/bienestar"
           element={
-            <MainLayout
-              onNavigate={() =>
-                window.history.back()
+            <SystemRouteLayout
+              setView={
+                setView
               }
             >
               <BienestarEmpleado />
-            </MainLayout>
+            </SystemRouteLayout>
           }
         />
 
@@ -1924,13 +2122,13 @@ const MainApp = () => {
         <Route
           path="/empleado/:idEmpleado/nom035"
           element={
-            <MainLayout
-              onNavigate={() =>
-                window.history.back()
+            <SystemRouteLayout
+              setView={
+                setView
               }
             >
               <Nom035Empleado />
-            </MainLayout>
+            </SystemRouteLayout>
           }
         />
 
@@ -1940,26 +2138,26 @@ const MainApp = () => {
         <Route
           path="/educativo/usuarios"
           element={
-            <MainLayout
-              onNavigate={() =>
-                window.history.back()
+            <SystemRouteLayout
+              setView={
+                setView
               }
             >
               <UsuariosEducativo />
-            </MainLayout>
+            </SystemRouteLayout>
           }
         />
 
         <Route
           path="/educativo/registrar-usuario"
           element={
-            <MainLayout
-              onNavigate={() =>
-                window.history.back()
+            <SystemRouteLayout
+              setView={
+                setView
               }
             >
               <RegisterUsuarioEducativo />
-            </MainLayout>
+            </SystemRouteLayout>
           }
         />
 
@@ -1969,13 +2167,13 @@ const MainApp = () => {
         <Route
           path="/independiente/usuarios"
           element={
-            <MainLayout
-              onNavigate={() =>
-                window.history.back()
+            <SystemRouteLayout
+              setView={
+                setView
               }
             >
               <UsuariosIndependiente />
-            </MainLayout>
+            </SystemRouteLayout>
           }
         />
 

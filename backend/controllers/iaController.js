@@ -1,23 +1,18 @@
 import pool from "../config/database.js";
 import { analyzeWithIA, generarReporteIA } from "../svc/aiService.js";
 
-
 /* ==================================================
    ANALIZAR DATOS RECIBIDOS
    POST /api/ia/analizar
 ================================================== */
-
 export async function generarAnalisisIA(req, res) {
-
   try {
-
     const {
       paciente,
       pruebas,
       emociones,
       reporte
     } = req.body;
-
 
     const resultado =
       await analyzeWithIA(
@@ -27,35 +22,27 @@ export async function generarAnalisisIA(req, res) {
         reporte
       );
 
-
     return res.json({
       success: true,
       analisis: resultado
     });
 
-
   } catch (error) {
-
     console.error(
       "❌ Error IA:",
       error
     );
 
-
     return res
       .status(500)
       .json({
         success: false,
-
         message:
           "Error generando análisis IA",
-
         error:
           error.message
       });
-
   }
-
 }
 
 
@@ -77,27 +64,21 @@ export async function generarAnalisisIA(req, res) {
    - Guarda el Preanálisis IA ligado a la sesión.
    - Solo permite 1 Preanálisis IA por sesión.
 ================================================== */
-
 export async function generarAnalisisSesion(req, res) {
 
   const {
     id_sesion
   } = req.body;
 
-
   if (!id_sesion) {
-
     return res
       .status(400)
       .json({
         success: false,
-
         message:
           "Falta el ID de la sesión"
       });
-
   }
-
 
   try {
 
@@ -106,25 +87,20 @@ export async function generarAnalisisSesion(req, res) {
         id_sesion
       );
 
-
     if (
       !Number.isInteger(
         idSesion
       ) ||
       idSesion <= 0
     ) {
-
       return res
         .status(400)
         .json({
           success: false,
-
           message:
             "ID de sesión inválido"
         });
-
     }
-
 
     console.log(
       "📥 Generando Preanálisis IA para sesión:",
@@ -169,26 +145,20 @@ export async function generarAnalisisSesion(req, res) {
         ]
       );
 
-
     if (
       !paciente.length
     ) {
-
       return res
         .status(404)
         .json({
           success: false,
-
           message:
             "Paciente no encontrado para la sesión"
         });
-
     }
-
 
     const pacienteActual =
       paciente[0];
-
 
     const numeroSesionActual =
       Number(
@@ -234,7 +204,6 @@ export async function generarAnalisisSesion(req, res) {
         ]
       );
 
-
     if (
       reportesExistentes.length > 0
     ) {
@@ -242,11 +211,9 @@ export async function generarAnalisisSesion(req, res) {
       const reporteExistente =
         reportesExistentes[0];
 
-
       console.log(
         `♻️ Preanálisis IA ya existente para sesión clínica #${numeroSesionActual} (id interno ${idSesion}). Se reutiliza reporte #${reporteExistente.id_reporte}.`
       );
-
 
       return res.json({
         success: true,
@@ -284,7 +251,6 @@ export async function generarAnalisisSesion(req, res) {
           reporteExistente
             .contenido
       });
-
     }
 
 
@@ -322,7 +288,6 @@ export async function generarAnalisisSesion(req, res) {
 
     let notaIAAnterior =
       null;
-
 
     try {
 
@@ -363,11 +328,9 @@ export async function generarAnalisisSesion(req, res) {
           ]
         );
 
-
       sesionAnterior =
         anteriores[0] ||
         null;
-
 
       if (
         sesionAnterior
@@ -400,11 +363,9 @@ export async function generarAnalisisSesion(req, res) {
             ]
           );
 
-
         cierreAnterior =
           cierres[0] ||
           null;
-
 
         const [notasAnterior] =
           await pool.query(
@@ -431,13 +392,10 @@ export async function generarAnalisisSesion(req, res) {
             ]
           );
 
-
         notaIAAnterior =
           notasAnterior[0] ||
           null;
-
       }
-
 
       console.log(
         `🔄 Sesión anterior para sesión clínica #${numeroSesionActual}:`,
@@ -446,7 +404,6 @@ export async function generarAnalisisSesion(req, res) {
           : "ninguna"
       );
 
-
       console.log(
         "📝 Nota IA anterior:",
         notaIAAnterior
@@ -454,14 +411,12 @@ export async function generarAnalisisSesion(req, res) {
           : "no registrada"
       );
 
-
     } catch (error) {
 
       console.warn(
         "⚠️ No fue posible obtener la sesión anterior:",
         error.message
       );
-
 
       sesionAnterior =
         null;
@@ -471,7 +426,6 @@ export async function generarAnalisisSesion(req, res) {
 
       notaIAAnterior =
         null;
-
     }
 
 
@@ -481,7 +435,6 @@ export async function generarAnalisisSesion(req, res) {
 
     let notaIA =
       null;
-
 
     try {
 
@@ -509,12 +462,10 @@ export async function generarAnalisisSesion(req, res) {
           ]
         );
 
-
       notaIA =
         notasIA.length
           ? notasIA[0]
           : null;
-
 
       console.log(
         `📝 Nota IA sesión clínica #${numeroSesionActual}:`,
@@ -523,7 +474,6 @@ export async function generarAnalisisSesion(req, res) {
           : "no registrada"
       );
 
-
     } catch (error) {
 
       console.warn(
@@ -531,10 +481,8 @@ export async function generarAnalisisSesion(req, res) {
         error.message
       );
 
-
       notaIA =
         null;
-
     }
 
 
@@ -545,7 +493,6 @@ export async function generarAnalisisSesion(req, res) {
 
     let resultados =
       [];
-
 
     try {
 
@@ -629,12 +576,10 @@ export async function generarAnalisisSesion(req, res) {
           ]
         );
 
-
       console.log(
         `🧪 Resultados encontrados para sesión clínica #${numeroSesionActual}:`,
         resultados.length
       );
-
 
     } catch (error) {
 
@@ -643,10 +588,8 @@ export async function generarAnalisisSesion(req, res) {
         error.message
       );
 
-
       resultados =
         [];
-
     }
 
 
@@ -656,7 +599,6 @@ export async function generarAnalisisSesion(req, res) {
 
     let seguimiento =
       [];
-
 
     try {
 
@@ -684,7 +626,6 @@ export async function generarAnalisisSesion(req, res) {
           ]
         );
 
-
     } catch (error) {
 
       console.warn(
@@ -692,10 +633,8 @@ export async function generarAnalisisSesion(req, res) {
         error.message
       );
 
-
       seguimiento =
         [];
-
     }
 
 
@@ -705,7 +644,6 @@ export async function generarAnalisisSesion(req, res) {
 
     let multimedia =
       [];
-
 
     try {
 
@@ -735,7 +673,6 @@ export async function generarAnalisisSesion(req, res) {
           ]
         );
 
-
     } catch (error) {
 
       console.warn(
@@ -743,10 +680,8 @@ export async function generarAnalisisSesion(req, res) {
         error.message
       );
 
-
       multimedia =
         [];
-
     }
 
 
@@ -762,24 +697,17 @@ export async function generarAnalisisSesion(req, res) {
         valor === null ||
         valor === undefined
       ) {
-
         return null;
-
       }
-
 
       const texto =
         String(
           valor
         ).trim();
 
-
       if (!texto) {
-
         return null;
-
       }
-
 
       const sinInformacion = [
         "no",
@@ -794,15 +722,12 @@ export async function generarAnalisisSesion(req, res) {
         "--"
       ];
 
-
       return sinInformacion.includes(
         texto.toLowerCase()
       )
         ? null
         : texto;
-
     };
-
 
     const diagnosticoAnterior =
       valorClinicoUtil(
@@ -810,13 +735,11 @@ export async function generarAnalisisSesion(req, res) {
           ?.diagnostico
       );
 
-
     const tratamientoAnterior =
       valorClinicoUtil(
         cierreAnterior
           ?.tratamiento
       );
-
 
     const evolucionAnterior =
       valorClinicoUtil(
@@ -824,20 +747,17 @@ export async function generarAnalisisSesion(req, res) {
           ?.evolucion
       );
 
-
     const observacionesAnteriores =
       valorClinicoUtil(
         cierreAnterior
           ?.observaciones
       );
 
-
     const tareasAnteriores =
       valorClinicoUtil(
         cierreAnterior
           ?.tareas_acuerdos
       );
-
 
     const notaAnteriorUtil =
       valorClinicoUtil(
@@ -871,12 +791,51 @@ export async function generarAnalisisSesion(req, res) {
             "cleaver"
           )
       );
-
     };
 
 
     /* ==========================================
-       10. CONSTRUIR CONTEXTO
+       10. CATÁLOGO DE PRUEBAS DISPONIBLES
+
+       Se usa para que la IA pueda recomendar
+       únicamente pruebas reales de MirrorSoul.
+    ========================================== */
+
+    let pruebasDisponibles = [];
+
+    try {
+
+      [pruebasDisponibles] =
+        await pool.query(
+          `
+            SELECT
+              id_prueba,
+              nombre
+
+            FROM pruebas
+
+            ORDER BY nombre ASC
+          `
+        );
+
+      console.log(
+        "🧪 Pruebas disponibles para recomendaciones IA:",
+        pruebasDisponibles.length
+      );
+
+    } catch (error) {
+
+      console.warn(
+        "⚠️ No fue posible obtener el catálogo de pruebas:",
+        error.message
+      );
+
+      pruebasDisponibles = [];
+    }
+
+
+    /* ==========================================
+       11. CONSTRUIR CONTEXTO
     ========================================== */
 
     let contexto = `
@@ -927,7 +886,6 @@ ${
     contexto += `
 ANTECEDENTES RELEVANTES
 `;
-
 
     if (
       historial.length
@@ -983,17 +941,14 @@ ANTECEDENTES RELEVANTES
             "\n"
           );
 
-
       contexto +=
         datosHistorial ||
         "No hay antecedentes relevantes disponibles.\n";
-
 
     } else {
 
       contexto +=
         "No se encontró historial inicial registrado.\n";
-
     }
 
 
@@ -1004,7 +959,6 @@ ANTECEDENTES RELEVANTES
     contexto += `
 SESIÓN ANTERIOR PARA COMPARACIÓN
 `;
-
 
     if (
       sesionAnterior
@@ -1018,7 +972,6 @@ SESIÓN ANTERIOR PARA COMPARACIÓN
         ) ||
         sesionAnterior
           .id_sesion;
-
 
       contexto += `
 Sesión anterior: #${numeroSesionAnterior}
@@ -1045,23 +998,20 @@ Nota clínica para IA de la sesión anterior:
 ${notaAnteriorUtil || "No registrada"}
 `;
 
-
     } else {
 
       contexto +=
         "No existe una sesión anterior finalizada disponible para comparación.\n";
-
     }
 
 
     /* ==========================================
-       PRUEBAS
+       PRUEBAS REALIZADAS
     ========================================== */
 
     contexto += `
 RESULTADOS DE PRUEBAS DE ESTA SESIÓN
 `;
-
 
     if (
       resultados.length
@@ -1075,7 +1025,6 @@ RESULTADOS DE PRUEBAS DE ESTA SESIÓN
           const nombrePrueba =
             r.prueba ||
             "Sin nombre";
-
 
           contexto +=
             `- Prueba: ${nombrePrueba}\n`;
@@ -1094,13 +1043,11 @@ RESULTADOS DE PRUEBAS DE ESTA SESIÓN
             contexto +=
               "  Tipo de resultado: Perfil conductual multidimensional Cleaver.\n";
 
-
             contexto +=
               `  Perfil principal: ${
                 r.cleaver_perfil_principal ||
                 "No registrado"
               }\n`;
-
 
             const tieneT =
               r.cleaver_t_d !==
@@ -1123,16 +1070,13 @@ RESULTADOS DE PRUEBAS DE ESTA SESIÓN
               r.cleaver_t_c !==
                 undefined;
 
-
             if (
               tieneT
             ) {
 
               contexto +=
                 `  Perfil D/I/S/C: D ${r.cleaver_t_d} · I ${r.cleaver_t_i} · S ${r.cleaver_t_s} · C ${r.cleaver_t_c}\n`;
-
             }
-
 
             contexto +=
               `  Interpretación Cleaver: ${
@@ -1141,13 +1085,10 @@ RESULTADOS DE PRUEBAS DE ESTA SESIÓN
                 "No registrada"
               }\n`;
 
-
             contexto +=
               "  IMPORTANTE: Cleaver no debe interpretarse como un puntaje total. No utilizar puntaje_total = 0 como resultado clínico.\n";
 
-
             return;
-
           }
 
 
@@ -1167,22 +1108,45 @@ RESULTADOS DE PRUEBAS DE ESTA SESIÓN
                 : "No registrado"
             }\n`;
 
-
           contexto +=
             `  Interpretación registrada: ${
               r.interpretacion ||
               "No registrada"
             }\n`;
-
         }
       );
-
 
     } else {
 
       contexto +=
         "No se registraron pruebas en esta sesión.\n";
+    }
 
+
+    /* ==========================================
+       PRUEBAS DISPONIBLES EN MIRRORSOUL
+    ========================================== */
+
+    contexto += `
+PRUEBAS DISPONIBLES EN MIRRORSOUL
+`;
+
+    if (
+      pruebasDisponibles.length
+    ) {
+
+      pruebasDisponibles.forEach(
+        (prueba) => {
+
+          contexto +=
+            `- ${prueba.nombre} (id ${prueba.id_prueba})\n`;
+        }
+      );
+
+    } else {
+
+      contexto +=
+        "No fue posible obtener el catálogo de pruebas disponibles.\n";
     }
 
 
@@ -1193,7 +1157,6 @@ RESULTADOS DE PRUEBAS DE ESTA SESIÓN
     contexto += `
 CIERRE O SEGUIMIENTO REGISTRADO EN ESTA SESIÓN
 `;
-
 
     if (
       seguimiento.length
@@ -1225,12 +1188,10 @@ Observaciones registradas: ${
 }
 `;
 
-
     } else {
 
       contexto +=
         "Todavía no existe cierre o seguimiento clínico registrado para esta sesión.\n";
-
     }
 
 
@@ -1241,7 +1202,6 @@ Observaciones registradas: ${
     contexto += `
 MULTIMEDIA DE ESTA SESIÓN
 `;
-
 
     if (
       multimedia.length
@@ -1263,22 +1223,17 @@ MULTIMEDIA DE ESTA SESIÓN
             m.transcripcion
               .trim();
 
-
           contexto +=
             `- Archivo ${index + 1}\n`;
-
 
           contexto +=
             `Tipo: ${m.tipo || "Archivo"}\n`;
 
-
           contexto +=
             `Descripción: ${m.descripcion || "Sin descripción"}\n`;
 
-
           contexto +=
             `Formato: ${m.formato || "No registrado"}\n`;
-
 
           contexto +=
             `Duración: ${
@@ -1287,13 +1242,11 @@ MULTIMEDIA DE ESTA SESIÓN
                 : "No registrada"
             }\n`;
 
-
           contexto +=
             `Estado de transcripción: ${
               m.transcripcion_estado ||
               "No registrada"
             }\n`;
-
 
           if (
             tieneTranscripcion
@@ -1302,214 +1255,409 @@ MULTIMEDIA DE ESTA SESIÓN
             contexto +=
               `Transcripción del audio:\n${m.transcripcion.trim()}\n`;
 
-
           } else {
 
             contexto +=
               "Transcripción del audio: No disponible.\n";
-
           }
-
         }
       );
-
 
     } else {
 
       contexto +=
         "No se registró multimedia relevante.\n";
-
     }
 
 
     /* ==========================================
-       11. PROMPT CLÍNICO CORTO
+       12. PROMPT CLÍNICO CORTO
     ========================================== */
 
     const prompt = `
-Eres un asistente de apoyo para profesionales de psicología.
+Eres un asistente de apoyo clínico para profesionales de psicología.
 
 Tu función es generar un PREANÁLISIS IA BREVE antes de que
 el psicólogo realice el cierre clínico de la sesión.
 
 Utiliza EXCLUSIVAMENTE la información proporcionada.
 
+
 REGLAS OBLIGATORIAS:
 
-- No inventes información.
-- No inventes síntomas.
-- No inventes antecedentes.
-- No inventes resultados de pruebas.
-- No modifiques puntajes.
+- No inventes información, síntomas, antecedentes ni resultados.
+
+- No modifiques puntajes ni clasificaciones de las pruebas.
+
 - No afirmes haber escuchado audio o visto video directamente.
 
-- Si existe una TRANSCRIPCIÓN completada, puedes utilizar su contenido
-  como fuente textual de esta sesión.
+- Si existe una transcripción completada,
+  úsala únicamente como fuente textual.
 
-- La transcripción puede contener intervenciones del psicólogo,
-  del paciente o de otras personas.
+- No atribuyas automáticamente una frase al paciente
+  si el hablante no está claramente identificado.
 
-- NO atribuyas automáticamente cada frase al paciente si el hablante
-  no está claramente identificado.
+- No conviertas frases del psicólogo
+  en síntomas del paciente.
 
-- No conviertas frases del psicólogo en síntomas del paciente.
+- Da prioridad a la información ACTUAL
+  de esta sesión.
 
-- Si existe multimedia pero no existe transcripción,
-  solo menciona que hay material registrado.
+- La nota del psicólogo para IA representa
+  información relevante de la consulta actual.
 
-- Da prioridad a la información ACTUAL de esta sesión.
+- Para describir lo ocurrido hoy,
+  integra prudentemente:
 
-- La nota del psicólogo para IA representa información
-  relevante de la consulta actual y debe considerarse.
+  nota del psicólogo,
+  transcripción disponible
+  y pruebas de esta sesión.
 
-- Para describir lo ocurrido HOY, integra de forma prudente:
-  nota del psicólogo + transcripción disponible + pruebas de esta sesión.
-
-- Si la nota del psicólogo y la transcripción parecen contradecirse,
-  no elijas una como verdadera: señala que existe información
+- Si la nota del psicólogo y la transcripción
+  parecen contradecirse,
+  señala que existe información
   que requiere revisión profesional.
 
-- Para identificar CAMBIOS, compara prioritariamente con
+- Para identificar CAMBIOS,
+  compara prioritariamente con
   la SESIÓN ANTERIOR FINALIZADA.
 
-- Usa primero el cierre profesional anterior cuando contenga
-  información clínica útil.
+- Usa primero el cierre profesional anterior
+  cuando contenga información clínica útil.
 
-- Si el cierre anterior está vacío o contiene respuestas sin
-  valor clínico como "no", "ninguno", "N/A" o similares,
-  utiliza la NOTA CLÍNICA PARA IA DE LA SESIÓN ANTERIOR
-  como fuente de continuidad.
+- Si el cierre anterior está vacío
+  o carece de información clínica útil,
+  puedes utilizar la nota clínica para IA
+  de la sesión anterior como referencia.
 
-- La nota anterior NO sustituye un diagnóstico profesional;
-  úsala únicamente para reconocer temas, cambios y continuidad.
+- El historial inicial funciona
+  como antecedente general.
 
-- El historial inicial funciona como antecedente general,
-  no como comparación principal cuando existe sesión anterior.
+- No afirmes mejoría,
+  empeoramiento,
+  continuidad
+  o recaída
+  si la información disponible
+  no permite establecerlo.
 
-- No afirmes mejoría, empeoramiento, continuidad o recaída
-  si la información disponible no permite compararlo.
+- Si un tema actual
+  no aparece en la sesión anterior,
+  puedes describirlo como:
 
-- Si un tema actual no aparece en la sesión anterior,
-  puedes describirlo como "nuevo elemento registrado".
+  "nuevo elemento registrado".
 
-- Si existen tareas o acuerdos de la sesión anterior,
-  utilízalos solo para señalar qué conviene revisar antes del cierre.
+- Si existen tareas
+  o acuerdos de la sesión anterior,
+  utilízalos únicamente para señalar
+  qué conviene revisar.
 
-- Si existen pruebas de esta sesión, considéralas.
+- Si existen pruebas de esta sesión,
+  intégralas entre sí.
 
-- Si no existen pruebas, indícalo brevemente.
+- Si no existen pruebas,
+  indícalo brevemente.
 
-- Si una prueba es Cleaver, NO la describas mediante "puntaje 0".
+- Si una prueba es Cleaver,
+  NO la describas mediante "puntaje 0".
 
 - Para Cleaver utiliza:
+
   perfil principal,
   valores D/I/S/C,
-  e interpretación Cleaver proporcionada.
+  e interpretación proporcionada.
 
 - Cleaver es un resultado multidimensional.
-  No lo conviertas en un puntaje total.
-  No inventes una escala global.
 
-- No presentes una hipótesis como diagnóstico confirmado.
+- No lo conviertas
+  en un puntaje total.
+
+- No inventes una escala global.
 
 - No realices recomendaciones médicas.
 
+- No realices recomendaciones farmacológicas.
+
 - No uses lenguaje alarmista.
 
-- El psicólogo conserva siempre la decisión clínica final.
+- El psicólogo conserva siempre
+  la decisión clínica final.
+
+
+ORIENTACIÓN PREDIAGNÓSTICA:
+
+- Puedes formular una
+  HIPÓTESIS CLÍNICA PRELIMINAR
+  cuando los datos disponibles
+  la sostengan.
+
+- Nunca presentes esta hipótesis
+  como diagnóstico confirmado.
+
+- Puedes utilizar expresiones como:
+
+  "sintomatología depresiva"
+
+  "sintomatología ansiosa"
+
+  "estrés significativo"
+
+  "malestar emocional significativo"
+
+  "indicadores compatibles con un cuadro depresivo"
+
+  "indicadores compatibles con un cuadro ansioso"
+
+- Cuando existan varios resultados
+  de pruebas,
+  intégralos de manera breve.
+
+- Si existen indicadores
+  de ansiedad,
+  depresión
+  y estrés,
+  puedes señalar que existe
+  un patrón de malestar emocional
+  que requiere valoración clínica conjunta.
+
+- Solo menciona un trastorno específico
+  como hipótesis a explorar
+  cuando exista evidencia suficiente
+  en pruebas,
+  notas
+  o antecedentes.
+
+- Utiliza expresiones prudentes como:
+
+  "conviene explorar..."
+
+  "podría ser compatible con..."
+
+  "requiere valoración clínica..."
+
+  "hipótesis a descartar o confirmar..."
+
+  "los resultados orientan a explorar..."
+
+- Nunca escribas:
+
+  "el paciente tiene..."
+
+  "el diagnóstico es..."
+
+  salvo que exista un diagnóstico
+  previamente registrado
+  por el profesional.
+
+- Si existe un diagnóstico profesional previo,
+  aclara que fue registrado
+  por el profesional.
+
+
+PRUEBAS COMPLEMENTARIAS:
+
+- Revisa el apartado:
+
+  PRUEBAS DISPONIBLES EN MIRRORSOUL.
+
+- Sugiere únicamente pruebas
+  cuyo nombre aparezca
+  en ese catálogo.
+
+- No inventes nombres de pruebas.
+
+- No recomiendes pruebas
+  que no existan en MirrorSoul.
+
+- Revisa qué pruebas
+  ya fueron aplicadas
+  en esta sesión.
+
+- Evita recomendar nuevamente
+  una prueba ya realizada.
+
+- Solo puede repetirse una prueba
+  si existe una razón clínica clara
+  para seguimiento longitudinal
+  o comparación posterior.
+
+- Recomienda máximo
+  2 o 3 pruebas.
+
+- Cada prueba sugerida
+  debe incluir una razón
+  breve y concreta.
+
+Ejemplo:
+
+"Prueba X: para profundizar en síntomas ansiosos."
+
+- No hagas recomendaciones
+  solo para llenar el apartado.
+
+- Si las pruebas realizadas
+  ya proporcionan información suficiente
+  y no existe una evaluación
+  complementaria clara,
+  escribe:
+
+  "No se identifica una prueba complementaria específica disponible en MirrorSoul."
+
+
+ALERTA CLÍNICA:
+
+- Si los resultados muestran
+  intensidad severa,
+  riesgo importante,
+  deterioro marcado
+  o información que amerite
+  atención prioritaria,
+  indícalo de forma breve
+  y profesional.
+
+- No exageres el nivel de riesgo.
+
+- No inventes riesgo.
+
+- Un resultado severo
+  no significa automáticamente
+  que exista riesgo suicida.
+
+- Sin embargo,
+  cuando clínicamente corresponda,
+  puedes sugerir brevemente:
+
+  "Conviene explorar factores de riesgo autolesivo o suicida."
+
+- Esa recomendación debe presentarse
+  como algo que el profesional
+  debe valorar,
+  nunca como una afirmación
+  de que el riesgo existe.
 
 
 FORMATO OBLIGATORIO:
 
 PREANÁLISIS IA
 
-Hoy:
-una sola frase sobre lo más importante ocurrido en esta sesión.
+Resumen actual:
+
+Una o dos frases
+con los hallazgos principales
+de esta sesión.
+
 
 Cambio:
-compara prioritariamente la información ACTUAL contra
-la SESIÓN ANTERIOR FINALIZADA.
 
-Indica en una sola frase si algo mejoró,
-empeoró, continúa, reapareció,
-desapareció o es un elemento nuevo.
+Una sola frase
+comparando la información actual
+con la sesión anterior.
 
-No inventes cambios.
-
-Si no hay información suficiente de la sesión anterior para comparar,
+Si no hay información suficiente,
 escribe exactamente:
 
 "No hay información suficiente de la sesión anterior para establecer cambios."
 
-Pruebas:
-una sola frase con las pruebas realizadas en ESTA SESIÓN.
 
-Para pruebas con puntaje:
-incluye puntaje e interpretación relevante.
+Pruebas:
+
+Una sola frase
+con las pruebas realizadas,
+puntajes
+e interpretación relevante.
 
 Para Cleaver:
-incluye perfil principal,
-síntesis D/I/S/C
-e interpretación relevante,
-sin mencionar "puntaje 0".
+
+resume perfil principal,
+D/I/S/C
+e interpretación relevante.
+
+No menciones "puntaje 0".
 
 Si no hubo pruebas escribe:
 
 "No se registraron pruebas en esta sesión."
 
-Atención:
-una sola frase indicando el aspecto más importante que
-merece atención profesional.
-
-Antes del cierre:
-una sola frase con lo más importante que conviene
-aclarar, confirmar o revisar antes de cerrar la sesión.
 
 Orientación prediagnóstica IA:
-una sola frase de orientación clínica preliminar
-basada únicamente en la información disponible.
 
-Describe indicadores,
-áreas de exploración
-o patrones observados.
+Máximo dos frases.
 
-NO nombres trastornos,
-síndromes
-ni diagnósticos específicos
+Integra los resultados disponibles
+y señala la principal hipótesis clínica
+o las áreas que conviene explorar.
 
-a menos que exista un diagnóstico previamente registrado
-por el profesional
-
-y, en ese caso,
-identifícalo como tal.
-
-Prefiere expresiones como:
-
-"se observan indicadores de malestar emocional asociados a..."
-
-"la información sugiere revisar..."
-
-"los datos disponibles orientan a explorar..."
-
-Nunca presentes esta orientación
+Nunca la presentes
 como diagnóstico definitivo.
+
+
+Pruebas complementarias sugeridas:
+
+Recomienda máximo
+2 o 3 pruebas
+disponibles en MirrorSoul.
+
+Incluye solamente
+una razón breve
+para cada una.
+
+No repitas pruebas
+ya realizadas
+sin justificación.
+
+
+Siguiente sesión / atención:
+
+Máximo dos frases.
+
+Indica qué aspecto
+conviene revisar,
+confirmar
+o explorar.
+
+Si existe un resultado severo
+o un hallazgo
+que amerite atención profesional prioritaria,
+menciónalo aquí
+de forma breve.
 
 
 IMPORTANTE:
 
-- Máximo 6 líneas principales después del título.
-- Cada apartado debe ocupar solo una línea o frase breve.
-- Evita repetir nombre, edad, sexo o antecedentes completos.
-- Evita explicaciones largas.
-- Evita listas adicionales.
-- No agregues recomendaciones extensas.
-- No agregues una sección aparte de multimedia.
-- No agregues una conclusión adicional.
-- No superes aproximadamente 130 palabras.
+- Mantén el texto compacto.
+
+- Debe ser claro.
+
+- Debe ser clínicamente útil.
+
+- No hagas listas largas.
+
+- No repitas nombre,
+  edad,
+  sexo
+  ni antecedentes completos.
+
+- No agregues
+  una conclusión adicional.
+
+- No agregues
+  una sección extra.
+
+- Evita explicaciones extensas.
+
+- No desarrolles
+  tratamientos completos.
+
+- No realices recomendaciones
+  médicas
+  o farmacológicas.
+
+- No superes aproximadamente
+  180 palabras.
+
 
 Al final agrega únicamente:
 
-"Apoyo generado por IA. La interpretación y decisión clínica final corresponden al psicólogo."
+"Apoyo generado por IA. La interpretación, diagnóstico y decisión clínica final corresponden al psicólogo."
 
 
 DATOS DISPONIBLES:
@@ -1519,31 +1667,26 @@ ${contexto}
 
 
     /* ==========================================
-       12. GENERAR PREANÁLISIS
+       13. GENERAR PREANÁLISIS
     ========================================== */
 
     console.log(
       `🤖 Generando Preanálisis IA corto de sesión clínica #${numeroSesionActual} (id interno ${idSesion})...`
     );
 
-
     const analisis =
       await generarReporteIA(
         prompt,
-        300
+        420
       );
-
 
     if (
       !analisis
     ) {
-
       throw new Error(
         "La IA no devolvió ningún contenido."
       );
-
     }
-
 
     console.log(
       "✅ Preanálisis IA generado. Longitud:",
@@ -1552,7 +1695,7 @@ ${contexto}
 
 
     /* ==========================================
-       13. GUARDAR REPORTE
+       14. GUARDAR REPORTE
     ========================================== */
 
     const [resultado] =
@@ -1583,7 +1726,6 @@ ${contexto}
         ]
       );
 
-
     console.log(
       "✅ Preanálisis IA guardado:",
       resultado.insertId
@@ -1591,7 +1733,7 @@ ${contexto}
 
 
     /* ==========================================
-       14. RESPUESTA
+       15. RESPUESTA
     ========================================== */
 
     return res.json({
@@ -1617,9 +1759,7 @@ ${contexto}
         numeroSesionActual,
 
       analisis
-
     });
-
 
   } catch (err) {
 
@@ -1627,7 +1767,6 @@ ${contexto}
       "❌ Error al generar Preanálisis IA:",
       err
     );
-
 
     return res
       .status(500)
@@ -1640,7 +1779,5 @@ ${contexto}
         error:
           err.message
       });
-
   }
-
 }

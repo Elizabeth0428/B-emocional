@@ -425,7 +425,7 @@ export default function SesionesView() {
           getToken();
 
         const API_URL =
-          `http://${window.location.hostname}:5000`;
+          `${import.meta.env.VITE_API_URL || window.location.origin}`;
 
         setMensajeTranscripcion(
           (prev) => ({
@@ -552,7 +552,7 @@ export default function SesionesView() {
           getToken();
 
         const API_URL =
-          `http://${window.location.hostname}:5000`;
+          `${import.meta.env.VITE_API_URL || window.location.origin}`;
 
         const res =
           await fetch(
@@ -627,7 +627,7 @@ export default function SesionesView() {
           getToken();
 
         const API_URL =
-          `http://${window.location.hostname}:5000`;
+          `${import.meta.env.VITE_API_URL || window.location.origin}`;
 
         const res =
           await fetch(
@@ -720,7 +720,7 @@ export default function SesionesView() {
           getToken();
 
         const API_URL =
-          `http://${window.location.hostname}:5000`;
+          `${import.meta.env.VITE_API_URL || window.location.origin}`;
 
         const res =
           await fetch(

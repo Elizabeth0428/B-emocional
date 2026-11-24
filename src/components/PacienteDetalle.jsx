@@ -96,7 +96,7 @@ export default function PacienteDetalle({
 
           const res =
             await fetch(
-              `http://localhost:5000/api/pacientes/${idPaciente}`,
+              `https://www.reflejoyalma.com/api/pacientes/${idPaciente}`,
               {
                 headers: {
                   Authorization:
@@ -161,27 +161,22 @@ export default function PacienteDetalle({
     navigate
   ]);
 
-  // =====================================================
+   // =====================================================
   // BOTÓN VOLVER
   // =====================================================
 
   const volver = () => {
-
-    if (
-      typeof onBack ===
-      "function"
-    ) {
-      onBack();
-      return;
-    }
-
-    navigate(
-      "/dashboard",
-      {
-        replace: true
+  navigate(
+    "/sistema",
+    {
+      replace: true,
+      state: {
+        view: "pacientes"
       }
-    );
-  };
+    }
+  );
+};
+
 
   // =====================================================
   // CARGANDO

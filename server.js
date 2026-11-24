@@ -21,4 +21,4 @@ app.post('/pacientes', async (req, res) => {
 });
 
 // Servidor escuchando
-app.listen(3000, () => console.log('Servidor backend corriendo en http://localhost:3000'));
+app.listen(3000, () => console.log('Servidor backend corriendo en reflejoyalma.com'));

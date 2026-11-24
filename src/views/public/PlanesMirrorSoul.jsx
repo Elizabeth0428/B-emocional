@@ -1,4 +1,3 @@
-
 import React, {
   useEffect,
   useState,
@@ -149,12 +148,99 @@ function PlanesMirrorSoul() {
   const [tema, setTema] =
     useState(obtenerTemaInicial);
 
+  const [precios, setPrecios] = useState({});
+  const [cargandoPrecios, setCargandoPrecios] = useState(true);
+  const [errorPrecios, setErrorPrecios] = useState("");
+
   const oscuro = tema === "oscuro";
 
   const etiquetaPeriodo =
     facturacion === "mensual"
       ? "por mes"
       : "por año";
+
+  // ==========================================================
+  // CARGAR PRECIOS DESDE EL BACKEND
+  // ==========================================================
+
+  useEffect(() => {
+    let activo = true;
+
+    const cargarPrecios = async () => {
+      setCargandoPrecios(true);
+      setErrorPrecios("");
+
+      try {
+        const API_URL = `${import.meta.env.VITE_API_URL || window.location.origin}`;
+
+        const resultados = await Promise.all(
+          planes.map(async (plan) => {
+            const params = new URLSearchParams({
+              plan: plan.slug,
+              periodo: facturacion,
+            });
+
+            const respuesta = await fetch(
+              `${apiBase}/api/pagos/precio?${params.toString()}`
+            );
+
+            if (!respuesta.ok) {
+              throw new Error(
+                `No se pudo consultar el plan ${plan.nombre}`
+              );
+            }
+
+            const data = await respuesta.json();
+
+            const precio = Number(
+              data?.plan?.precio ?? 0
+            );
+
+            return [
+              plan.slug,
+              {
+                precio,
+                moneda:
+                  data?.plan?.moneda ||
+                  "MXN",
+                disponible:
+                  Number.isFinite(precio) &&
+                  precio > 0,
+              },
+            ];
+          })
+        );
+
+        if (!activo) return;
+
+        setPrecios(
+          Object.fromEntries(resultados)
+        );
+      } catch (error) {
+        if (!activo) return;
+
+        console.error(
+          "Error cargando precios de planes:",
+          error
+        );
+
+        setPrecios({});
+        setErrorPrecios(
+          "No fue posible cargar los precios."
+        );
+      } finally {
+        if (activo) {
+          setCargandoPrecios(false);
+        }
+      }
+    };
+
+    cargarPrecios();
+
+    return () => {
+      activo = false;
+    };
+  }, [facturacion]);
 
   // ==========================================================
   // APLICAR Y GUARDAR APARIENCIA
@@ -433,7 +519,18 @@ function PlanesMirrorSoul() {
               <div className="ms-plan-price-box">
 
                 <strong className="ms-plan-price-title">
-                  Precio por definir
+                  {cargandoPrecios
+                    ? "Cargando precio..."
+                    : precios[plan.slug]?.disponible
+                      ? `$${precios[
+                          plan.slug
+                        ].precio.toLocaleString(
+                          "es-MX"
+                        )} ${
+                          precios[plan.slug]
+                            .moneda
+                        }`
+                      : "Precio por definir"}
                 </strong>
 
                 <span className="ms-plan-price-period">
@@ -441,7 +538,18 @@ function PlanesMirrorSoul() {
                 </span>
 
                 <span className="ms-plan-price-note">
-                  Configuración en proceso
+                  {cargandoPrecios
+                    ? "Consultando información..."
+                    : errorPrecios
+                      ? errorPrecios
+                      : precios[
+                          plan.slug
+                        ]?.disponible
+                        ? facturacion ===
+                          "mensual"
+                          ? "Facturación mensual"
+                          : "Facturación anual"
+                        : "Configuración en proceso"}
                 </span>
 
               </div>

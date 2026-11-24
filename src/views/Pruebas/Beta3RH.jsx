@@ -9,7 +9,7 @@ import MatricesBeta3 from "./beta3/MatricesBeta3";
 
 const API_URL =
   import.meta.env.VITE_API_URL ||
-  `http://${window.location.hostname}:5000`;
+  `${import.meta.env.VITE_API_URL || window.location.origin}`;
 
 const Beta3RH = ({ token, pruebaBase }) => {
   const [prueba, setPrueba] = useState(pruebaBase || null);
