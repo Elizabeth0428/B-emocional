@@ -301,7 +301,10 @@ const peerServer =
     {
 
       path:
-        "/myapp"
+        "/myapp",
+
+      proxied:
+        true
 
     }
 

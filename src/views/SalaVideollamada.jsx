@@ -758,25 +758,20 @@ const codigoUnico =
        CREAR PEER CON ID FIJO
     ================================================ */
 
-    const peer =
-      new Peer(
-        peerIdSala,
-        {
+    const esHttps = window.location.protocol === "https:";
 
-          host:
-            window.location.hostname,
-
-          port:
-            5000,
-
-          path:
-            "/peerjs/myapp",
-
-          secure:
-            false
-
-        }
-      );
+const peer = new Peer(peerIdSala, {
+  host: window.location.hostname,
+  port: esHttps ? 443 : 5000,
+  path: "/peerjs/myapp",
+  secure: esHttps,
+  config: {
+    iceServers: [
+      { urls: "stun:stun.l.google.com:19302" },
+      { urls: "stun:stun1.l.google.com:19302" }
+    ]
+  }
+});
 
 
     peerRef.current =

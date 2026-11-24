@@ -113,12 +113,20 @@ function VideollamadaPaciente() {
       // PEERJS
       // =================================================
 
-      const peer = new Peer(undefined, {
-        host: window.location.hostname,
-        port: 5000,
-        path: "/peerjs/myapp",
-        secure: false
-      });
+      const esHttps = window.location.protocol === "https:";
+
+const peer = new Peer(undefined, {
+  host: window.location.hostname,
+  port: esHttps ? 443 : 5000,
+  path: "/peerjs/myapp",
+  secure: esHttps,
+  config: {
+    iceServers: [
+      { urls: "stun:stun.l.google.com:19302" },
+      { urls: "stun:stun1.l.google.com:19302" }
+    ]
+  }
+});
 
       peerRef.current = peer;
 

@@ -205,71 +205,35 @@ function SalaVideollamadaRH() {
   // CONFIGURACIÓN PEERJS
   // ==================================================
 
-  const obtenerConfiguracionPeer =
-    () => {
+const obtenerConfiguracionPeer = () => {
+    const iceServers = [
+      { urls: "stun:stun.l.google.com:19302" },
+      { urls: "stun:stun1.l.google.com:19302" }
+    ];
 
-      try {
+    try {
+      const backend = new URL(API_URL);
+      const secure = backend.protocol === "https:";
 
-        const backend =
-          new URL(
-            API_URL
-          );
+      return {
+        host: backend.hostname,
+        port: backend.port ? Number(backend.port) : secure ? 443 : 80,
+        path: "/peerjs/myapp",
+        secure,
+        config: { iceServers }
+      };
+    } catch {
+      const secure = window.location.protocol === "https:";
 
-
-        const secure =
-          backend.protocol ===
-          "https:";
-
-
-        return {
-
-          host:
-            backend.hostname,
-
-          port:
-            backend.port
-              ? Number(
-                  backend.port
-                )
-              : secure
-              ? 443
-              : 80,
-
-          path:
-            "/peerjs/myapp",
-
-          secure
-
-        };
-
-
-      } catch {
-
-        const secure =
-          window.location.protocol ===
-          "https:";
-
-
-        return {
-
-          host:
-            window.location.hostname,
-
-          port:
-            secure
-              ? 443
-              : 5000,
-
-          path:
-            "/peerjs/myapp",
-
-          secure
-
-        };
-
-      }
-
-    };
+      return {
+        host: window.location.hostname,
+        port: secure ? 443 : 5000,
+        path: "/peerjs/myapp",
+        secure,
+        config: { iceServers }
+      };
+    }
+  };
 
 
   // ==================================================
