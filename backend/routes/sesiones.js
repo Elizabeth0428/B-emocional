@@ -87,6 +87,16 @@ router.put(
   finalizarSesion
 );
 
+// ==================================================
+// CANCELAR SESIÓN
+// ==================================================
+
+router.put(
+  "/:id/cancelar",
+  verifyToken,
+  cancelarSesion
+);
+
 
 // ==================================================
 // GENERAR / RECUPERAR LINK DE VIDEOLLAMADA

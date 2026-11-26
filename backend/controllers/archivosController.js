@@ -49,6 +49,17 @@ export async function subirArchivo(req, res) {
 
     }
 
+    const mimeRecibido = String(req.file.mimetype || "")
+     .split(";")[0]
+     .trim()
+     .toLowerCase();
+
+    const formato =
+     mimeRecibido.startsWith("audio/") || mimeRecibido.startsWith("video/")
+     ? mimeRecibido
+     : (tipo || "video") === "audio"
+     ? "audio/webm"
+     : "video/webm";
 
     const [sesion] =
       await pool.query(
@@ -74,8 +85,7 @@ export async function subirArchivo(req, res) {
       req.file.filename;
 
 
-    const formato =
-      req.file.mimetype;
+    
 
 
     const [result] =
@@ -155,8 +165,8 @@ export async function transcribirArchivo(
 ) {
 
   const { id } = req.params;
-
-
+  
+  
   try {
 
     if (!id) {
@@ -345,11 +355,21 @@ export async function transcribirArchivo(
       console.log(
         "🎥 Transcripción de videollamada"
       );
-
+     
+      const mimeGuardado = String(archivo.formato || "")
+        .split(";")[0]
+        .trim()
+        .toLowerCase();
 
       const mimeType =
-        archivo.formato ||
-        "video/webm";
+        mimeGuardado.startsWith("video/") || mimeGuardado.startsWith("audio/")
+          ? mimeGuardado
+          : archivo.tipo === "audio"
+          ? "audio/webm"
+          : "video/webm";
+
+
+      
 
 
       resultado =

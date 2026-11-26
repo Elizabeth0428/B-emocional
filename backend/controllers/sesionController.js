@@ -1313,6 +1313,148 @@ export async function finalizarSesion(
 
 }
 
+// =====================================================
+// CANCELAR SESIÓN
+// =====================================================
+
+export async function cancelarSesion(
+  req,
+  res
+) {
+  const {
+    id
+  } = req.params;
+
+  try {
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Falta el ID de la sesión"
+      });
+    }
+
+    const idSesion =
+      Number(id);
+
+    if (
+      !Number.isInteger(
+        idSesion
+      )
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "ID de sesión inválido"
+      });
+    }
+
+    const [sesion] =
+      await pool.query(
+        `
+          SELECT
+            id_sesion,
+            id_paciente,
+            numero_sesion,
+            modalidad,
+            estado
+
+          FROM sesiones
+
+          WHERE id_sesion = ?
+
+          LIMIT 1
+        `,
+        [
+          idSesion
+        ]
+      );
+
+    if (
+      !sesion.length
+    ) {
+      return res.status(404).json({
+        success: false,
+        message:
+          "Sesión no encontrada"
+      });
+    }
+
+    if (
+      sesion[0].estado ===
+      "finalizada"
+    ) {
+      return res.status(409).json({
+        success: false,
+        message:
+          "No se puede cancelar una sesión ya finalizada"
+      });
+    }
+
+    if (
+      sesion[0].estado ===
+      "cancelada"
+    ) {
+      return res.status(409).json({
+        success: false,
+        message:
+          "La sesión ya está cancelada"
+      });
+    }
+
+    await pool.query(
+      `
+        UPDATE sesiones
+
+        SET
+          estado = 'cancelada',
+          fecha_fin = NOW(),
+          link_videollamada = NULL
+
+        WHERE id_sesion = ?
+          AND estado = 'activa'
+      `,
+      [
+        idSesion
+      ]
+    );
+
+    return res.json({
+      success: true,
+
+      id_sesion:
+        idSesion,
+
+      id_paciente:
+        sesion[0]
+          .id_paciente,
+
+      numero_sesion:
+        sesion[0]
+          .numero_sesion,
+
+      estado:
+        "cancelada",
+
+      message:
+        "Sesión cancelada correctamente"
+    });
+
+  } catch (error) {
+    console.error(
+      "❌ Error cancelando sesión:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message:
+        "No fue posible cancelar la sesión"
+    });
+
+  }
+}
+
 
 /* ==================================================
    GENERAR LINK DE VIDEOLLAMADA

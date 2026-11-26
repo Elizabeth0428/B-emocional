@@ -32,7 +32,17 @@ export async function transcribirMultimedia(
     );
 
   }
+  
+  
+  const mimeCrudo = String(mimeType || "audio/webm")
+    .split(";")[0]
+    .trim()
+    .toLowerCase();
 
+  const mimeLimpio =
+    mimeCrudo.startsWith("audio/") || mimeCrudo.startsWith("video/")
+    ? mimeCrudo
+    : "video/webm";
 
   const archivoBuffer =
     fs.readFileSync(
@@ -85,18 +95,20 @@ REGLAS:
         mimeType
       );
 
+      console.log(
+        "📦 MIME enviado a Gemini:",
+        mimeLimpio
+      );
 
       const result =
         await geminiModel.generateContent([
           {
-            text:
-              prompt
+            text: prompt
           },
           {
             inlineData: {
-              mimeType,
-              data:
-                archivoBase64
+              mimeType: mimeLimpio,
+              data: archivoBase64
             }
           }
         ]);

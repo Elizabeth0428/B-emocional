@@ -145,6 +145,62 @@ export default function SesionesView() {
     );
   };
 
+// =====================================================
+  // CANCELAR SESION
+  // =====================================================
+  const cancelarSesionActiva = async () => {
+    if (!sesionActiva?.id_sesion) {
+      return;
+    }
+
+    const confirmar = window.confirm(
+      `¿Cancelar la sesión #${
+        sesionActiva.numero_sesion || sesionActiva.id_sesion
+      }?\n\nÚsalo únicamente si abriste la sesión por error o elegiste una modalidad incorrecta.\n\nLa sesión quedará registrada como cancelada.`
+    );
+
+    if (!confirmar) {
+      return;
+    }
+
+    try {
+      setError("");
+      setMensajeSesion("");
+
+      const token = getToken();
+      const API_URL = import.meta.env.VITE_API_URL || "";
+
+      const response = await fetch(
+        `${API_URL}/api/sesiones/${sesionActiva.id_sesion}/cancelar`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json"
+          }
+        }
+      );
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(
+          data.message || "No fue posible cancelar la sesión."
+        );
+      }
+
+      setMensajeSesion(
+        "✅ Sesión cancelada. Ya puedes crear una nueva."
+      );
+
+      await fetchSesiones();
+    } catch (error) {
+      console.error("❌ Error cancelando sesión:", error);
+      setError(
+        error.message || "No fue posible cancelar la sesión."
+      );
+    }
+  };
   // =====================================================
   // CREAR SESIÓN
   // =====================================================
@@ -1032,17 +1088,33 @@ export default function SesionesView() {
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={
-                abrirSesionActiva
-              }
-              style={
-                activeSessionButton
-              }
-            >
-              Ver sesión activa
-            </button>
+            <div
+  style={{
+    display: "flex",
+    gap: "10px",
+    flexWrap: "wrap"
+  }}
+>
+  <button
+    type="button"
+    onClick={abrirSesionActiva}
+    style={activeSessionButton}
+  >
+    Ver sesión activa
+  </button>
+
+  <button
+    type="button"
+    onClick={cancelarSesionActiva}
+    style={{
+      ...activeSessionButton,
+      background:
+        "#dc2626"
+    }}
+  >
+    Cancelar sesión
+  </button>
+</div>
           </div>
         )}
 
