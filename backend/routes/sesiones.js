@@ -7,7 +7,8 @@ import {
   crearSesion,
   iniciarVideollamadaPaciente,
   finalizarSesion,
-  generarLinkVideollamada
+  generarLinkVideollamada,
+  cancelarSesion
 } from "../controllers/sesionController.js";
 
 import { verifyToken,
