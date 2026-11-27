@@ -368,6 +368,46 @@ export default function PagoExitoso() {
                   activacion
                     ?.ya_activada ??
                   null,
+
+                correoAdmin:
+
+                  activacion
+                    ?.correo_admin ||
+                  null,
+
+                requiereConfigurarPassword:
+
+                  Boolean(
+                    activacion
+                      ?.requiere_configurar_password
+                  ),
+
+                tokenGenerado:
+
+                  Boolean(
+                    activacion
+                      ?.token_generado
+                  ),
+
+                correoEnviado:
+
+                  Boolean(
+                    activacion
+                      ?.correo_enviado
+                  ),
+
+                correoAceptadoSmtp:
+
+                  Boolean(
+                    activacion
+                      ?.correo_aceptado_smtp
+                  ),
+
+                errorCorreo:
+
+                  activacion
+                    ?.error_correo ||
+                  null,
               });
 
 
@@ -659,11 +699,24 @@ export default function PagoExitoso() {
 
 
   // ==========================================================
-  // IR AL LOGIN
+  // CONTINUAR AL ACCESO
+  //
+  // Si el administrador todavía debe crear su contraseña,
+  // no lo mandamos al login porque aún no puede entrar.
+  // El enlace seguro se envía por correo desde el backend.
   // ==========================================================
 
-  const irAlLogin =
+  const continuarAlAcceso =
     () => {
+
+      if (
+        detalle
+          ?.requiereConfigurarPassword
+      ) {
+
+        return;
+      }
+
 
       navigate(
         "/login"
@@ -1268,10 +1321,52 @@ export default function PagoExitoso() {
                       "15px",
                   }}
                 >
-                  En el siguiente paso configuraremos
-                  la contraseña de acceso de tu
-                  administrador.
+                  {detalle
+                    ?.requiereConfigurarPassword
+                    ? (
+                        <>
+                          Te enviamos un enlace seguro
+                          para crear la contraseña de
+                          acceso de tu administrador
+                          {detalle?.correoAdmin
+                            ? (
+                                <>
+                                  {" "}a{" "}
+                                  <strong>
+                                    {detalle.correoAdmin}
+                                  </strong>
+                                </>
+                              )
+                            : null}
+                          .
+                        </>
+                      )
+                    : (
+                        <>
+                          Tu acceso ya está configurado.
+                          Puedes iniciar sesión.
+                        </>
+                      )}
                 </p>
+
+
+                {detalle
+                  ?.requiereConfigurarPassword &&
+                  detalle?.errorCorreo && (
+                  <div
+                    style={
+                      estilos.alerta
+                    }
+                  >
+                    No pudimos confirmar el envío del
+                    correo de acceso.
+                    <br />
+                    <strong>
+                      Detalle:
+                    </strong>{" "}
+                    {detalle.errorCorreo}
+                  </div>
+                )}
 
 
                 <div
@@ -1282,14 +1377,27 @@ export default function PagoExitoso() {
 
                   <button
                     type="button"
-                    style={
-                      estilos.botonPrincipal
-                    }
+                    style={{
+                      ...estilos.botonPrincipal,
+                      opacity:
+                        detalle
+                          ?.requiereConfigurarPassword
+                          ? 0.78
+                          : 1,
+                      cursor:
+                        detalle
+                          ?.requiereConfigurarPassword
+                          ? "default"
+                          : "pointer",
+                    }}
                     onClick={
-                      irAlLogin
+                      continuarAlAcceso
                     }
                   >
-                    Continuar al acceso
+                    {detalle
+                      ?.requiereConfigurarPassword
+                      ? "Revisa tu correo para crear tu contraseña"
+                      : "Iniciar sesión"}
                   </button>
 
                 </div>

@@ -1,7 +1,9 @@
 
 import React from "react";
-import { useNavigate } from "react-router-dom";
 import LogoMirrorSoul from "./LogoMirrorSoul";
+
+const WHATSAPP_SERVICIOS =
+  import.meta.env.VITE_WHATSAPP_SERVICIOS || "";
 
 // ============================================================
 // MIRRORSOUL - SERVICIOS TECNOLÓGICOS
@@ -150,7 +152,32 @@ const areas = [
 // ============================================================
 
 function ServiciosTecnologicos() {
-  const navigate = useNavigate();
+  const abrirWhatsApp = () => {
+    const numero = String(
+      WHATSAPP_SERVICIOS
+    ).replace(/\D/g, "");
+
+    if (!numero) {
+      alert(
+        "El número de WhatsApp para servicios todavía no está configurado."
+      );
+      return;
+    }
+
+    const mensaje =
+      "Hola, necesito más información sobre los servicios de MirrorSoul.";
+
+    const url =
+      `https://wa.me/${numero}?text=${encodeURIComponent(
+        mensaje
+      )}`;
+
+    window.open(
+      url,
+      "_blank",
+      "noopener,noreferrer"
+    );
+  };
 
   return (
     <>
@@ -402,7 +429,7 @@ function ServiciosTecnologicos() {
             <button
               type="button"
               className="ms-servicios-contact-button"
-              onClick={() => navigate("/contacto")}
+              onClick={abrirWhatsApp}
             >
               Solicitar cotización
 

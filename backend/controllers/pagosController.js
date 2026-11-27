@@ -1,4 +1,3 @@
-
 // ============================================================
 // backend/controllers/pagosController.js
 // ============================================================
@@ -25,29 +24,45 @@ const PLANES = {
   independiente: {
     nombre: "Independiente",
     licencias: 1,
-    mensual: Number(process.env.PRECIO_INDEPENDIENTE_MENSUAL || 0),
-    anual: Number(process.env.PRECIO_INDEPENDIENTE_ANUAL || 0),
+    mensual: Number(
+      process.env.PRECIO_INDEPENDIENTE_MENSUAL || 0
+    ),
+    anual: Number(
+      process.env.PRECIO_INDEPENDIENTE_ANUAL || 0
+    ),
   },
 
   clinica: {
     nombre: "Clínica",
     licencias: 5,
-    mensual: Number(process.env.PRECIO_CLINICA_MENSUAL || 0),
-    anual: Number(process.env.PRECIO_CLINICA_ANUAL || 0),
+    mensual: Number(
+      process.env.PRECIO_CLINICA_MENSUAL || 0
+    ),
+    anual: Number(
+      process.env.PRECIO_CLINICA_ANUAL || 0
+    ),
   },
 
   rh: {
     nombre: "Recursos Humanos",
     licencias: 5,
-    mensual: Number(process.env.PRECIO_RH_MENSUAL || 0),
-    anual: Number(process.env.PRECIO_RH_ANUAL || 0),
+    mensual: Number(
+      process.env.PRECIO_RH_MENSUAL || 0
+    ),
+    anual: Number(
+      process.env.PRECIO_RH_ANUAL || 0
+    ),
   },
 
   educativo: {
     nombre: "Educativo",
     licencias: 5,
-    mensual: Number(process.env.PRECIO_EDUCATIVO_MENSUAL || 0),
-    anual: Number(process.env.PRECIO_EDUCATIVO_ANUAL || 0),
+    mensual: Number(
+      process.env.PRECIO_EDUCATIVO_MENSUAL || 0
+    ),
+    anual: Number(
+      process.env.PRECIO_EDUCATIVO_ANUAL || 0
+    ),
   },
 };
 
@@ -56,46 +71,72 @@ const PLANES = {
 // ============================================================
 
 function normalizarTexto(valor) {
-  return valor == null ? "" : String(valor).trim();
+  return valor == null
+    ? ""
+    : String(valor).trim();
 }
 
 function normalizarCorreo(valor) {
-  return normalizarTexto(valor).toLowerCase();
+  return normalizarTexto(valor)
+    .toLowerCase();
 }
 
 // ============================================================
 // RESOLVER PLAN
 // ============================================================
 
-function resolverPlan(tipoPlan, periodo) {
-  const tipo = normalizarTexto(tipoPlan).toLowerCase();
-  const plan = PLANES[tipo];
+function resolverPlan(
+  tipoPlan,
+  periodo
+) {
+  const tipo =
+    normalizarTexto(tipoPlan)
+      .toLowerCase();
+
+  const plan =
+    PLANES[tipo];
 
   if (!plan) {
-    const error = new Error("Plan no válido");
+    const error =
+      new Error(
+        "Plan no válido"
+      );
+
     error.status = 400;
+
     throw error;
   }
 
   const periodoFinal =
-    normalizarTexto(periodo).toLowerCase() === "anual"
+    normalizarTexto(periodo)
+      .toLowerCase() === "anual"
       ? "anual"
       : "mensual";
 
-  const precio = Number(plan[periodoFinal]);
-
-  if (!Number.isFinite(precio) || precio <= 0) {
-    const error = new Error(
-      `El precio del plan ${plan.nombre} (${periodoFinal}) todavía no está configurado`
+  const precio =
+    Number(
+      plan[periodoFinal]
     );
+
+  if (
+    !Number.isFinite(precio) ||
+    precio <= 0
+  ) {
+    const error =
+      new Error(
+        `El precio del plan ${plan.nombre} (${periodoFinal}) todavía no está configurado`
+      );
+
     error.status = 409;
+
     throw error;
   }
 
   return {
     tipo,
     ...plan,
-    periodo: periodoFinal,
+    periodo:
+      periodoFinal,
     precio,
   };
 }
@@ -104,208 +145,339 @@ function resolverPlan(tipoPlan, periodo) {
 // GET /api/pagos/precio
 // ============================================================
 
-export async function obtenerPrecioPlan(req, res) {
+export async function obtenerPrecioPlan(
+  req,
+  res
+) {
   try {
-    const plan = resolverPlan(
-      req.query.plan,
-      req.query.periodo || "mensual"
-    );
+    const plan =
+      resolverPlan(
+        req.query.plan,
+        req.query.periodo ||
+          "mensual"
+      );
 
     return res.json({
       ok: true,
+
       plan: {
-        tipo: plan.tipo,
-        nombre: plan.nombre,
-        periodo: plan.periodo,
-        precio: plan.precio,
-        moneda: "MXN",
-        licencias: plan.licencias,
+        tipo:
+          plan.tipo,
+
+        nombre:
+          plan.nombre,
+
+        periodo:
+          plan.periodo,
+
+        precio:
+          plan.precio,
+
+        moneda:
+          "MXN",
+
+        licencias:
+          plan.licencias,
       },
     });
   } catch (error) {
-    console.error("❌ Error consultando precio:", error);
+    console.error(
+      "❌ Error consultando precio:",
+      error
+    );
 
-    return res.status(error.status || 500).json({
-      ok: false,
-      message: error.message || "No se pudo consultar el precio",
-    });
+    return res
+      .status(
+        error.status ||
+          500
+      )
+      .json({
+        ok: false,
+
+        message:
+          error.message ||
+          "No se pudo consultar el precio",
+      });
   }
 }
 
 // ============================================================
 // POST /api/pagos/crear-suscripcion
-//
-// 1. Recibe datos del cliente.
-// 2. Calcula el precio.
-// 3. Separa correo del cliente y comprador de prueba.
-// 4. Crea la suscripción en Mercado Pago.
-// 5. Guarda la contratación pendiente.
-// 6. Devuelve el enlace de pago.
 // ============================================================
 
-export async function crearSuscripcionMirrorSoul(req, res) {
+export async function crearSuscripcionMirrorSoul(
+  req,
+  res
+) {
   try {
     const {
       tipo_plan,
       periodo_facturacion,
+      perfil_independiente,
       correo,
       nombre_responsable,
       nombre_organizacion,
       telefono,
       requiere_factura,
       rfc,
-    } = req.body || {};
+    } =
+      req.body ||
+      {};
 
     // ========================================================
     // NORMALIZAR DATOS
     // ========================================================
 
     const tipoPlan =
-      normalizarTexto(tipo_plan).toLowerCase();
+      normalizarTexto(
+        tipo_plan
+      )
+        .toLowerCase();
+
+    const perfilIndependiente =
+      normalizarTexto(
+        perfil_independiente
+      )
+        .toLowerCase();
 
     const correoNormalizado =
-      normalizarCorreo(correo);
+      normalizarCorreo(
+        correo
+      );
 
     const responsableNormalizado =
-      normalizarTexto(nombre_responsable);
+      normalizarTexto(
+        nombre_responsable
+      );
 
     const organizacionNormalizada =
-      normalizarTexto(nombre_organizacion);
+      normalizarTexto(
+        nombre_organizacion
+      );
 
     const telefonoNormalizado =
-      normalizarTexto(telefono);
+      normalizarTexto(
+        telefono
+      );
 
     const rfcNormalizado =
-      normalizarTexto(rfc).toUpperCase();
+      normalizarTexto(
+        rfc
+      )
+        .toUpperCase();
 
     const requiereFactura =
-      requiere_factura === true ||
-      requiere_factura === 1 ||
-      requiere_factura === "true";
+      requiere_factura ===
+        true ||
+      requiere_factura ===
+        1 ||
+      requiere_factura ===
+        "true";
 
     // ========================================================
     // VALIDACIONES
     // ========================================================
 
-    if (!tipoPlan) {
-      return res.status(400).json({
-        ok: false,
-        message: "Falta tipo_plan",
-      });
+    if (
+      !tipoPlan
+    ) {
+      return res
+        .status(400)
+        .json({
+          ok: false,
+
+          message:
+            "Falta tipo_plan",
+        });
     }
 
-    if (!correoNormalizado) {
-      return res.status(400).json({
-        ok: false,
-        message: "Falta el correo del responsable",
-      });
-    }
+    // ========================================================
+    // VALIDAR PERFIL DEL PLAN INDEPENDIENTE
+    // ========================================================
 
-    if (!responsableNormalizado) {
-      return res.status(400).json({
-        ok: false,
-        message: "Falta el nombre del responsable",
-      });
+    if (
+      tipoPlan ===
+        "independiente" &&
+      ![
+        "clinica",
+        "rh",
+      ].includes(
+        perfilIndependiente
+      )
+    ) {
+      return res
+        .status(400)
+        .json({
+          ok: false,
+
+          message:
+            "Selecciona si utilizarás el plan Independiente como Psicología/Clínica o Recursos Humanos.",
+        });
     }
 
     if (
-      tipoPlan !== "independiente" &&
-      !organizacionNormalizada
+      !correoNormalizado
     ) {
-      return res.status(400).json({
-        ok: false,
-        message: "Falta el nombre de la organización",
-      });
+      return res
+        .status(400)
+        .json({
+          ok: false,
+
+          message:
+            "Falta el correo del responsable",
+        });
     }
 
-    if (requiereFactura && !rfcNormalizado) {
-      return res.status(400).json({
-        ok: false,
-        message:
-          "El RFC es obligatorio cuando se solicita factura",
-      });
+    if (
+      !responsableNormalizado
+    ) {
+      return res
+        .status(400)
+        .json({
+          ok: false,
+
+          message:
+            "Falta el nombre del responsable",
+        });
+    }
+
+    if (
+      tipoPlan !==
+        "independiente" &&
+      !organizacionNormalizada
+    ) {
+      return res
+        .status(400)
+        .json({
+          ok: false,
+
+          message:
+            "Falta el nombre de la organización",
+        });
+    }
+
+    if (
+      requiereFactura &&
+      !rfcNormalizado
+    ) {
+      return res
+        .status(400)
+        .json({
+          ok: false,
+
+          message:
+            "El RFC es obligatorio cuando se solicita factura",
+        });
     }
 
     // ========================================================
     // PLAN Y PRECIO
     // ========================================================
 
-    const plan = resolverPlan(
-      tipoPlan,
-      periodo_facturacion
-    );
+    const plan =
+      resolverPlan(
+        tipoPlan,
+        periodo_facturacion
+      );
 
     // ========================================================
     // URL DEL FRONTEND
     // ========================================================
 
-    const frontendUrl = String(
-      process.env.FRONTEND_URL ||
-      "https://www.reflejoyalma.com"
-    )
-      .trim()
-      .replace(/\/+$/, "");
+    const frontendUrl =
+      String(
+        process.env
+          .FRONTEND_URL ||
+          "http://localhost:5175"
+      )
+        .trim()
+        .replace(
+          /\/+$/,
+          ""
+        );
 
     // ========================================================
     // REFERENCIA ÚNICA
     // ========================================================
 
-    const reference = [
-      "MS",
-      plan.tipo,
-      plan.periodo,
-      Date.now(),
-    ].join("-");
+    const reference =
+      [
+        "MS",
+        plan.tipo,
+        plan.periodo,
+        Date.now(),
+      ].join("-");
 
     // ========================================================
     // FRECUENCIA DE SUSCRIPCIÓN
     // ========================================================
 
     const frequency =
-      plan.periodo === "anual" ? 12 : 1;
+      plan.periodo ===
+        "anual"
+        ? 12
+        : 1;
 
     // ========================================================
     // COMPRADOR DE PRUEBA MERCADO PAGO
     // ========================================================
 
     const modoPrueba =
-      process.env.MERCADOPAGO_MODO_PRUEBA === "true";
+      process.env
+        .MERCADOPAGO_MODO_PRUEBA ===
+      "true";
 
-    const correoCompradorMP = modoPrueba
-      ? normalizarCorreo(
-          process.env.MERCADOPAGO_PAYER_TEST_EMAIL
-        )
-      : correoNormalizado;
+    const correoCompradorMP =
+      modoPrueba
+        ? normalizarCorreo(
+            process.env
+              .MERCADOPAGO_PAYER_TEST_EMAIL
+          )
+        : correoNormalizado;
 
-    if (!correoCompradorMP) {
-      return res.status(500).json({
-        ok: false,
-        message:
-          "Falta configurar MERCADOPAGO_PAYER_TEST_EMAIL en el backend",
-      });
+    if (
+      !correoCompradorMP
+    ) {
+      return res
+        .status(500)
+        .json({
+          ok: false,
+
+          message:
+            "Falta configurar MERCADOPAGO_PAYER_TEST_EMAIL en el backend",
+        });
     }
 
     // ========================================================
     // CREAR SUSCRIPCIÓN EN MERCADO PAGO
     // ========================================================
 
-    const suscripcion = await crearSuscripcion({
-      reason: `MirrorSoul - Plan ${plan.nombre}`,
+    const suscripcion =
+      await crearSuscripcion({
+        reason:
+          `MirrorSoul - Plan ${plan.nombre}`,
 
-      payerEmail: correoCompradorMP,
+        payerEmail:
+          correoCompradorMP,
 
-      amount: plan.precio,
+        amount:
+          plan.precio,
 
-      frequency,
+        frequency,
 
-      frequencyType: "months",
+        frequencyType:
+          "months",
 
-      externalReference: reference,
+        externalReference:
+          reference,
 
-      backUrl: `${frontendUrl}/pago-exitoso`,
-    });
+        backUrl:
+          `${frontendUrl}/pago-exitoso`,
+      });
 
-    if (!suscripcion?.id) {
+    if (
+      !suscripcion?.id
+    ) {
       throw new Error(
         "Mercado Pago no devolvió el ID de la suscripción."
       );
@@ -313,42 +485,54 @@ export async function crearSuscripcionMirrorSoul(req, res) {
 
     // ========================================================
     // GUARDAR CONTRATACIÓN PENDIENTE
-    //
-    // IMPORTANTE:
-    // Se guarda el correo REAL del administrador.
-    // No se guarda el comprador de prueba como cliente.
     // ========================================================
 
     await guardarContratacionPendiente({
-      externalReference: reference,
+      externalReference:
+        reference,
 
       mercadopagoPreapprovalId:
         suscripcion.id,
 
-      tipoPlan: plan.tipo,
+      tipoPlan:
+        plan.tipo,
 
-      periodo: plan.periodo,
+      perfilIndependiente:
+        plan.tipo ===
+          "independiente"
+          ? perfilIndependiente
+          : null,
+
+      periodo:
+        plan.periodo,
 
       nombreOrganizacion:
-        organizacionNormalizada || null,
+        organizacionNormalizada ||
+        null,
 
       nombreResponsable:
         responsableNormalizado,
 
-      correo: correoNormalizado,
+      correo:
+        correoNormalizado,
 
       telefono:
-        telefonoNormalizado || null,
+        telefonoNormalizado ||
+        null,
 
       requiereFactura,
 
-      rfc: requiereFactura
-        ? rfcNormalizado || null
-        : null,
+      rfc:
+        requiereFactura
+          ? rfcNormalizado ||
+            null
+          : null,
 
-      monto: plan.precio,
+      monto:
+        plan.precio,
 
-      moneda: "MXN",
+      moneda:
+        "MXN",
     });
 
     // ========================================================
@@ -358,15 +542,27 @@ export async function crearSuscripcionMirrorSoul(req, res) {
     return res.json({
       ok: true,
 
-      message: "Suscripción creada",
+      message:
+        "Suscripción creada",
 
       plan: {
-        tipo: plan.tipo,
-        nombre: plan.nombre,
-        periodo: plan.periodo,
-        precio: plan.precio,
-        moneda: "MXN",
-        licencias: plan.licencias,
+        tipo:
+          plan.tipo,
+
+        nombre:
+          plan.nombre,
+
+        periodo:
+          plan.periodo,
+
+        precio:
+          plan.precio,
+
+        moneda:
+          "MXN",
+
+        licencias:
+          plan.licencias,
       },
 
       contratacion: {
@@ -374,30 +570,45 @@ export async function crearSuscripcionMirrorSoul(req, res) {
           responsableNormalizado,
 
         nombre_organizacion:
-          organizacionNormalizada || null,
+          organizacionNormalizada ||
+          null,
 
-        correo: correoNormalizado,
+        perfil_independiente:
+          plan.tipo ===
+            "independiente"
+            ? perfilIndependiente
+            : null,
+
+        correo:
+          correoNormalizado,
 
         telefono:
-          telefonoNormalizado || null,
+          telefonoNormalizado ||
+          null,
 
         requiere_factura:
           requiereFactura,
 
-        rfc: requiereFactura
-          ? rfcNormalizado || null
-          : null,
+        rfc:
+          requiereFactura
+            ? rfcNormalizado ||
+              null
+            : null,
       },
 
       mercado_pago: {
-        id: suscripcion.id,
+        id:
+          suscripcion.id,
 
-        status: suscripcion.status,
+        status:
+          suscripcion.status,
 
-        init_point: suscripcion.init_point,
+        init_point:
+          suscripcion.init_point,
 
         external_reference:
-          suscripcion.external_reference ||
+          suscripcion
+            .external_reference ||
           reference,
       },
     });
@@ -407,16 +618,22 @@ export async function crearSuscripcionMirrorSoul(req, res) {
       error
     );
 
-    return res.status(error.status || 500).json({
-      ok: false,
+    return res
+      .status(
+        error.status ||
+          500
+      )
+      .json({
+        ok: false,
 
-      message:
-        error.message ||
-        "No se pudo crear la suscripción",
+        message:
+          error.message ||
+          "No se pudo crear la suscripción",
 
-      details:
-        error.details || undefined,
-    });
+        details:
+          error.details ||
+          undefined,
+      });
   }
 }
 
@@ -424,45 +641,72 @@ export async function crearSuscripcionMirrorSoul(req, res) {
 // GET /api/pagos/suscripcion/:id
 // ============================================================
 
-export async function obtenerEstadoSuscripcion(req, res) {
+export async function obtenerEstadoSuscripcion(
+  req,
+  res
+) {
   try {
-    const { id } = req.params;
+    const {
+      id,
+    } =
+      req.params;
 
-    if (!id) {
-      return res.status(400).json({
-        ok: false,
-        message: "Falta el ID de la suscripción.",
-      });
+    if (
+      !id
+    ) {
+      return res
+        .status(400)
+        .json({
+          ok: false,
+
+          message:
+            "Falta el ID de la suscripción.",
+        });
     }
 
     // ========================================================
     // CONSULTAR MERCADO PAGO
     // ========================================================
 
-    const data = await obtenerSuscripcion(id);
+    const data =
+      await obtenerSuscripcion(
+        id
+      );
 
     const status =
-      normalizarTexto(data?.status).toLowerCase();
+      normalizarTexto(
+        data?.status
+      )
+        .toLowerCase();
 
     const externalReference =
-      normalizarTexto(data?.external_reference);
+      normalizarTexto(
+        data
+          ?.external_reference
+      );
 
     // ========================================================
     // ACTUALIZAR ESTADO INTERNO
     // ========================================================
 
-    if (externalReference) {
+    if (
+      externalReference
+    ) {
       try {
         await actualizarEstadoMercadoPago({
           externalReference,
 
           preapprovalId:
-            data.id || id,
+            data.id ||
+            id,
 
           status:
-            status || "unknown",
+            status ||
+            "unknown",
         });
-      } catch (updateError) {
+      } catch (
+        updateError
+      ) {
         console.error(
           "⚠️ No se pudo actualizar estado interno:",
           updateError
@@ -475,7 +719,8 @@ export async function obtenerEstadoSuscripcion(req, res) {
     // ========================================================
 
     if (
-      status === "authorized" &&
+      status ===
+        "authorized" &&
       externalReference
     ) {
       try {
@@ -484,75 +729,84 @@ export async function obtenerEstadoSuscripcion(req, res) {
             externalReference,
 
             preapprovalId:
-              data.id || id,
+              data.id ||
+              id,
           });
 
         data.activacion_mirrorsoul = {
           ok: true,
 
-          ya_activada:
-            Boolean(activacion.ya_activada),
+          ya_activada: Boolean(activacion.ya_activada),
 
-          id_organizacion:
-            activacion.id_organizacion,
+          id_organizacion: activacion.id_organizacion,
 
-          id_suscripcion:
-            activacion.id_suscripcion,
+          id_suscripcion: activacion.id_suscripcion,
 
-          id_usuario_admin:
-            activacion.id_usuario_admin,
+          id_usuario_admin: activacion.id_usuario_admin,
 
-          correo_admin:
-            activacion.correo_admin || null,
+          correo_admin: activacion.correo_admin || null,
 
-          requiere_configurar_password:
-            Boolean(
-              activacion.requiere_configurar_password
-            ),
+          requiere_configurar_password: Boolean(
+            activacion.requiere_configurar_password
+          ),
 
-          token_generado:
-            Boolean(activacion.token_generado),
+          token_generado: Boolean(activacion.token_generado),
 
-          plan:
-            activacion.plan || null,
+          // <-- AGREGAR ESTAS 3 LÍNEAS:
+          correo_enviado: Boolean(activacion.correo_enviado),
+          correo_aceptado_smtp: Boolean(activacion.correo_aceptado_smtp),
+          error_correo: activacion.error_correo || null,
+
+          plan: activacion.plan || null,
         };
 
-        // No mostrar contraseñas ni tokens.
         if (
-          process.env.NODE_ENV !== "production"
+          process.env
+            .NODE_ENV !==
+          "production"
         ) {
           console.log(
             "🔐 Estado acceso inicial:",
             {
               requiere_configurar_password:
                 Boolean(
-                  activacion.requiere_configurar_password
+                  activacion
+                    .requiere_configurar_password
                 ),
 
               token_generado:
-                Boolean(activacion.token_generado),
+                Boolean(
+                  activacion
+                    .token_generado
+                ),
             }
           );
         }
-      } catch (activationError) {
+      } catch (
+        activationError
+      ) {
         console.error(
           "❌ Mercado Pago autorizado pero falló activación MirrorSoul:",
           activationError
         );
 
-        data.activacion_mirrorsoul = {
-          ok: false,
+        data.activacion_mirrorsoul =
+          {
+            ok: false,
 
-          message:
-            activationError.message ||
-            "No se pudo activar MirrorSoul.",
-        };
+            message:
+              activationError
+                .message ||
+              "No se pudo activar MirrorSoul.",
+          };
       }
     }
 
     return res.json({
       ok: true,
-      suscripcion: data,
+
+      suscripcion:
+        data,
     });
   } catch (error) {
     console.error(
@@ -560,16 +814,22 @@ export async function obtenerEstadoSuscripcion(req, res) {
       error
     );
 
-    return res.status(error.status || 500).json({
-      ok: false,
+    return res
+      .status(
+        error.status ||
+          500
+      )
+      .json({
+        ok: false,
 
-      message:
-        error.message ||
-        "No se pudo consultar la suscripción",
+        message:
+          error.message ||
+          "No se pudo consultar la suscripción",
 
-      details:
-        error.details || undefined,
-    });
+        details:
+          error.details ||
+          undefined,
+      });
   }
 }
 
@@ -577,18 +837,28 @@ export async function obtenerEstadoSuscripcion(req, res) {
 // GET /api/pagos/contratacion/:externalReference
 // ============================================================
 
-export async function obtenerEstadoContratacion(req, res) {
+export async function obtenerEstadoContratacion(
+  req,
+  res
+) {
   try {
     const externalReference =
       normalizarTexto(
-        req.params.externalReference
+        req.params
+          .externalReference
       );
 
-    if (!externalReference) {
-      return res.status(400).json({
-        ok: false,
-        message: "Referencia inválida.",
-      });
+    if (
+      !externalReference
+    ) {
+      return res
+        .status(400)
+        .json({
+          ok: false,
+
+          message:
+            "Referencia inválida.",
+        });
     }
 
     const contratacion =
@@ -596,11 +866,17 @@ export async function obtenerEstadoContratacion(req, res) {
         externalReference
       );
 
-    if (!contratacion) {
-      return res.status(404).json({
-        ok: false,
-        message: "Contratación no encontrada",
-      });
+    if (
+      !contratacion
+    ) {
+      return res
+        .status(404)
+        .json({
+          ok: false,
+
+          message:
+            "Contratación no encontrada",
+        });
     }
 
     return res.json({
@@ -608,69 +884,98 @@ export async function obtenerEstadoContratacion(req, res) {
 
       contratacion: {
         id_contratacion:
-          contratacion.id_contratacion,
+          contratacion
+            .id_contratacion,
 
         external_reference:
-          contratacion.external_reference,
+          contratacion
+            .external_reference,
 
         mercadopago_preapproval_id:
-          contratacion.mercadopago_preapproval_id,
+          contratacion
+            .mercadopago_preapproval_id,
 
         tipo_plan:
-          contratacion.tipo_plan,
+          contratacion
+            .tipo_plan,
+
+        perfil_independiente:
+          contratacion
+            .perfil_independiente ||
+          null,
 
         periodo:
-          contratacion.periodo,
+          contratacion
+            .periodo,
 
         nombre_organizacion:
-          contratacion.nombre_organizacion,
+          contratacion
+            .nombre_organizacion,
 
         nombre_responsable:
-          contratacion.nombre_responsable,
+          contratacion
+            .nombre_responsable,
 
         correo:
-          contratacion.correo,
+          contratacion
+            .correo,
 
         telefono:
-          contratacion.telefono,
+          contratacion
+            .telefono,
 
         requiere_factura:
           Boolean(
-            contratacion.requiere_factura
+            contratacion
+              .requiere_factura
           ),
 
         rfc:
-          contratacion.rfc,
+          contratacion
+            .rfc,
 
         monto:
-          Number(contratacion.monto || 0),
+          Number(
+            contratacion
+              .monto ||
+            0
+          ),
 
         moneda:
-          contratacion.moneda,
+          contratacion
+            .moneda,
 
         estado_pago:
-          contratacion.estado_pago,
+          contratacion
+            .estado_pago,
 
         estado_activacion:
-          contratacion.estado_activacion,
+          contratacion
+            .estado_activacion,
 
         id_organizacion:
-          contratacion.id_organizacion,
+          contratacion
+            .id_organizacion,
 
         id_suscripcion:
-          contratacion.id_suscripcion,
+          contratacion
+            .id_suscripcion,
 
         id_usuario_admin:
-          contratacion.id_usuario_admin,
+          contratacion
+            .id_usuario_admin,
 
         error_activacion:
-          contratacion.error_activacion,
+          contratacion
+            .error_activacion,
 
         creado_en:
-          contratacion.creado_en,
+          contratacion
+            .creado_en,
 
         actualizado_en:
-          contratacion.actualizado_en,
+          contratacion
+            .actualizado_en,
       },
     });
   } catch (error) {
@@ -679,13 +984,18 @@ export async function obtenerEstadoContratacion(req, res) {
       error
     );
 
-    return res.status(error.status || 500).json({
-      ok: false,
+    return res
+      .status(
+        error.status ||
+          500
+      )
+      .json({
+        ok: false,
 
-      message:
-        error.message ||
-        "No se pudo consultar la contratación",
-    });
+        message:
+          error.message ||
+          "No se pudo consultar la contratación",
+      });
   }
 }
 
@@ -693,50 +1003,73 @@ export async function obtenerEstadoContratacion(req, res) {
 // POST /api/pagos/webhook
 // ============================================================
 
-export async function webhookMercadoPago(req, res) {
+export async function webhookMercadoPago(
+  req,
+  res
+) {
   try {
     const xSignature =
-      req.headers["x-signature"];
+      req.headers[
+        "x-signature"
+      ];
 
     const xRequestId =
-      req.headers["x-request-id"];
+      req.headers[
+        "x-request-id"
+      ];
 
     const dataId =
-      req.query["data.id"] ||
-      req.query.data_id ||
-      req.body?.data?.id ||
+      req.query[
+        "data.id"
+      ] ||
+      req.query
+        .data_id ||
+      req.body
+        ?.data
+        ?.id ||
       null;
 
     // ========================================================
     // VALIDAR FIRMA DEL WEBHOOK
     // ========================================================
 
-    const firmaValida = validarWebhook({
-      xSignature,
+    const firmaValida =
+      validarWebhook({
+        xSignature,
 
-      xRequestId,
+        xRequestId,
 
-      dataId:
-        dataId ? String(dataId) : null,
-    });
+        dataId:
+          dataId
+            ? String(
+                dataId
+              )
+            : null,
+      });
 
-    if (!firmaValida) {
+    if (
+      !firmaValida
+    ) {
       console.warn(
         "⚠️ Webhook Mercado Pago con firma inválida"
       );
 
-      return res.status(401).json({
-        ok: false,
-      });
+      return res
+        .status(401)
+        .json({
+          ok: false,
+        });
     }
 
     // ========================================================
     // RESPONDER A MERCADO PAGO
     // ========================================================
 
-    res.status(200).json({
-      ok: true,
-    });
+    res
+      .status(200)
+      .json({
+        ok: true,
+      });
 
     const type =
       req.body?.type ||
@@ -747,8 +1080,12 @@ export async function webhookMercadoPago(req, res) {
       "🔔 Webhook Mercado Pago:",
       {
         type,
+
         dataId,
-        action: req.body?.action,
+
+        action:
+          req.body
+            ?.action,
       }
     );
 
@@ -757,33 +1094,42 @@ export async function webhookMercadoPago(req, res) {
     // ========================================================
 
     if (
-      type === "subscription_preapproval" &&
+      type ===
+        "subscription_preapproval" &&
       dataId
     ) {
       const suscripcion =
-        await obtenerSuscripcion(dataId);
+        await obtenerSuscripcion(
+          dataId
+        );
 
       const status =
         normalizarTexto(
-          suscripcion?.status
-        ).toLowerCase();
+          suscripcion
+            ?.status
+        )
+          .toLowerCase();
 
       const externalReference =
         normalizarTexto(
-          suscripcion?.external_reference
+          suscripcion
+            ?.external_reference
         );
 
       console.log(
         "📌 Estado suscripción:",
         {
-          id: suscripcion.id,
+          id:
+            suscripcion.id,
+
           status,
 
           external_reference:
             externalReference,
 
           payer_email:
-            suscripcion.payer_email,
+            suscripcion
+              .payer_email,
         }
       );
 
@@ -791,7 +1137,9 @@ export async function webhookMercadoPago(req, res) {
       // ACTUALIZAR CONTRATACIÓN
       // ======================================================
 
-      if (externalReference) {
+      if (
+        externalReference
+      ) {
         await actualizarEstadoMercadoPago({
           externalReference,
 
@@ -799,7 +1147,8 @@ export async function webhookMercadoPago(req, res) {
             suscripcion.id,
 
           status:
-            status || "unknown",
+            status ||
+            "unknown",
         });
       }
 
@@ -808,7 +1157,8 @@ export async function webhookMercadoPago(req, res) {
       // ======================================================
 
       if (
-        status === "authorized" &&
+        status ===
+          "authorized" &&
         externalReference
       ) {
         const activacion =
@@ -823,42 +1173,53 @@ export async function webhookMercadoPago(req, res) {
           "✅ MirrorSoul activado:",
           {
             id_organizacion:
-              activacion.id_organizacion,
+              activacion
+                .id_organizacion,
 
             id_suscripcion:
-              activacion.id_suscripcion,
+              activacion
+                .id_suscripcion,
 
             id_usuario_admin:
-              activacion.id_usuario_admin,
+              activacion
+                .id_usuario_admin,
 
             ya_activada:
-              activacion.ya_activada,
+              activacion
+                .ya_activada,
 
             requiere_configurar_password:
               Boolean(
-                activacion.requiere_configurar_password
+                activacion
+                  .requiere_configurar_password
               ),
 
             token_generado:
-              Boolean(activacion.token_generado),
+              Boolean(
+                activacion
+                  .token_generado
+              ),
           }
         );
 
-        // No exponer contraseñas temporales.
         if (
-          process.env.NODE_ENV !== "production"
+          process.env
+            .NODE_ENV !==
+          "production"
         ) {
           console.log(
             "🔐 Estado acceso inicial:",
             {
               requiere_configurar_password:
                 Boolean(
-                  activacion.requiere_configurar_password
+                  activacion
+                    .requiere_configurar_password
                 ),
 
               token_generado:
                 Boolean(
-                  activacion.token_generado
+                  activacion
+                    .token_generado
                 ),
             }
           );
@@ -873,25 +1234,31 @@ export async function webhookMercadoPago(req, res) {
     // ========================================================
 
     if (
-      type === "payment" &&
+      type ===
+        "payment" &&
       dataId
     ) {
       const pago =
-        await obtenerPago(dataId);
+        await obtenerPago(
+          dataId
+        );
 
       console.log(
         "💳 Estado pago:",
         {
-          id: pago.id,
+          id:
+            pago.id,
 
           status:
             pago.status,
 
           status_detail:
-            pago.status_detail,
+            pago
+              .status_detail,
 
           external_reference:
-            pago.external_reference,
+            pago
+              .external_reference,
         }
       );
     }
@@ -901,11 +1268,17 @@ export async function webhookMercadoPago(req, res) {
       error
     );
 
-    if (!res.headersSent) {
-      return res.status(500).json({
-        ok: false,
-        message: "Error procesando webhook",
-      });
+    if (
+      !res.headersSent
+    ) {
+      return res
+        .status(500)
+        .json({
+          ok: false,
+
+          message:
+            "Error procesando webhook",
+        });
     }
   }
 }

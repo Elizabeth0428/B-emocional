@@ -1,4 +1,3 @@
-
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import pool from "../config/database.js";
@@ -52,16 +51,24 @@ function sumarMeses(fecha, cantidad) {
   const diaOriginal = d.getDate();
 
   d.setDate(1);
-  d.setMonth(d.getMonth() + Number(cantidad || 0));
 
-  const ultimoDia = new Date(
-    d.getFullYear(),
-    d.getMonth() + 1,
-    0
-  ).getDate();
+  d.setMonth(
+    d.getMonth() +
+      Number(cantidad || 0)
+  );
+
+  const ultimoDia =
+    new Date(
+      d.getFullYear(),
+      d.getMonth() + 1,
+      0
+    ).getDate();
 
   d.setDate(
-    Math.min(diaOriginal, ultimoDia)
+    Math.min(
+      diaOriginal,
+      ultimoDia
+    )
   );
 
   return d;
@@ -74,14 +81,18 @@ function sumarMeses(fecha, cantidad) {
 // ============================================================
 
 function generarPasswordTemporal() {
-  return `Ms${crypto.randomBytes(16).toString("hex")}!`;
+  return `Ms${crypto
+    .randomBytes(16)
+    .toString("hex")}!`;
 }
 
 // ============================================================
 // TIPO DE LICENCIA POR PLAN
 // ============================================================
 
-function obtenerTipoLicencia(tipoOrganizacion) {
+function obtenerTipoLicencia(
+  tipoOrganizacion
+) {
   const tipo = String(
     tipoOrganizacion || ""
   )
@@ -126,24 +137,33 @@ async function enviarAccesoInicial({
   correo,
 }) {
   const resultado = {
-    token_generado: false,
-    correo_enviado: false,
-    correo_aceptado_smtp: false,
-    error_correo: null,
+    token_generado:
+      false,
+
+    correo_enviado:
+      false,
+
+    correo_aceptado_smtp:
+      false,
+
+    error_correo:
+      null,
   };
 
-  let idCorreo = null;
+  let idCorreo =
+    null;
 
   // ==========================================================
   // REGISTRAR CORREO PENDIENTE
   // ==========================================================
 
   try {
-    idCorreo = await registrarCorreoPendiente({
-      idUsuario,
-      idOrganizacion,
-      correo,
-    });
+    idCorreo =
+      await registrarCorreoPendiente({
+        idUsuario,
+        idOrganizacion,
+        correo,
+      });
 
     console.log(
       "📋 Correo de activación registrado:",
@@ -165,7 +185,9 @@ async function enviarAccesoInicial({
   // COMPROBAR CONFIGURACIÓN SMTP
   // ==========================================================
 
-  if (!correoConfigurado()) {
+  if (
+    !correoConfigurado()
+  ) {
     resultado.error_correo =
       "SMTP_NO_CONFIGURADO";
 
@@ -182,7 +204,9 @@ async function enviarAccesoInicial({
   // ==========================================================
 
   try {
-    await registrarIntentoCorreo(idCorreo);
+    await registrarIntentoCorreo(
+      idCorreo
+    );
   } catch (error) {
     resultado.error_correo =
       "ERROR_REGISTRO_INTENTO";
@@ -199,7 +223,8 @@ async function enviarAccesoInicial({
   // GENERAR TOKEN Y ENVIAR CORREO
   // ==========================================================
 
-  let envio = null;
+  let envio =
+    null;
 
   try {
     const acceso =
@@ -208,48 +233,72 @@ async function enviarAccesoInicial({
       });
 
     resultado.token_generado =
-      Boolean(acceso?.token);
+      Boolean(
+        acceso?.token
+      );
 
-    if (!acceso?.token || !acceso?.correo) {
+    if (
+      !acceso?.token ||
+      !acceso?.correo
+    ) {
       throw new Error(
         "No se pudo generar el enlace de activación."
       );
     }
 
-    envio = await enviarCorreoCrearPassword({
-      correo: acceso.correo,
-      nombre: acceso.nombre,
-      token: acceso.token,
-    });
+    envio =
+      await enviarCorreoCrearPassword({
+        correo:
+          acceso.correo,
+
+        nombre:
+          acceso.nombre,
+
+        token:
+          acceso.token,
+      });
 
     // ========================================================
     // VERIFICAR ACEPTACIÓN SMTP
     // ========================================================
 
-    const aceptados = Array.isArray(
-      envio?.accepted
-    )
-      ? envio.accepted
-      : [];
+    const aceptados =
+      Array.isArray(
+        envio?.accepted
+      )
+        ? envio.accepted
+        : [];
 
-    const correoAceptado = aceptados.some(
-      (destinatario) =>
-        String(destinatario)
-          .trim()
-          .toLowerCase() ===
-        String(acceso.correo)
-          .trim()
-          .toLowerCase()
-    );
+    const correoAceptado =
+      aceptados.some(
+        (
+          destinatario
+        ) =>
+          String(
+            destinatario
+          )
+            .trim()
+            .toLowerCase() ===
+          String(
+            acceso.correo
+          )
+            .trim()
+            .toLowerCase()
+      );
 
-    if (!correoAceptado) {
+    if (
+      !correoAceptado
+    ) {
       throw new Error(
         "DESTINATARIO_NO_ACEPTADO"
       );
     }
 
-    resultado.correo_enviado = true;
-    resultado.correo_aceptado_smtp = true;
+    resultado.correo_enviado =
+      true;
+
+    resultado.correo_aceptado_smtp =
+      true;
 
     console.log(
       "✅ SMTP aceptó el correo de activación:",
@@ -258,7 +307,8 @@ async function enviarAccesoInicial({
 
     console.log(
       "📨 Message ID:",
-      envio.messageId || "No disponible"
+      envio.messageId ||
+        "No disponible"
     );
   } catch (error) {
     resultado.error_correo =
@@ -271,21 +321,21 @@ async function enviarAccesoInicial({
       resultado.error_correo
     );
 
-    // ========================================================
-    // GUARDAR ERROR EN MYSQL
-    // ========================================================
-
     try {
       await marcarErrorCorreo({
         idCorreo,
-        error: resultado.error_correo,
+
+        error:
+          resultado.error_correo,
       });
 
       console.log(
         "⚠️ Error de correo registrado en MySQL:",
         idCorreo
       );
-    } catch (registroError) {
+    } catch (
+      registroError
+    ) {
       console.error(
         "❌ No se pudo guardar el error de correo:",
         registroError.message
@@ -302,7 +352,9 @@ async function enviarAccesoInicial({
   try {
     await marcarCorreoAceptado({
       idCorreo,
-      messageId: envio.messageId,
+
+      messageId:
+        envio.messageId,
     });
 
     console.log(
@@ -313,7 +365,6 @@ async function enviarAccesoInicial({
     resultado.error_correo =
       "ERROR_GUARDANDO_CONFIRMACION";
 
-    // No reenviar automáticamente: SMTP ya lo aceptó.
     console.error(
       "⚠️ SMTP aceptó el correo, pero no se pudo actualizar MySQL:",
       error.message
@@ -331,6 +382,7 @@ export async function guardarContratacionPendiente({
   externalReference,
   mercadopagoPreapprovalId,
   tipoPlan,
+  perfilIndependiente,
   periodo,
   nombreOrganizacion,
   nombreResponsable,
@@ -341,63 +393,103 @@ export async function guardarContratacionPendiente({
   monto,
   moneda = "MXN",
 }) {
-  const [result] = await pool.query(
-    `
-    INSERT INTO contrataciones_mirrorsoul
-    (
-      external_reference,
-      mercadopago_preapproval_id,
-      tipo_plan,
-      periodo,
-      nombre_organizacion,
-      nombre_responsable,
-      correo,
-      telefono,
-      requiere_factura,
-      rfc,
-      monto,
-      moneda,
-      estado_pago,
-      estado_activacion
-    )
-    VALUES
-    (
-      ?, ?, ?, ?,
-      ?, ?, ?, ?,
-      ?, ?, ?, ?,
-      'pending',
-      'pendiente'
-    )
+  const [result] =
+    await pool.query(
+      `
+      INSERT INTO contrataciones_mirrorsoul
+      (
+        external_reference,
+        mercadopago_preapproval_id,
+        tipo_plan,
+        perfil_independiente,
+        periodo,
+        nombre_organizacion,
+        nombre_responsable,
+        correo,
+        telefono,
+        requiere_factura,
+        rfc,
+        monto,
+        moneda,
+        estado_pago,
+        estado_activacion
+      )
 
-    ON DUPLICATE KEY UPDATE
+      VALUES
+      (
+        ?, ?, ?, ?, ?,
+        ?, ?, ?, ?,
+        ?, ?, ?, ?,
+        'pending',
+        'pendiente'
+      )
 
-      mercadopago_preapproval_id =
-        VALUES(mercadopago_preapproval_id),
+      ON DUPLICATE KEY UPDATE
 
-      actualizado_en =
-        CURRENT_TIMESTAMP
-    `,
-    [
-      externalReference,
-      mercadopagoPreapprovalId,
-      tipoPlan,
-      periodo,
-      nombreOrganizacion || null,
-      nombreResponsable,
-      String(correo).trim().toLowerCase(),
-      telefono || null,
-      requiereFactura ? 1 : 0,
-      requiereFactura && rfc
-        ? String(rfc).trim().toUpperCase()
-        : null,
-      Number(monto),
-      moneda,
-    ]
-  );
+        mercadopago_preapproval_id =
+          VALUES(
+            mercadopago_preapproval_id
+          ),
+
+        perfil_independiente =
+          VALUES(
+            perfil_independiente
+          ),
+
+        actualizado_en =
+          CURRENT_TIMESTAMP
+      `,
+      [
+        externalReference,
+
+        mercadopagoPreapprovalId,
+
+        tipoPlan,
+
+        perfilIndependiente ||
+          null,
+
+        periodo,
+
+        nombreOrganizacion ||
+          null,
+
+        nombreResponsable,
+
+        String(
+          correo
+        )
+          .trim()
+          .toLowerCase(),
+
+        telefono ||
+          null,
+
+        requiereFactura
+          ? 1
+          : 0,
+
+        requiereFactura &&
+        rfc
+          ? String(
+              rfc
+            )
+              .trim()
+              .toUpperCase()
+          : null,
+
+        Number(
+          monto
+        ),
+
+        moneda,
+      ]
+    );
 
   return {
     id_contratacion:
-      result.insertId || null,
+      result.insertId ||
+      null,
 
     external_reference:
       externalReference,
@@ -429,11 +521,15 @@ export async function actualizarEstadoMercadoPago({
     WHERE external_reference = ?
     `,
     [
-      String(status || "")
+      String(
+        status ||
+        ""
+      )
         .trim()
         .toLowerCase(),
 
-      preapprovalId || null,
+      preapprovalId ||
+        null,
 
       externalReference,
     ]
@@ -447,17 +543,26 @@ export async function actualizarEstadoMercadoPago({
 export async function obtenerContratacionPorReferencia(
   externalReference
 ) {
-  const [rows] = await pool.query(
-    `
-    SELECT *
-    FROM contrataciones_mirrorsoul
-    WHERE external_reference = ?
-    LIMIT 1
-    `,
-    [externalReference]
-  );
+  const [rows] =
+    await pool.query(
+      `
+      SELECT *
 
-  return rows[0] || null;
+      FROM contrataciones_mirrorsoul
+
+      WHERE external_reference = ?
+
+      LIMIT 1
+      `,
+      [
+        externalReference,
+      ]
+    );
+
+  return (
+    rows[0] ||
+    null
+  );
 }
 
 // ============================================================
@@ -468,7 +573,8 @@ export async function obtenerContratacionPorReferencia(
 // - No duplica organizaciones.
 // - No duplica administradores.
 // - No duplica licencias.
-// - El administrador no consume licencia.
+// - El administrador de Clínica/RH/Educativo no consume licencia.
+// - El titular Independiente consume su primera licencia.
 // - El correo se envía después del COMMIT.
 // ============================================================
 
@@ -476,8 +582,11 @@ export async function activarContratacionAutorizada({
   externalReference,
   preapprovalId,
 }) {
-  let connection = null;
-  let transaccionActiva = false;
+  let connection =
+    null;
+
+  let transaccionActiva =
+    false;
 
   try {
     // ========================================================
@@ -489,32 +598,43 @@ export async function activarContratacionAutorizada({
 
     await connection.beginTransaction();
 
-    transaccionActiva = true;
+    transaccionActiva =
+      true;
 
     // ========================================================
     // BUSCAR CONTRATACIÓN
     // ========================================================
 
-    const [contrataciones] =
+    const [
+      contrataciones,
+    ] =
       await connection.query(
         `
         SELECT *
+
         FROM contrataciones_mirrorsoul
 
         WHERE external_reference = ?
 
         LIMIT 1
+
         FOR UPDATE
         `,
-        [externalReference]
+        [
+          externalReference,
+        ]
       );
 
-    if (!contrataciones.length) {
-      const error = new Error(
-        "No existe la contratación asociada al pago."
-      );
+    if (
+      !contrataciones.length
+    ) {
+      const error =
+        new Error(
+          "No existe la contratación asociada al pago."
+        );
 
-      error.status = 404;
+      error.status =
+        404;
 
       throw error;
     }
@@ -524,30 +644,36 @@ export async function activarContratacionAutorizada({
 
     // ========================================================
     // CONTRATACIÓN YA ACTIVADA
-    //
-    // NO crea otra organización.
-    // NO crea licencias adicionales.
-    // NO genera otro token.
-    // NO envía otro correo.
     // ========================================================
 
     if (
       String(
-        contratacion.estado_activacion || ""
+        contratacion
+          .estado_activacion ||
+        ""
       )
         .trim()
-        .toLowerCase() === "activada" &&
-      contratacion.id_organizacion
+        .toLowerCase() ===
+        "activada" &&
+      contratacion
+        .id_organizacion
     ) {
       const idUsuarioAdmin =
         Number(
-          contratacion.id_usuario_admin
-        ) || null;
+          contratacion
+            .id_usuario_admin
+        ) ||
+        null;
 
-      let adminExistente = null;
+      let adminExistente =
+        null;
 
-      if (idUsuarioAdmin) {
-        const [usuarios] =
+      if (
+        idUsuarioAdmin
+      ) {
+        const [
+          usuarios,
+        ] =
           await connection.query(
             `
             SELECT
@@ -561,16 +687,20 @@ export async function activarContratacionAutorizada({
 
             LIMIT 1
             `,
-            [idUsuarioAdmin]
+            [
+              idUsuarioAdmin,
+            ]
           );
 
         adminExistente =
-          usuarios[0] || null;
+          usuarios[0] ||
+          null;
       }
 
       await connection.commit();
 
-      transaccionActiva = false;
+      transaccionActiva =
+        false;
 
       console.log(
         "ℹ️ Contratación ya activada:",
@@ -578,28 +708,36 @@ export async function activarContratacionAutorizada({
       );
 
       return {
-        ya_activada: true,
+        ya_activada:
+          true,
 
         id_organizacion:
-          contratacion.id_organizacion,
+          contratacion
+            .id_organizacion,
 
         id_suscripcion:
-          contratacion.id_suscripcion,
+          contratacion
+            .id_suscripcion,
 
         id_usuario_admin:
           idUsuarioAdmin,
 
         correo_admin:
-          adminExistente?.correo || null,
+          adminExistente
+            ?.correo ||
+          null,
 
         requiere_configurar_password:
           Number(
-            adminExistente?.debe_cambiar_password
+            adminExistente
+              ?.debe_cambiar_password
           ) === 1,
 
-        token_generado: false,
+        token_generado:
+          false,
 
-        correo_enviado: false,
+        correo_enviado:
+          false,
       };
     }
 
@@ -607,25 +745,23 @@ export async function activarContratacionAutorizada({
     // OBTENER TIPO DE PLAN
     // ========================================================
 
-    const tipoPlan = String(
-      contratacion.tipo_plan || ""
-    )
-      .trim()
-      .toLowerCase();
+    const tipoPlan =
+      String(
+        contratacion
+          .tipo_plan ||
+        ""
+      )
+        .trim()
+        .toLowerCase();
 
-    // ========================================================
-    // PLAN INDEPENDIENTE
-    // ========================================================
-
-    if (tipoPlan === "independiente") {
-      const error = new Error(
-        "El plan independiente utiliza el flujo independiente existente."
-      );
-
-      error.status = 409;
-
-      throw error;
-    }
+    const perfilIndependiente =
+      String(
+        contratacion
+          .perfil_independiente ||
+        ""
+      )
+        .trim()
+        .toLowerCase();
 
     // ========================================================
     // VALIDAR TIPO DE PLAN
@@ -633,16 +769,46 @@ export async function activarContratacionAutorizada({
 
     if (
       ![
+        "independiente",
         "clinica",
         "rh",
         "educativo",
-      ].includes(tipoPlan)
+      ].includes(
+        tipoPlan
+      )
     ) {
-      const error = new Error(
-        "Tipo de plan no compatible con activación automática."
-      );
+      const error =
+        new Error(
+          "Tipo de plan no compatible con activación automática."
+        );
 
-      error.status = 400;
+      error.status =
+        400;
+
+      throw error;
+    }
+
+    // ========================================================
+    // VALIDAR PERFIL INDEPENDIENTE
+    // ========================================================
+
+    if (
+      tipoPlan ===
+        "independiente" &&
+      ![
+        "clinica",
+        "rh",
+      ].includes(
+        perfilIndependiente
+      )
+    ) {
+      const error =
+        new Error(
+          "La contratación independiente no tiene definido si corresponde a Psicología/Clínica o Recursos Humanos."
+        );
+
+      error.status =
+        400;
 
       throw error;
     }
@@ -651,7 +817,9 @@ export async function activarContratacionAutorizada({
     // BUSCAR PLAN ACTIVO
     // ========================================================
 
-    const [planes] =
+    const [
+      planes,
+    ] =
       await connection.query(
         `
         SELECT
@@ -669,58 +837,81 @@ export async function activarContratacionAutorizada({
         ORDER BY id_plan ASC
 
         LIMIT 1
+
         FOR UPDATE
         `,
-        [tipoPlan]
+        [
+          tipoPlan,
+        ]
       );
 
-    if (!planes.length) {
-      const error = new Error(
-        `No existe un plan activo tipo ${tipoPlan}.`
-      );
+    if (
+      !planes.length
+    ) {
+      const error =
+        new Error(
+          `No existe un plan activo tipo ${tipoPlan}.`
+        );
 
-      error.status = 409;
+      error.status =
+        409;
 
       throw error;
     }
 
-    const plan = planes[0];
+    const plan =
+      planes[0];
 
     // ========================================================
     // OBTENER CANTIDAD DE LICENCIAS
     // ========================================================
 
-    const cantidadLicencias = Math.max(
-      1,
-      Number(
-        plan.licencias_incluidas || 1
-      )
-    );
+    const cantidadLicencias =
+      Math.max(
+        1,
 
-    const tipoLicencia =
-      obtenerTipoLicencia(tipoPlan);
-
-    if (!tipoLicencia) {
-      const error = new Error(
-        `No se pudo determinar el tipo de licencia para ${tipoPlan}.`
+        Number(
+          plan
+            .licencias_incluidas ||
+          1
+        )
       );
 
-      error.status = 400;
+    const tipoLicencia =
+      obtenerTipoLicencia(
+        tipoPlan
+      );
+
+    if (
+      !tipoLicencia
+    ) {
+      const error =
+        new Error(
+          `No se pudo determinar el tipo de licencia para ${tipoPlan}.`
+        );
+
+      error.status =
+        400;
 
       throw error;
     }
 
     // ========================================================
-    // CORREO DEL ADMINISTRADOR
+    // CORREO DEL USUARIO PRINCIPAL
     // ========================================================
 
-    const correo = String(
-      contratacion.correo || ""
-    )
-      .trim()
-      .toLowerCase();
+    const correo =
+      String(
+        contratacion
+          .correo ||
+        ""
+      )
+        .trim()
+        .toLowerCase();
 
-    if (!correo) {
+    if (
+      !correo
+    ) {
       throw new Error(
         "La contratación no tiene correo de administrador."
       );
@@ -730,7 +921,9 @@ export async function activarContratacionAutorizada({
     // VALIDAR CORREO DUPLICADO
     // ========================================================
 
-    const [usuariosExistentes] =
+    const [
+      usuariosExistentes,
+    ] =
       await connection.query(
         `
         SELECT
@@ -744,68 +937,98 @@ export async function activarContratacionAutorizada({
         ) = ?
 
         LIMIT 1
+
         FOR UPDATE
         `,
-        [correo]
+        [
+          correo,
+        ]
       );
 
-    if (usuariosExistentes.length) {
-      const error = new Error(
-        "El correo del responsable ya pertenece a un usuario de MirrorSoul."
-      );
+    if (
+      usuariosExistentes.length
+    ) {
+      const error =
+        new Error(
+          "El correo del responsable ya pertenece a un usuario de MirrorSoul."
+        );
 
-      error.status = 409;
+      error.status =
+        409;
 
       throw error;
     }
 
     // ========================================================
     // OBTENER ADMINISTRADOR MASTER
+    //
+    // Independiente NO tiene administrador padre.
+    // Clínica / RH / Educativo sí dependen del Master.
     // ========================================================
 
-    const [masters] =
-      await connection.query(
-        `
-        SELECT id_usuario
+    let idAdminMaster =
+      null;
 
-        FROM usuarios
+    if (
+      tipoPlan !==
+        "independiente"
+    ) {
+      const [
+        masters,
+      ] =
+        await connection.query(
+          `
+          SELECT id_usuario
 
-        WHERE rol = 'admin'
-          AND tipo_admin = 'master'
+          FROM usuarios
 
-        ORDER BY id_usuario ASC
+          WHERE rol = 'admin'
+            AND tipo_admin = 'master'
 
-        LIMIT 1
-        `
-      );
+          ORDER BY id_usuario ASC
 
-    if (!masters.length) {
-      const error = new Error(
-        "No existe un Administrador Master para asignar la organización."
-      );
+          LIMIT 1
+          `
+        );
 
-      error.status = 409;
+      if (
+        !masters.length
+      ) {
+        const error =
+          new Error(
+            "No existe un Administrador Master para asignar la organización."
+          );
 
-      throw error;
+        error.status =
+          409;
+
+        throw error;
+      }
+
+      idAdminMaster =
+        masters[0]
+          .id_usuario;
     }
-
-    const idAdminMaster =
-      masters[0].id_usuario;
 
     // ========================================================
     // NOMBRE DE LA ORGANIZACIÓN
     // ========================================================
 
-    const nombreOrganizacion = String(
-      contratacion.nombre_organizacion ||
+    const nombreOrganizacion =
+      String(
+        contratacion
+          .nombre_organizacion ||
         `Organización de ${contratacion.nombre_responsable}`
-    ).trim();
+      )
+        .trim();
 
     // ========================================================
     // CREAR ORGANIZACIÓN
     // ========================================================
 
-    const [organizacionInsert] =
+    const [
+      organizacionInsert,
+    ] =
       await connection.query(
         `
         INSERT INTO organizaciones
@@ -818,13 +1041,14 @@ export async function activarContratacionAutorizada({
           rfc,
           direccion,
           tipo,
+          perfil_independiente,
           estado
         )
 
         VALUES
         (
           ?, ?, ?, ?, ?, ?,
-          NULL, ?, 'activa'
+          NULL, ?, ?, 'activa'
         )
         `,
         [
@@ -833,50 +1057,73 @@ export async function activarContratacionAutorizada({
           nombreOrganizacion,
 
           String(
-            contratacion.nombre_responsable
-          ).trim(),
+            contratacion
+              .nombre_responsable
+          )
+            .trim(),
 
           correo,
 
-          contratacion.telefono || null,
+          contratacion
+            .telefono ||
+          null,
 
-          contratacion.rfc || null,
+          contratacion
+            .rfc ||
+          null,
 
           tipoPlan,
+
+          tipoPlan ===
+            "independiente"
+            ? perfilIndependiente
+            : null,
         ]
       );
 
     const idOrganizacion =
-      organizacionInsert.insertId;
+      organizacionInsert
+        .insertId;
 
     // ========================================================
     // CALCULAR FECHAS
     // ========================================================
 
-    const hoy = new Date();
+    const hoy =
+      new Date();
 
     const meses =
       String(
-        contratacion.periodo || "mensual"
+        contratacion
+          .periodo ||
+        "mensual"
       )
         .trim()
-        .toLowerCase() === "anual"
+        .toLowerCase() ===
+        "anual"
         ? 12
         : 1;
 
     const fechaInicio =
-      fechaSQL(hoy);
+      fechaSQL(
+        hoy
+      );
 
     const proximaRenovacion =
       fechaSQL(
-        sumarMeses(hoy, meses)
+        sumarMeses(
+          hoy,
+          meses
+        )
       );
 
     // ========================================================
     // CREAR SUSCRIPCIÓN INTERNA
     // ========================================================
 
-    const [suscripcionInsert] =
+    const [
+      suscripcionInsert,
+    ] =
       await connection.query(
         `
         INSERT INTO suscripciones
@@ -910,7 +1157,171 @@ export async function activarContratacionAutorizada({
       );
 
     const idSuscripcion =
-      suscripcionInsert.insertId;
+      suscripcionInsert
+        .insertId;
+
+    // ========================================================
+    // GENERAR CONTRASEÑA TEMPORAL INTERNA
+    //
+    // Nunca se comparte con el cliente.
+    // ========================================================
+
+    const passwordTemporal =
+      generarPasswordTemporal();
+
+    const passwordHash =
+      await bcrypt.hash(
+        passwordTemporal,
+        10
+      );
+
+    // ========================================================
+    // CREAR USUARIO PRINCIPAL
+    // ========================================================
+
+    let idUsuarioAdmin =
+      null;
+
+    // ========================================================
+    // INDEPENDIENTE
+    // ========================================================
+
+    if (
+      tipoPlan ===
+        "independiente"
+    ) {
+      const [
+        usuarioInsert,
+      ] =
+        await connection.query(
+          `
+          INSERT INTO usuarios
+          (
+            nombre,
+            puesto,
+            telefono,
+            direccion,
+            correo,
+            password,
+            debe_cambiar_password,
+            rol,
+            tipo_admin,
+            area,
+            id_admin_padre,
+            id_organizacion,
+            estado
+          )
+
+          VALUES
+          (
+            ?,
+            NULL,
+            ?,
+            NULL,
+            ?,
+            ?,
+            1,
+            'independiente',
+            NULL,
+            'independiente',
+            NULL,
+            ?,
+            'activo'
+          )
+          `,
+          [
+            String(
+              contratacion
+                .nombre_responsable
+            )
+              .trim(),
+
+            contratacion
+              .telefono ||
+            null,
+
+            correo,
+
+            passwordHash,
+
+            idOrganizacion,
+          ]
+        );
+
+      idUsuarioAdmin =
+        usuarioInsert
+          .insertId;
+    }
+
+    // ========================================================
+    // CLÍNICA / RH / EDUCATIVO
+    // ========================================================
+
+    else {
+      const [
+        adminInsert,
+      ] =
+        await connection.query(
+          `
+          INSERT INTO usuarios
+          (
+            nombre,
+            puesto,
+            telefono,
+            direccion,
+            correo,
+            password,
+            debe_cambiar_password,
+            rol,
+            tipo_admin,
+            area,
+            id_admin_padre,
+            id_organizacion
+          )
+
+          VALUES
+          (
+            ?,
+            'Administrador',
+            ?,
+            NULL,
+            ?,
+            ?,
+            1,
+            'admin',
+            'normal',
+            ?,
+            ?,
+            ?
+          )
+          `,
+          [
+            String(
+              contratacion
+                .nombre_responsable
+            )
+              .trim(),
+
+            contratacion
+              .telefono ||
+            null,
+
+            correo,
+
+            passwordHash,
+
+            tipoPlan,
+
+            idAdminMaster,
+
+            idOrganizacion,
+          ]
+        );
+
+      idUsuarioAdmin =
+        adminInsert
+          .insertId;
+    }
 
     // ========================================================
     // CREAR LICENCIAS
@@ -918,9 +1329,15 @@ export async function activarContratacionAutorizada({
 
     for (
       let i = 0;
-      i < cantidadLicencias;
+      i <
+      cantidadLicencias;
       i++
     ) {
+      const asignarAlTitular =
+        tipoPlan ===
+          "independiente" &&
+        i === 0;
+
       await connection.query(
         `
         INSERT INTO licencias
@@ -934,95 +1351,26 @@ export async function activarContratacionAutorizada({
         VALUES
         (
           ?,
-          NULL,
-          ?,
-          'disponible'
-        )
-        `,
-        [
-          idSuscripcion,
-          tipoLicencia,
-        ]
-      );
-    }
-
-    // ========================================================
-    // GENERAR CONTRASEÑA TEMPORAL INTERNA
-    //
-    // No se comparte ni se envía por correo.
-    // ========================================================
-
-    const passwordTemporal =
-      generarPasswordTemporal();
-
-    const passwordHash =
-      await bcrypt.hash(
-        passwordTemporal,
-        10
-      );
-
-    // ========================================================
-    // CREAR ADMINISTRADOR NORMAL
-    //
-    // No consume licencia.
-    // ========================================================
-
-    const [adminInsert] =
-      await connection.query(
-        `
-        INSERT INTO usuarios
-        (
-          nombre,
-          puesto,
-          telefono,
-          direccion,
-          correo,
-          password,
-          debe_cambiar_password,
-          rol,
-          tipo_admin,
-          area,
-          id_admin_padre,
-          id_organizacion
-        )
-
-        VALUES
-        (
-          ?,
-          'Administrador',
-          ?,
-          NULL,
-          ?,
-          ?,
-          1,
-          'admin',
-          'normal',
           ?,
           ?,
           ?
         )
         `,
         [
-          String(
-            contratacion.nombre_responsable
-          ).trim(),
+          idSuscripcion,
 
-          contratacion.telefono || null,
+          asignarAlTitular
+            ? idUsuarioAdmin
+            : null,
 
-          correo,
+          tipoLicencia,
 
-          passwordHash,
-
-          tipoPlan,
-
-          idAdminMaster,
-
-          idOrganizacion,
+          asignarAlTitular
+            ? "asignada"
+            : "disponible",
         ]
       );
-
-    const idUsuarioAdmin =
-      adminInsert.insertId;
+    }
 
     // ========================================================
     // MARCAR CONTRATACIÓN COMO ACTIVADA
@@ -1033,9 +1381,11 @@ export async function activarContratacionAutorizada({
       UPDATE contrataciones_mirrorsoul
 
       SET
-        estado_pago = 'authorized',
+        estado_pago =
+          'authorized',
 
-        estado_activacion = 'activada',
+        estado_activacion =
+          'activada',
 
         mercadopago_preapproval_id =
           COALESCE(
@@ -1049,12 +1399,14 @@ export async function activarContratacionAutorizada({
 
         id_usuario_admin = ?,
 
-        error_activacion = NULL
+        error_activacion =
+          NULL
 
       WHERE id_contratacion = ?
       `,
       [
-        preapprovalId || null,
+        preapprovalId ||
+          null,
 
         idOrganizacion,
 
@@ -1062,7 +1414,8 @@ export async function activarContratacionAutorizada({
 
         idUsuarioAdmin,
 
-        contratacion.id_contratacion,
+        contratacion
+          .id_contratacion,
       ]
     );
 
@@ -1072,7 +1425,8 @@ export async function activarContratacionAutorizada({
 
     await connection.commit();
 
-    transaccionActiva = false;
+    transaccionActiva =
+      false;
 
     console.log(
       "✅ Organización activada:",
@@ -1080,7 +1434,11 @@ export async function activarContratacionAutorizada({
     );
 
     console.log(
-      "✅ Administrador creado:",
+      tipoPlan ===
+        "independiente"
+        ? "✅ Titular independiente creado:"
+        : "✅ Administrador creado:",
+
       idUsuarioAdmin
     );
 
@@ -1090,14 +1448,13 @@ export async function activarContratacionAutorizada({
     );
 
     // ========================================================
-    // ENVIAR ACCESO INICIAL Y REGISTRARLO EN MYSQL
-    //
-    // Si falla, NO desactiva la organización.
+    // ENVIAR ACCESO INICIAL
     // ========================================================
 
     const acceso =
       await enviarAccesoInicial({
-        idUsuario: idUsuarioAdmin,
+        idUsuario:
+          idUsuarioAdmin,
 
         idOrganizacion,
 
@@ -1109,7 +1466,8 @@ export async function activarContratacionAutorizada({
     // ========================================================
 
     return {
-      ya_activada: false,
+      ya_activada:
+        false,
 
       id_organizacion:
         idOrganizacion,
@@ -1127,16 +1485,20 @@ export async function activarContratacionAutorizada({
         true,
 
       token_generado:
-        acceso.token_generado,
+        acceso
+          .token_generado,
 
       correo_enviado:
-        acceso.correo_enviado,
+        acceso
+          .correo_enviado,
 
       correo_aceptado_smtp:
-        acceso.correo_aceptado_smtp,
+        acceso
+          .correo_aceptado_smtp,
 
       error_correo:
-        acceso.error_correo,
+        acceso
+          .error_correo,
 
       plan: {
         id_plan:
@@ -1148,6 +1510,12 @@ export async function activarContratacionAutorizada({
         tipo:
           tipoPlan,
 
+        perfil_independiente:
+          tipoPlan ===
+            "independiente"
+            ? perfilIndependiente
+            : null,
+
         licencias:
           cantidadLicencias,
 
@@ -1157,7 +1525,7 @@ export async function activarContratacionAutorizada({
     };
   } catch (error) {
     // ========================================================
-    // ROLLBACK SOLO DE TRANSACCIONES SIN CONFIRMAR
+    // ROLLBACK
     // ========================================================
 
     if (
@@ -1166,7 +1534,9 @@ export async function activarContratacionAutorizada({
     ) {
       try {
         await connection.rollback();
-      } catch (rollbackError) {
+      } catch (
+        rollbackError
+      ) {
         console.error(
           "❌ Error ejecutando rollback:",
           rollbackError.message
@@ -1183,11 +1553,16 @@ export async function activarContratacionAutorizada({
           UPDATE contrataciones_mirrorsoul
 
           SET
-            estado_activacion = 'error',
-            error_activacion = ?
+            estado_activacion =
+              'error',
+
+            error_activacion =
+              ?
 
           WHERE external_reference = ?
-            AND estado_activacion <> 'activada'
+
+            AND estado_activacion <>
+              'activada'
           `,
           [
             error.message ||
@@ -1196,7 +1571,9 @@ export async function activarContratacionAutorizada({
             externalReference,
           ]
         );
-      } catch (updateError) {
+      } catch (
+        updateError
+      ) {
         console.error(
           "⚠️ No se pudo registrar el error de activación:",
           updateError.message
@@ -1215,7 +1592,9 @@ export async function activarContratacionAutorizada({
     // LIBERAR CONEXIÓN
     // ========================================================
 
-    if (connection) {
+    if (
+      connection
+    ) {
       connection.release();
     }
   }
