@@ -1,3 +1,4 @@
+
 import React, {
   useEffect,
   useState,
@@ -171,7 +172,9 @@ function PlanesMirrorSoul() {
       setErrorPrecios("");
 
       try {
-        const API_URL = `${import.meta.env.VITE_API_URL || window.location.origin}`;
+        const apiBase =
+          import.meta.env.VITE_API_URL ||
+          "";
 
         const resultados = await Promise.all(
           planes.map(async (plan) => {
