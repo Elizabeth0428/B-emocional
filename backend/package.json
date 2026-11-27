@@ -42,7 +42,7 @@
     "nodemon": "^3.1.0"
   },
   "overrides": {
-    "websocket-driver": "^0.8.0",
+    "websocket-driver": "^0.8.1",
     "proxy-addr": "^2.0.8",
     "protobufjs": "^7.5.5",
     "fast-xml-parser": "^5.12.0",

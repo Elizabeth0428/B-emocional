@@ -788,6 +788,18 @@ console.log(
 );
 
 // ==================================================
+// INDEPENDIENTE
+// ==================================================
+app.use(
+  "/api/independientes-manual",
+  independienteManualRoutes
+);
+
+console.log(
+  "✅ Ruta de membresías independientes manuales cargada"
+);
+
+// ==================================================
 // RESPALDOS DE BASE DE DATOS
 // ==================================================
 
@@ -840,6 +852,12 @@ app.use(
 console.log(
   "✅ Rutas de psicologoEstado cargadas"
 );
+
+// ==================================================
+// INDEPENDIENTE
+// ==================================================
+import independienteManualRoutes from "./routes/independienteManual.js";
+
 
 
 // ==================================================

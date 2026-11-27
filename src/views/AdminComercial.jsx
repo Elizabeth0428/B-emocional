@@ -18,9 +18,7 @@ import {
 // API
 // ==================================================
 
-const API_URL =
-  import.meta.env.VITE_API_URL ||
-  `${import.meta.env.VITE_API_URL || window.location.origin}`;
+const API_URL = import.meta.env.VITE_API_URL || "";
 
 
 // ==================================================
@@ -209,6 +207,892 @@ const AdminComercial = ({
   const [estadoBackup, setEstadoBackup] = useState(null);
   const [cargandoBackups, setCargandoBackups] = useState(false);
   const [creandoBackup, setCreandoBackup] = useState(false);
+
+
+  // ==================================================
+  // MEMBRESÍA MANUAL / ALTA NUEVA
+  // ==================================================
+
+  const [
+    mostrarModalMembresia,
+    setMostrarModalMembresia
+  ] =
+    useState(false);
+
+
+  const [
+    guardandoMembresia,
+    setGuardandoMembresia
+  ] =
+    useState(false);
+
+
+  const [
+    formMembresia,
+    setFormMembresia
+  ] =
+    useState({
+      nombre: "",
+      nombre_comercial: "",
+      responsable: "",
+      correo: "",
+      telefono: "",
+      rfc: "",
+      direccion: "",
+
+      tipo: "clinica",
+      id_plan: "",
+      licencias_totales: 1,
+      meses: 1,
+
+      origen_alta: "cortesia",
+      motivo_alta: "",
+
+      admin_nombre: "",
+      admin_correo: "",
+      admin_password: "",
+      admin_telefono: "",
+      admin_direccion: ""
+    });
+
+
+  // ==================================================
+  // MEMBRESÍA MANUAL - ABRIR MODAL
+  // ==================================================
+
+  const abrirMembresiaManual =
+    () => {
+
+      setError(
+        ""
+      );
+
+      setMensaje(
+        ""
+      );
+
+
+      setFormMembresia({
+        nombre: "",
+        nombre_comercial: "",
+        responsable: "",
+        correo: "",
+        telefono: "",
+        rfc: "",
+        direccion: "",
+
+        tipo: "clinica",
+        id_plan: "",
+        licencias_totales: 1,
+        meses: 1,
+
+        origen_alta: "cortesia",
+        motivo_alta: "",
+
+        admin_nombre: "",
+        admin_correo: "",
+        admin_password: "",
+        admin_telefono: "",
+        admin_direccion: ""
+      });
+
+
+      setMostrarModalMembresia(
+        true
+      );
+
+    };
+
+
+  // ==================================================
+  // MEMBRESÍA MANUAL - CAMBIAR FORMULARIO
+  // ==================================================
+
+  const cambiarFormMembresia =
+    e => {
+
+      const {
+        name,
+        value
+      } =
+        e.target;
+
+
+      // ================================================
+      // SI CAMBIA EL TIPO, LIMPIAR EL PLAN
+      // ================================================
+
+      if (
+        name ===
+        "tipo"
+      ) {
+
+        setFormMembresia(
+          actual => ({
+            ...actual,
+            tipo:
+              value,
+            id_plan:
+              "",
+            licencias_totales:
+              1
+          })
+        );
+
+        return;
+
+      }
+
+
+      // ================================================
+      // SI CAMBIA EL PLAN, TOMAR SUS LICENCIAS POR DEFECTO
+      // ================================================
+
+      if (
+        name ===
+        "id_plan"
+      ) {
+
+        const plan =
+          planes.find(
+            item =>
+              Number(
+                item.id_plan
+              ) ===
+              Number(
+                value
+              )
+          );
+
+
+        setFormMembresia(
+          actual => ({
+            ...actual,
+
+            id_plan:
+              value,
+
+            licencias_totales:
+              plan
+                ?.licencias_incluidas ??
+              actual
+                .licencias_totales
+          })
+        );
+
+        return;
+
+      }
+
+
+      setFormMembresia(
+        actual => ({
+          ...actual,
+          [name]:
+            value
+        })
+      );
+
+    };
+
+
+  // ==================================================
+  // MEMBRESÍA MANUAL - GUARDAR
+  //
+  // Usa el flujo existente del backend:
+  // organización -> suscripción -> licencias -> admin
+  // ==================================================
+
+  const guardarMembresiaManual =
+    async e => {
+
+      e.preventDefault();
+
+
+      try {
+
+        setGuardandoMembresia(
+          true
+        );
+
+        setError(
+          ""
+        );
+
+        setMensaje(
+          ""
+        );
+
+
+        // ================================================
+        // VALIDACIONES FRONTEND
+        // ================================================
+
+        if (
+          !formMembresia
+            .nombre
+            .trim()
+        ) {
+
+          throw new Error(
+            "Escribe el nombre de la organización."
+          );
+
+        }
+
+
+        if (
+          !formMembresia
+            .id_plan
+        ) {
+
+          throw new Error(
+            "Selecciona un plan."
+          );
+
+        }
+
+
+        if (
+          !formMembresia
+            .admin_nombre
+            .trim() ||
+          !formMembresia
+            .admin_correo
+            .trim() ||
+          !formMembresia
+            .admin_password
+        ) {
+
+          throw new Error(
+            "Nombre, correo y contraseña del administrador son obligatorios."
+          );
+
+        }
+
+
+        if (
+          String(
+            formMembresia
+              .admin_password
+          ).length < 6
+        ) {
+
+          throw new Error(
+            "La contraseña temporal debe tener al menos 6 caracteres."
+          );
+
+        }
+
+
+        const licencias =
+          Number(
+            formMembresia
+              .licencias_totales
+          );
+
+
+        if (
+          !Number.isInteger(
+            licencias
+          ) ||
+          licencias < 1
+        ) {
+
+          throw new Error(
+            "La cantidad de licencias no es válida."
+          );
+
+        }
+
+
+        const meses =
+          Math.max(
+            1,
+            Number(
+              formMembresia
+                .meses ||
+              1
+            )
+          );
+
+
+        // ================================================
+        // FECHAS
+        // ================================================
+
+        const fechaInicio =
+          new Date();
+
+
+        const proximaRenovacion =
+          new Date(
+            fechaInicio
+          );
+
+
+        proximaRenovacion.setMonth(
+          proximaRenovacion.getMonth() +
+          meses
+        );
+
+
+        const fechaSQL =
+          fecha =>
+            fecha
+              .toISOString()
+              .slice(
+                0,
+                10
+              );
+
+
+        // ================================================
+        // PAYLOAD
+        // ================================================
+
+        const payload = {
+
+          nombre:
+            formMembresia
+              .nombre
+              .trim(),
+
+          nombre_comercial:
+            formMembresia
+              .nombre_comercial
+              .trim() ||
+            null,
+
+          responsable:
+            formMembresia
+              .responsable
+              .trim() ||
+            formMembresia
+              .admin_nombre
+              .trim(),
+
+          correo:
+            formMembresia
+              .correo
+              .trim()
+              .toLowerCase() ||
+            formMembresia
+              .admin_correo
+              .trim()
+              .toLowerCase(),
+
+          telefono:
+            formMembresia
+              .telefono
+              .trim() ||
+            null,
+
+          rfc:
+            formMembresia
+              .rfc
+              .trim() ||
+            null,
+
+          direccion:
+            formMembresia
+              .direccion
+              .trim() ||
+            null,
+
+          tipo:
+            formMembresia
+              .tipo,
+
+          id_plan:
+            Number(
+              formMembresia
+                .id_plan
+            ),
+
+          licencias_totales:
+            licencias,
+
+          estado_suscripcion:
+            "activa",
+
+          fecha_inicio:
+            fechaSQL(
+              fechaInicio
+            ),
+
+          proxima_renovacion:
+            fechaSQL(
+              proximaRenovacion
+            ),
+
+          admin_nombre:
+            formMembresia
+              .admin_nombre
+              .trim(),
+
+          admin_correo:
+            formMembresia
+              .admin_correo
+              .trim()
+              .toLowerCase(),
+
+          admin_password:
+            formMembresia
+              .admin_password,
+
+          admin_telefono:
+            formMembresia
+              .admin_telefono
+              .trim() ||
+            null,
+
+          admin_direccion:
+            formMembresia
+              .admin_direccion
+              .trim() ||
+            null,
+
+          // Estos campos viajan para que podamos
+          // persistirlos cuando agreguemos auditoría
+          // al backend. Si el controlador actual no
+          // los usa, simplemente los ignorará.
+          origen_alta:
+            "manual",
+
+          motivo_alta:
+            formMembresia
+              .origen_alta ===
+            "otro"
+              ? formMembresia
+                  .motivo_alta
+                  .trim() ||
+                "Alta manual"
+              : formMembresia
+                  .origen_alta
+        };
+
+
+        const data =
+          await apiFetch(
+            "/api/organizaciones",
+            {
+              method:
+                "POST",
+
+              body:
+                JSON.stringify(
+                  payload
+                )
+            }
+          );
+
+
+        setMensaje(
+          data?.message ||
+          "Membresía manual creada correctamente."
+        );
+
+
+        setMostrarModalMembresia(
+          false
+        );
+
+
+        await Promise.all([
+          cargarOrganizaciones(),
+          cargarPlanes()
+        ]);
+
+
+        setTabActivo(
+          "organizaciones"
+        );
+
+      }
+
+      catch (
+        err
+      ) {
+
+        console.error(
+          "❌ Error creando membresía manual:",
+          err
+        );
+
+
+        setError(
+          err.message ||
+          "No se pudo crear la membresía manual."
+        );
+
+      }
+
+      finally {
+
+        setGuardandoMembresia(
+          false
+        );
+
+      }
+
+    };
+
+
+  // ==================================================
+  // MEMBRESÍA MANUAL INDEPENDIENTE
+  // ==================================================
+
+  const [
+    mostrarModalIndependiente,
+    setMostrarModalIndependiente
+  ] =
+    useState(false);
+
+
+  const [
+    guardandoIndependiente,
+    setGuardandoIndependiente
+  ] =
+    useState(false);
+
+
+  const [
+    formIndependiente,
+    setFormIndependiente
+  ] =
+    useState({
+      perfil_independiente:
+        "clinica",
+
+      nombre:
+        "",
+
+      nombre_practica:
+        "",
+
+      correo:
+        "",
+
+      password:
+        "",
+
+      telefono:
+        "",
+
+      direccion:
+        "",
+
+      rfc:
+        "",
+
+      id_plan:
+        "",
+
+      meses:
+        1,
+
+      origen_alta:
+        "cortesia",
+
+      motivo_alta:
+        ""
+    });
+
+
+  // ==================================================
+  // MEMBRESÍA MANUAL INDEPENDIENTE - ABRIR
+  // ==================================================
+
+  const abrirIndependienteManual =
+    () => {
+
+      setError(
+        ""
+      );
+
+      setMensaje(
+        ""
+      );
+
+
+      setFormIndependiente({
+        perfil_independiente:
+          "clinica",
+
+        nombre:
+          "",
+
+        nombre_practica:
+          "",
+
+        correo:
+          "",
+
+        password:
+          "",
+
+        telefono:
+          "",
+
+        direccion:
+          "",
+
+        rfc:
+          "",
+
+        id_plan:
+          "",
+
+        meses:
+          1,
+
+        origen_alta:
+          "cortesia",
+
+        motivo_alta:
+          ""
+      });
+
+
+      setMostrarModalIndependiente(
+        true
+      );
+
+    };
+
+
+  // ==================================================
+  // MEMBRESÍA MANUAL INDEPENDIENTE - CAMBIAR
+  // ==================================================
+
+  const cambiarFormIndependiente =
+    e => {
+
+      const {
+        name,
+        value
+      } =
+        e.target;
+
+
+      setFormIndependiente(
+        actual => ({
+          ...actual,
+          [name]:
+            value
+        })
+      );
+
+    };
+
+
+  // ==================================================
+  // MEMBRESÍA MANUAL INDEPENDIENTE - GUARDAR
+  // ==================================================
+
+  const guardarIndependienteManual =
+    async e => {
+
+      e.preventDefault();
+
+
+      try {
+
+        setGuardandoIndependiente(
+          true
+        );
+
+        setError(
+          ""
+        );
+
+        setMensaje(
+          ""
+        );
+
+
+        if (
+          !formIndependiente
+            .nombre
+            .trim() ||
+          !formIndependiente
+            .nombre_practica
+            .trim() ||
+          !formIndependiente
+            .correo
+            .trim() ||
+          !formIndependiente
+            .password
+        ) {
+
+          throw new Error(
+            "Completa los campos obligatorios."
+          );
+
+        }
+
+
+        if (
+          String(
+            formIndependiente
+              .password
+          ).length < 6
+        ) {
+
+          throw new Error(
+            "La contraseña debe tener al menos 6 caracteres."
+          );
+
+        }
+
+
+        if (
+          !formIndependiente
+            .id_plan
+        ) {
+
+          throw new Error(
+            "Selecciona el plan Independiente."
+          );
+
+        }
+
+
+        const payload = {
+
+          perfil_independiente:
+            formIndependiente
+              .perfil_independiente,
+
+          nombre:
+            formIndependiente
+              .nombre
+              .trim(),
+
+          nombre_practica:
+            formIndependiente
+              .nombre_practica
+              .trim(),
+
+          correo:
+            formIndependiente
+              .correo
+              .trim()
+              .toLowerCase(),
+
+          password:
+            formIndependiente
+              .password,
+
+          telefono:
+            formIndependiente
+              .telefono
+              .trim() ||
+            null,
+
+          direccion:
+            formIndependiente
+              .direccion
+              .trim() ||
+            null,
+
+          rfc:
+            formIndependiente
+              .rfc
+              .trim()
+              .toUpperCase() ||
+            null,
+
+          id_plan:
+            Number(
+              formIndependiente
+                .id_plan
+            ),
+
+          meses:
+            Number(
+              formIndependiente
+                .meses ||
+              1
+            ),
+
+          origen_alta:
+            formIndependiente
+              .origen_alta,
+
+          motivo_alta:
+            formIndependiente
+              .motivo_alta
+              .trim() ||
+            null
+        };
+
+
+        const data =
+          await apiFetch(
+            "/api/independientes-manual",
+            {
+              method:
+                "POST",
+
+              body:
+                JSON.stringify(
+                  payload
+                )
+            }
+          );
+
+
+        setMensaje(
+          data?.message ||
+          "Membresía Independiente creada correctamente."
+        );
+
+
+        setMostrarModalIndependiente(
+          false
+        );
+
+
+        await Promise.all([
+          cargarOrganizaciones(),
+          cargarPlanes()
+        ]);
+
+
+        setTabActivo(
+          "organizaciones"
+        );
+
+      }
+
+      catch (
+        err
+      ) {
+
+        console.error(
+          "❌ Error creando independiente manual:",
+          err
+        );
+
+
+        setError(
+          err.message ||
+          "No se pudo crear la membresía Independiente."
+        );
+
+      }
+
+      finally {
+
+        setGuardandoIndependiente(
+          false
+        );
+
+      }
+
+    };
 
 
   // ==================================================
@@ -2261,6 +3145,47 @@ const AdminComercial = ({
 
                 </div>
 
+
+                <div
+                  style={{
+                    display:
+                      "flex",
+
+                    gap:
+                      "10px",
+
+                    flexWrap:
+                      "wrap"
+                  }}
+                >
+
+                  <button
+                    type="button"
+                    style={
+                      primaryButton
+                    }
+                    onClick={
+                      abrirMembresiaManual
+                    }
+                  >
+                    ➕ Crear organización manual
+                  </button>
+
+
+                  <button
+                    type="button"
+                    style={
+                      secondaryButton
+                    }
+                    onClick={
+                      abrirIndependienteManual
+                    }
+                  >
+                    👤 Crear Independiente manual
+                  </button>
+
+                </div>
+
               </div>
 
 
@@ -2797,6 +3722,1156 @@ const AdminComercial = ({
           )}
 
         </>
+
+      )}
+
+
+      {/* ==================================================
+          MODAL CREAR INDEPENDIENTE MANUAL
+      ================================================== */}
+
+      {mostrarModalIndependiente && (
+
+        <div
+          style={
+            modalOverlay
+          }
+          onClick={() => {
+            if (
+              !guardandoIndependiente
+            ) {
+
+              setMostrarModalIndependiente(
+                false
+              );
+
+            }
+          }}
+        >
+
+          <form
+            style={
+              modalLarge
+            }
+            onSubmit={
+              guardarIndependienteManual
+            }
+            onClick={
+              e =>
+                e.stopPropagation()
+            }
+          >
+
+            <div
+              style={
+                modalHeader
+              }
+            >
+
+              <div>
+
+                <h2
+                  style={
+                    modalTitle
+                  }
+                >
+                  👤 Crear Independiente manual
+                </h2>
+
+                <p
+                  style={
+                    modalSubtitle
+                  }
+                >
+                  Activa una cuenta Independiente sin pasar por Mercado Pago.
+                  Esta cuenta tendrá una sola licencia profesional.
+                </p>
+
+              </div>
+
+
+              <button
+                type="button"
+                style={
+                  closeButton
+                }
+                disabled={
+                  guardandoIndependiente
+                }
+                onClick={() =>
+                  setMostrarModalIndependiente(
+                    false
+                  )
+                }
+              >
+                ✕
+              </button>
+
+            </div>
+
+
+            <div
+              style={
+                detailSection
+              }
+            >
+
+              <h3
+                style={
+                  detailPanelTitle
+                }
+              >
+                👤 Titular independiente
+              </h3>
+
+
+              <div
+                style={
+                  formGrid
+                }
+              >
+
+                <Field
+                  label="Perfil *"
+                >
+                  <select
+                    required
+                    name="perfil_independiente"
+                    value={
+                      formIndependiente
+                        .perfil_independiente
+                    }
+                    onChange={
+                      cambiarFormIndependiente
+                    }
+                    style={
+                      input
+                    }
+                  >
+                    <option value="clinica">
+                      Psicología / Clínica
+                    </option>
+
+                    <option value="rh">
+                      Recursos Humanos
+                    </option>
+                  </select>
+                </Field>
+
+
+                <Field
+                  label="Nombre del titular *"
+                >
+                  <input
+                    required
+                    name="nombre"
+                    value={
+                      formIndependiente
+                        .nombre
+                    }
+                    onChange={
+                      cambiarFormIndependiente
+                    }
+                    style={
+                      input
+                    }
+                  />
+                </Field>
+
+
+                <Field
+                  label="Nombre de práctica / espacio *"
+                >
+                  <input
+                    required
+                    name="nombre_practica"
+                    value={
+                      formIndependiente
+                        .nombre_practica
+                    }
+                    onChange={
+                      cambiarFormIndependiente
+                    }
+                    style={
+                      input
+                    }
+                  />
+                </Field>
+
+
+                <Field
+                  label="Correo *"
+                >
+                  <input
+                    required
+                    type="email"
+                    name="correo"
+                    value={
+                      formIndependiente
+                        .correo
+                    }
+                    onChange={
+                      cambiarFormIndependiente
+                    }
+                    style={
+                      input
+                    }
+                  />
+                </Field>
+
+
+                <Field
+                  label="Contraseña *"
+                >
+                  <input
+                    required
+                    type="password"
+                    minLength="6"
+                    name="password"
+                    value={
+                      formIndependiente
+                        .password
+                    }
+                    onChange={
+                      cambiarFormIndependiente
+                    }
+                    style={
+                      input
+                    }
+                  />
+                </Field>
+
+
+                <Field
+                  label="Teléfono"
+                >
+                  <input
+                    name="telefono"
+                    value={
+                      formIndependiente
+                        .telefono
+                    }
+                    onChange={
+                      cambiarFormIndependiente
+                    }
+                    style={
+                      input
+                    }
+                  />
+                </Field>
+
+
+                <Field
+                  label="RFC"
+                >
+                  <input
+                    name="rfc"
+                    value={
+                      formIndependiente
+                        .rfc
+                    }
+                    onChange={
+                      cambiarFormIndependiente
+                    }
+                    style={
+                      input
+                    }
+                  />
+                </Field>
+
+
+                <Field
+                  label="Dirección"
+                >
+                  <input
+                    name="direccion"
+                    value={
+                      formIndependiente
+                        .direccion
+                    }
+                    onChange={
+                      cambiarFormIndependiente
+                    }
+                    style={
+                      input
+                    }
+                  />
+                </Field>
+
+              </div>
+
+            </div>
+
+
+            <div
+              style={
+                detailSection
+              }
+            >
+
+              <h3
+                style={
+                  detailPanelTitle
+                }
+              >
+                💳 Membresía Independiente
+              </h3>
+
+
+              <div
+                style={
+                  formGrid
+                }
+              >
+
+                <Field
+                  label="Plan Independiente *"
+                >
+                  <select
+                    required
+                    name="id_plan"
+                    value={
+                      formIndependiente
+                        .id_plan
+                    }
+                    onChange={
+                      cambiarFormIndependiente
+                    }
+                    style={
+                      input
+                    }
+                  >
+                    <option value="">
+                      Selecciona un plan
+                    </option>
+
+                    {planes
+                      .filter(
+                        plan => {
+
+                          const tipo =
+                            String(
+                              plan.tipo ||
+                              ""
+                            )
+                              .trim()
+                              .toLowerCase();
+
+
+                          return (
+                            Number(
+                              plan.activo
+                            ) === 1 &&
+                            (
+                              tipo ===
+                                "independiente" ||
+                              tipo ===
+                                "psicologo"
+                            )
+                          );
+
+                        }
+                      )
+                      .map(
+                        plan => (
+                          <option
+                            key={
+                              plan.id_plan
+                            }
+                            value={
+                              plan.id_plan
+                            }
+                          >
+                            {plan.nombre}
+                          </option>
+                        )
+                      )}
+                  </select>
+                </Field>
+
+
+                <Field
+                  label="Licencias"
+                >
+                  <input
+                    readOnly
+                    value="1"
+                    style={
+                      input
+                    }
+                  />
+                </Field>
+
+
+                <Field
+                  label="Vigencia inicial (meses) *"
+                >
+                  <input
+                    required
+                    type="number"
+                    min="1"
+                    max="36"
+                    name="meses"
+                    value={
+                      formIndependiente
+                        .meses
+                    }
+                    onChange={
+                      cambiarFormIndependiente
+                    }
+                    style={
+                      input
+                    }
+                  />
+                </Field>
+
+
+                <Field
+                  label="Motivo / origen"
+                >
+                  <select
+                    name="origen_alta"
+                    value={
+                      formIndependiente
+                        .origen_alta
+                    }
+                    onChange={
+                      cambiarFormIndependiente
+                    }
+                    style={
+                      input
+                    }
+                  >
+                    <option value="cortesia">
+                      Cortesía
+                    </option>
+
+                    <option value="promocion">
+                      Promoción
+                    </option>
+
+                    <option value="pago_validado_manual">
+                      Pago validado manualmente
+                    </option>
+
+                    <option value="otro">
+                      Otro
+                    </option>
+                  </select>
+                </Field>
+
+
+                {formIndependiente
+                  .origen_alta ===
+                  "otro" && (
+
+                  <Field
+                    label="Describe el motivo"
+                  >
+                    <input
+                      name="motivo_alta"
+                      value={
+                        formIndependiente
+                          .motivo_alta
+                      }
+                      onChange={
+                        cambiarFormIndependiente
+                      }
+                      style={
+                        input
+                      }
+                    />
+                  </Field>
+
+                )}
+
+              </div>
+
+
+              <div
+                style={
+                  backupMessage
+                }
+              >
+                ℹ️ El titular será el único usuario de esta membresía
+                y su licencia quedará asignada automáticamente.
+              </div>
+
+            </div>
+
+
+            <div
+              style={
+                modalActions
+              }
+            >
+
+              <button
+                type="button"
+                style={
+                  secondaryButton
+                }
+                disabled={
+                  guardandoIndependiente
+                }
+                onClick={() =>
+                  setMostrarModalIndependiente(
+                    false
+                  )
+                }
+              >
+                Cancelar
+              </button>
+
+
+              <button
+                type="submit"
+                style={
+                  primaryButton
+                }
+                disabled={
+                  guardandoIndependiente
+                }
+              >
+                {guardandoIndependiente
+                  ? "Creando..."
+                  : "✅ Crear y activar Independiente"}
+              </button>
+
+            </div>
+
+          </form>
+
+        </div>
+
+      )}
+
+
+      {/* ==================================================
+          MODAL CREAR MEMBRESÍA MANUAL
+      ================================================== */}
+
+      {mostrarModalMembresia && (
+
+        <div
+          style={
+            modalOverlay
+          }
+          onClick={() => {
+            if (
+              !guardandoMembresia
+            ) {
+              setMostrarModalMembresia(
+                false
+              );
+            }
+          }}
+        >
+
+          <form
+            style={
+              modalLarge
+            }
+            onSubmit={
+              guardarMembresiaManual
+            }
+            onClick={
+              e =>
+                e.stopPropagation()
+            }
+          >
+
+            <div
+              style={
+                modalHeader
+              }
+            >
+
+              <div>
+
+                <h2
+                  style={
+                    modalTitle
+                  }
+                >
+                  ➕ Crear membresía manual
+                </h2>
+
+                <p
+                  style={
+                    modalSubtitle
+                  }
+                >
+                  Crea una organización, su suscripción,
+                  licencias y administrador sin pasar por Mercado Pago.
+                </p>
+
+              </div>
+
+
+              <button
+                type="button"
+                style={
+                  closeButton
+                }
+                disabled={
+                  guardandoMembresia
+                }
+                onClick={() =>
+                  setMostrarModalMembresia(
+                    false
+                  )
+                }
+              >
+                ✕
+              </button>
+
+            </div>
+
+
+            {/* =============================================
+                DATOS DE LA ORGANIZACIÓN
+            ============================================= */}
+
+            <div
+              style={
+                detailSection
+              }
+            >
+
+              <h3
+                style={
+                  detailPanelTitle
+                }
+              >
+                🏢 Datos del cliente
+              </h3>
+
+
+              <div
+                style={
+                  formGrid
+                }
+              >
+
+                <Field
+                  label="Nombre de la organización *"
+                >
+                  <input
+                    required
+                    name="nombre"
+                    value={
+                      formMembresia.nombre
+                    }
+                    onChange={
+                      cambiarFormMembresia
+                    }
+                    style={
+                      input
+                    }
+                  />
+                </Field>
+
+
+                <Field
+                  label="Nombre comercial"
+                >
+                  <input
+                    name="nombre_comercial"
+                    value={
+                      formMembresia.nombre_comercial
+                    }
+                    onChange={
+                      cambiarFormMembresia
+                    }
+                    style={
+                      input
+                    }
+                  />
+                </Field>
+
+
+                <Field
+                  label="Responsable"
+                >
+                  <input
+                    name="responsable"
+                    value={
+                      formMembresia.responsable
+                    }
+                    onChange={
+                      cambiarFormMembresia
+                    }
+                    style={
+                      input
+                    }
+                  />
+                </Field>
+
+
+                <Field
+                  label="Correo de contacto"
+                >
+                  <input
+                    type="email"
+                    name="correo"
+                    value={
+                      formMembresia.correo
+                    }
+                    onChange={
+                      cambiarFormMembresia
+                    }
+                    style={
+                      input
+                    }
+                  />
+                </Field>
+
+
+                <Field
+                  label="Teléfono"
+                >
+                  <input
+                    name="telefono"
+                    value={
+                      formMembresia.telefono
+                    }
+                    onChange={
+                      cambiarFormMembresia
+                    }
+                    style={
+                      input
+                    }
+                  />
+                </Field>
+
+
+                <Field
+                  label="RFC"
+                >
+                  <input
+                    name="rfc"
+                    value={
+                      formMembresia.rfc
+                    }
+                    onChange={
+                      cambiarFormMembresia
+                    }
+                    style={
+                      input
+                    }
+                  />
+                </Field>
+
+
+                <Field
+                  label="Dirección"
+                >
+                  <input
+                    name="direccion"
+                    value={
+                      formMembresia.direccion
+                    }
+                    onChange={
+                      cambiarFormMembresia
+                    }
+                    style={
+                      input
+                    }
+                  />
+                </Field>
+
+              </div>
+
+            </div>
+
+
+            {/* =============================================
+                MEMBRESÍA
+            ============================================= */}
+
+            <div
+              style={
+                detailSection
+              }
+            >
+
+              <h3
+                style={
+                  detailPanelTitle
+                }
+              >
+                💳 Membresía
+              </h3>
+
+
+              <div
+                style={
+                  formGrid
+                }
+              >
+
+                <Field
+                  label="Tipo *"
+                >
+                  <select
+                    required
+                    name="tipo"
+                    value={
+                      formMembresia.tipo
+                    }
+                    onChange={
+                      cambiarFormMembresia
+                    }
+                    style={
+                      input
+                    }
+                  >
+                    <option value="clinica">
+                      Clínica
+                    </option>
+
+                    <option value="rh">
+                      RH
+                    </option>
+
+                    <option value="educativo">
+                      Educativo
+                    </option>
+                  </select>
+                </Field>
+
+
+                <Field
+                  label="Plan *"
+                >
+                  <select
+                    required
+                    name="id_plan"
+                    value={
+                      formMembresia.id_plan
+                    }
+                    onChange={
+                      cambiarFormMembresia
+                    }
+                    style={
+                      input
+                    }
+                  >
+                    <option value="">
+                      Selecciona un plan
+                    </option>
+
+                    {planes
+                      .filter(
+                        plan =>
+                          Number(
+                            plan.activo
+                          ) === 1 &&
+                          String(
+                            plan.tipo ||
+                            ""
+                          )
+                            .trim()
+                            .toLowerCase() ===
+                          String(
+                            formMembresia.tipo
+                          )
+                            .trim()
+                            .toLowerCase()
+                      )
+                      .map(
+                        plan => (
+                          <option
+                            key={
+                              plan.id_plan
+                            }
+                            value={
+                              plan.id_plan
+                            }
+                          >
+                            {plan.nombre}
+                          </option>
+                        )
+                      )}
+                  </select>
+                </Field>
+
+
+                <Field
+                  label="Licencias *"
+                >
+                  <input
+                    required
+                    type="number"
+                    min="1"
+                    max="10000"
+                    name="licencias_totales"
+                    value={
+                      formMembresia.licencias_totales
+                    }
+                    onChange={
+                      cambiarFormMembresia
+                    }
+                    style={
+                      input
+                    }
+                  />
+                </Field>
+
+
+                <Field
+                  label="Vigencia inicial (meses) *"
+                >
+                  <input
+                    required
+                    type="number"
+                    min="1"
+                    max="36"
+                    name="meses"
+                    value={
+                      formMembresia.meses
+                    }
+                    onChange={
+                      cambiarFormMembresia
+                    }
+                    style={
+                      input
+                    }
+                  />
+                </Field>
+
+
+                <Field
+                  label="Motivo / origen"
+                >
+                  <select
+                    name="origen_alta"
+                    value={
+                      formMembresia.origen_alta
+                    }
+                    onChange={
+                      cambiarFormMembresia
+                    }
+                    style={
+                      input
+                    }
+                  >
+                    <option value="cortesia">
+                      Cortesía
+                    </option>
+
+                    <option value="promocion">
+                      Promoción
+                    </option>
+
+                    <option value="pago_validado_manual">
+                      Pago validado manualmente
+                    </option>
+
+                    <option value="otro">
+                      Otro
+                    </option>
+                  </select>
+                </Field>
+
+
+                {formMembresia
+                  .origen_alta ===
+                  "otro" && (
+
+                  <Field
+                    label="Describe el motivo"
+                  >
+                    <input
+                      name="motivo_alta"
+                      value={
+                        formMembresia.motivo_alta
+                      }
+                      onChange={
+                        cambiarFormMembresia
+                      }
+                      style={
+                        input
+                      }
+                    />
+                  </Field>
+
+                )}
+
+              </div>
+
+            </div>
+
+
+            {/* =============================================
+                ADMINISTRADOR PRINCIPAL
+            ============================================= */}
+
+            <div
+              style={
+                detailSection
+              }
+            >
+
+              <h3
+                style={
+                  detailPanelTitle
+                }
+              >
+                👤 Administrador principal
+              </h3>
+
+
+              <div
+                style={
+                  formGrid
+                }
+              >
+
+                <Field
+                  label="Nombre *"
+                >
+                  <input
+                    required
+                    name="admin_nombre"
+                    value={
+                      formMembresia.admin_nombre
+                    }
+                    onChange={
+                      cambiarFormMembresia
+                    }
+                    style={
+                      input
+                    }
+                  />
+                </Field>
+
+
+                <Field
+                  label="Correo *"
+                >
+                  <input
+                    required
+                    type="email"
+                    name="admin_correo"
+                    value={
+                      formMembresia.admin_correo
+                    }
+                    onChange={
+                      cambiarFormMembresia
+                    }
+                    style={
+                      input
+                    }
+                  />
+                </Field>
+
+
+                <Field
+                  label="Contraseña temporal *"
+                >
+                  <input
+                    required
+                    type="password"
+                    minLength="6"
+                    name="admin_password"
+                    value={
+                      formMembresia.admin_password
+                    }
+                    onChange={
+                      cambiarFormMembresia
+                    }
+                    style={
+                      input
+                    }
+                  />
+                </Field>
+
+
+                <Field
+                  label="Teléfono"
+                >
+                  <input
+                    name="admin_telefono"
+                    value={
+                      formMembresia.admin_telefono
+                    }
+                    onChange={
+                      cambiarFormMembresia
+                    }
+                    style={
+                      input
+                    }
+                  />
+                </Field>
+
+
+                <Field
+                  label="Dirección"
+                >
+                  <input
+                    name="admin_direccion"
+                    value={
+                      formMembresia.admin_direccion
+                    }
+                    onChange={
+                      cambiarFormMembresia
+                    }
+                    style={
+                      input
+                    }
+                  />
+                </Field>
+
+              </div>
+
+            </div>
+
+
+            <div
+              style={
+                modalActions
+              }
+            >
+
+              <button
+                type="button"
+                style={
+                  secondaryButton
+                }
+                disabled={
+                  guardandoMembresia
+                }
+                onClick={() =>
+                  setMostrarModalMembresia(
+                    false
+                  )
+                }
+              >
+                Cancelar
+              </button>
+
+
+              <button
+                type="submit"
+                style={
+                  primaryButton
+                }
+                disabled={
+                  guardandoMembresia
+                }
+              >
+                {guardandoMembresia
+                  ? "Creando..."
+                  : "✅ Crear y activar membresía"}
+              </button>
+
+            </div>
+
+          </form>
+
+        </div>
 
       )}
 
